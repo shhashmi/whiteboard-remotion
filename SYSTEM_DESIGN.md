@@ -1,744 +1,713 @@
-# System Design: Text-to-Whiteboard-Video Pipeline
+# System Design: Text-to-Video Production Pipeline
 
-Convert a plain text message into an animated whiteboard explainer video, rendered via Remotion.
+Turn a plain text idea into a complete animated whiteboard video. A pipeline modeled on film production — distinct creative roles, each with clear responsibility, composing from a shared toolkit of animation primitives.
 
 ---
 
 ## 1. Product Framing
 
-**User input:** A plain text message (e.g. "Explain how DNS resolution works", "Compare Kafka vs RabbitMQ", "5 principles of good API design").
+**Target segment:** Promotional video creators, educators, and marketers who have an idea ("launch announcement for our new API", "explain our product's architecture to investors") and want a polished animated explainer video without design skills or a production team.
 
-**Output:** A downloadable MP4 whiteboard-style animated explainer video (1920x1080, 30fps) with hand-drawn aesthetic — sketch boxes, typewriter text, drawn icons, staggered reveals.
+**User input:** A plain text message. Could be a single sentence or a paragraph.
 
-**What makes this sellable:**
-- Zero design skill required from the user
-- Deterministic, reproducible output (same input = same video)
-- Editable intermediate artifacts (user can tweak the spec before rendering)
-- Professional hand-drawn aesthetic already proven in the existing codebase
+**Output:** A downloadable animated whiteboard video (MP4, 1920x1080, 30fps). Hand-drawn aesthetic — sketch lines, typewriter text, drawn icons, staggered reveals.
+
+**Core value proposition:** The system doesn't fill templates — it *creates*. Different inputs produce structurally different videos with different narrative arcs, visual compositions, and pacing. The same way two filmmakers given the same brief would produce different films.
 
 ---
 
-## 2. Existing Asset Inventory
+## 2. The Production Pipeline
 
-Everything below already exists and works in this repo. The pipeline must compose these — not reinvent them.
+Film production has distinct roles because creative work decomposes into separable concerns. A scriptwriter shouldn't be thinking about camera angles. A director shouldn't be rewriting dialogue. Each role has deep expertise in one dimension and clear handoff points.
 
-### 2.1 Primitive Components (`src/studymaterial/components.tsx`)
-
-| Component | Props | What it does |
-|---|---|---|
-| `HandWrittenText` | `text, x, y, startFrame, durationFrames, fontSize, fill, fontWeight, textAnchor, fontFamily` | Typewriter character-by-character text reveal in SVG |
-| `AnimatedPath` | `d, startFrame, drawDuration, stroke, strokeWidth, fill, fillOpacity, fillDuration, opacity` | SVG path with stroke-dashoffset draw animation |
-| `SketchBox` | `x, y, width, height, startFrame, drawDuration, stroke, strokeWidth, fill, fillOpacity, rx` | Wobbly-cornered rectangle (hand-drawn feel) |
-| `SketchCircle` | `cx, cy, r, startFrame, drawDuration, stroke, fill, fillOpacity` | Imperfect bezier-circle |
-| `SketchArrow` | `x1, y1, x2, y2, startFrame, drawDuration, color, strokeWidth` | Line with arrowhead (16px head) |
-| `SketchLine` | `x1, y1, x2, y2, startFrame, drawDuration, color, strokeWidth` | Simple animated line |
-| `SketchTable` | `headers, rows, x, y, colWidth, rowHeight, startFrame, framesPerRow, headerColor, fontSize` | Full table with animated border, header fill, row/col separators, cell text |
-| `Scene` | `startFrame, endFrame, children` | Opacity fade in/out container (15-frame transitions), returns null outside range |
-| `FadeIn` | `startFrame, durationFrames, direction, distance, children` | Directional entrance (up/down/left/right/scale) |
-| `SVG` | `children` | 1920x1080 viewport wrapper |
-| `CheckMark` | `cx, cy, scale, startFrame, drawDuration, color` | Animated green checkmark |
-| `CrossMark` | `cx, cy, scale, startFrame, drawDuration, color` | Animated red X |
-
-### 2.2 Icon Components (`src/studymaterial/components.tsx`)
-
-All icons share the same interface: `cx, cy, scale, startFrame, drawDuration` + optional `color`.
-
-`RobotHead`, `PersonIcon`, `BrainIcon`, `GearIcon`, `Lightbulb`, `ToolIcon`, `TargetIcon`, `DatabaseIcon`, `CodeIcon`, `CloudIcon`
-
-Additional icons in `src/shared/components.tsx`: `BookIcon`, `MonitorIcon`, `SpeechBubble`, `BarChart`, `ClockIcon`, `DocStack`
-
-### 2.3 Color Palette (`COLORS` in `src/studymaterial/components.tsx`)
+The same principle applies here. Each role is an LLM agent with a focused system prompt, receiving the previous role's output and producing a structured artifact for the next.
 
 ```
-outline: '#1e293b', orange: '#f97316', blue: '#3b82f6', purple: '#8b5cf6',
-green: '#22c55e', yellow: '#fbbf24', red: '#ef4444',
-gray1: '#64748b', gray2: '#94a3b8', gray3: '#cbd5e1', white: '#ffffff'
+User Idea
+    │
+    ▼
+┌──────────┐    ┌──────────────┐    ┌──────────────┐    ┌──────────────┐    ┌──────────────┐
+│  Author   │──▶│ Scriptwriter  │──▶│ Art Director  │──▶│  Animator     │──▶│  Renderer     │
+│  (LLM)    │   │  (LLM)        │   │  (LLM+tools)  │   │  (LLM)        │   │  (code)        │
+└──────────┘    └──────────────┘    └──────────────┘    └──────────────┘    └──────────────┘
+ Story outline   Scene-by-scene     Visual direction     Animation spec     .tsx + MP4
+ + narrative arc  script with text   per scene            with frame-level
+                  and beats                               component calls
 ```
 
-### 2.4 Proven Scene Patterns (from `src/studymaterial/scenes.tsx`)
+### Why this ordering, not fewer stages
 
-These are the actual compositions that shipped. Each is a pattern the pipeline must be able to reproduce:
+| Alternative | Problem |
+|---|---|
+| Single LLM call | Mixes story, text, visuals, timing in one prompt. Output quality collapses as scope grows. |
+| Two stages (script + render) | Script must embed visual decisions it shouldn't own. "Put a robot icon at 960,440" shouldn't be the scriptwriter's job. |
+| Template-first (old design) | Every video looks the same. Caps creativity. Can't adapt to novel content types. |
 
-| Pattern | Example Scene | Key Technique |
-|---|---|---|
-| **Title card** | Scene1Title | Central icon + large `HandWrittenText` + subtitle + decorative dots |
-| **Definition/concept** | Scene2Definition | Icon + text lines + concept circles connected by arrows + callout box |
-| **N-card layout** | Scene3ThreePillars | N evenly-spaced `SketchBox` cards, each with number + icon + title + description |
-| **Step chain** | Scene4Autonomy | Vertical chain of `SketchBox` items connected by `SketchArrow`, staggered by `i * 30` frames |
-| **Comparison table** | Scene5ComparisonTable | `SketchTable` + summary row of circles/arrows below |
-| **Split comparison** | Scene6GoalDirected | Two `SketchBox` panels side-by-side (Traditional vs Agentic) with icons and checklists |
-| **Hub-and-spoke** | Scene7ToolUse | Central icon + radiating `SketchLine` connections to surrounding cards |
-| **Spotlight** | Scene9Spotlight | Two large side-by-side cards with checklists and highlight boxes |
-| **Closing/formula** | Scene10Closing | Icon row with "+" signs, "=" sign, big text conclusion |
-
-### 2.5 Timing Conventions (empirical from existing scenes)
-
-- Scene duration: 240-450 frames (8-15 seconds)
-- Text reveal: ~1.5 chars/frame (`durationFrames ≈ text.length / 1.5`)
-- Box draw: 18-30 frames
-- Arrow draw: 10-15 frames
-- Icon draw: 40-80 frames (scales with complexity)
-- Stagger between sequential items: 25-35 frames
-- Scene fade transition: 15 frames
-- Content starts ~15 frames after scene start (allows fade-in)
-
-### 2.6 Layout Constants (1920x1080 canvas)
-
-- Title Y: 60-80px from top
-- Content area: y=120 to y=950
-- Side margins: 60-120px
-- Card spacing for 3-card layout: x positions ~385, 960, 1535 (center of each card)
-- Table default position: x=185-240, y=108-110
-- Bottom annotations: y=950-1000
+The five-role pipeline works because each role's output is **auditable and editable** independently. A user can approve the story, tweak the script, change the art direction, and re-render — without restarting from scratch.
 
 ---
 
-## 3. Retrieval Layer — Scaling to Thousands of Templates and Images
+## 3. Role 1: Author
 
-The previous sections inventory what exists today (~9 scene patterns, ~16 icons). But the product vision requires thousands of scene templates and thousands of images. You cannot stuff all of them into an LLM prompt. This section describes how the right templates and images are discovered at query time.
+**Analog:** The person who conceives the story — its theme, arc, and emotional structure.
 
-### 3.1 The Core Problem
+**Input:** Raw user message.
 
-| Asset type | Today | At scale | Why brute-force fails |
-|---|---|---|---|
-| Scene templates | 9 patterns | 2,000+ | Listing all in prompt = 500K+ tokens |
-| Images/icons | 16 SVG icons | 2,000+ | Same — and images need visual descriptions |
+**Output:** `StoryOutline` — the narrative skeleton of the video.
 
-The LLM must see only the **5-15 most relevant** templates and images for a given user message. Everything else is noise.
+**What the Author decides:**
+- What is this video *about* at a thematic level?
+- What's the narrative arc? (Problem → exploration → resolution? Question → evidence → answer? Overview → deep dives → synthesis?)
+- How many beats does the story need?
+- What's the emotional trajectory? (Curiosity → understanding → excitement? Confusion → clarity?)
+- What's the hook and what's the takeaway?
 
-### 3.2 Asset Registry
-
-Every template and image is registered in a structured catalog. This is the source of truth for retrieval.
-
-#### Scene Template Registry
-
-Each scene template is stored as a JSON file + a metadata record:
-
-```
-assets/
-├── templates/
-│   ├── registry.jsonl              # one metadata record per line
-│   ├── card-layout-3col.json       # full template spec
-│   ├── card-layout-2col.json
-│   ├── step-chain-vertical.json
-│   ├── comparison-table-4col.json
-│   ├── timeline-horizontal.json
-│   ├── ...                         # thousands of these
-```
-
-**Template metadata record:**
+**What the Author does NOT decide:**
+- Exact on-screen text (that's the Scriptwriter)
+- What anything looks like (that's the Art Director)
+- Frame numbers or positions (that's the Animator)
 
 ```typescript
-interface TemplateRecord {
-  id: string                          // "card-layout-3col"
-  name: string                        // "Three-Column Card Layout"
-  description: string                 // "Three evenly-spaced cards with number, icon, title, and 
-                                      //  2-line description. Good for pillars, categories, or 
-                                      //  parallel concepts."
-  structural_type: string             // "card-layout" | "step-chain" | "table" | "hub-spoke" | ...
-  content_fit: string[]               // ["categories", "pillars", "features", "pros-cons"]
-  element_count: { min: number; max: number }  // { min: 2, max: 4 }
-  complexity: "simple" | "moderate" | "complex"
-  tags: string[]                      // ["comparison", "parallel", "side-by-side"]
-  example_topics: string[]            // ["Three pillars of security", "React vs Vue vs Angular"]
-  embedding?: number[]                // precomputed from description + tags + example_topics
+interface StoryOutline {
+  title: string
+  logline: string                    // one-sentence summary of the video's purpose
+  audience: string                   // who is this for? inferred from the message
+  arc: NarrativeArc
+  beats: StoryBeat[]
+}
+
+interface NarrativeArc {
+  type: string                       // "problem-solution", "question-answer", "tour",
+                                     // "comparison", "journey", "reveal", etc.
+  description: string                // "We pose a question, explore three dimensions 
+                                     //  of the answer, then synthesize into a framework"
+}
+
+interface StoryBeat {
+  id: string                         // "beat-1", "beat-2", ...
+  role: string                       // "hook", "setup", "exploration", "turn",
+                                     //  "deepening", "climax", "resolution", "coda"
+  intent: string                     // "Make the viewer curious about why DNS is 
+                                     //  surprisingly complex"
+  key_idea: string                   // "DNS is not just one lookup — it's a chain of
+                                     //  delegations across a global hierarchy"
+  emotional_note: string             // "curiosity", "surprise", "clarity", "satisfaction"
+  connects_to?: string[]             // ["beat-1", "beat-3"] — narrative threads
 }
 ```
 
-The `description` field is written for retrieval — it describes what the template looks like *and* what content it's good for. The `embedding` is precomputed from `description + tags + example_topics` concatenated.
-
-#### Image Registry
-
-```
-assets/
-├── images/
-│   ├── registry.jsonl
-│   ├── svg/                    # SVG icon components
-│   │   ├── robot-head.tsx
-│   │   ├── database-cylinder.tsx
-│   │   └── ...
-│   ├── raster/                 # PNG/JPG illustrations (rendered to canvas)
-│   │   ├── cloud-server.png
-│   │   ├── lock-shield.png
-│   │   └── ...
-```
-
-**Image metadata record:**
-
-```typescript
-interface ImageRecord {
-  id: string                    // "robot-head"
-  name: string                  // "Robot Head"
-  description: string           // "Cartoon robot face with antenna, round eyes, zigzag mouth. 
-                                //  Conveys AI, automation, bots, machine learning."
-  type: "svg-component" | "raster"
-  category: string              // "technology" | "people" | "business" | "science" | "abstract"
-  depicts: string[]             // ["robot", "AI", "automation", "bot"]
-  style: string                 // "hand-drawn" | "flat" | "outline" | "3d"
-  props_interface?: string      // "cx, cy, scale, startFrame, drawDuration" (for SVG components)
-  embedding?: number[]          // precomputed from description + depicts
-}
-```
-
-### 3.3 Retrieval Mechanism
-
-Two-phase retrieval: **filter then rank**.
-
-```
-User message: "Explain how Kubernetes orchestrates containers"
-                          │
-                          ▼
-                 ┌─────────────────┐
-                 │  Phase 1: Filter │   Structured metadata query
-                 │  (fast, exact)   │   - structural_type IN (...)
-                 │                  │   - element_count compatible
-                 └────────┬────────┘
-                          │ ~50-200 candidates
-                          ▼
-                 ┌─────────────────┐
-                 │  Phase 2: Rank   │   Embedding cosine similarity
-                 │  (semantic)      │   query embedding vs asset embedding
-                 └────────┬────────┘
-                          │ top 5-10
-                          ▼
-                   Injected into LLM prompt
-```
-
-#### Phase 1: Filter (templates)
-
-Before any embedding search, narrow the candidate pool using structured metadata. The LLM in Stage 1 (Interpret) first emits a lightweight **search intent** — not the full blueprint yet:
-
-```typescript
-interface SearchIntent {
-  content_type: "explanation" | "comparison" | "list" | "process" | "definition"
-  estimated_scenes: number        // 3-7
-  scene_needs: SceneNeed[]        // what each scene needs to show
-}
-
-interface SceneNeed {
-  purpose: string                 // "show 5 steps in a deployment pipeline"
-  structural_hint: string         // "step-chain" | "table" | "cards" | "diagram" | "any"
-  element_count: number           // how many items to display
-  concepts: string[]              // ["container", "pod", "node", "cluster"]
-}
-```
-
-For each `SceneNeed`, filter templates:
-- `structural_type` matches `structural_hint` (or skip filter if "any")
-- `element_count.min <= need.element_count <= element_count.max`
-
-This reduces ~2,000 templates to ~50-200 per scene need.
-
-#### Phase 1: Filter (images)
-
-For images, the `concepts` array from the search intent is used:
-- Match against `depicts` array (exact substring match)
-- Filter by `category` if the content domain is clear
-- Filter by `style` to match the video's aesthetic
-
-This reduces ~2,000 images to ~30-100 per concept.
-
-#### Phase 2: Rank (both templates and images)
-
-Embed the scene need's `purpose` string using a lightweight embedding model (e.g. `voyage-3-lite` or `text-embedding-3-small`). Compute cosine similarity against the precomputed `embedding` field of each candidate.
-
-Return top-K:
-- **Templates:** top 5 per scene need
-- **Images:** top 5 per concept
-
-#### Embedding Precomputation
-
-Run once when assets are added (not at query time):
-
-```typescript
-// Precompute on asset registration
-async function registerTemplate(template: TemplateRecord) {
-  const textToEmbed = [
-    template.description,
-    template.tags.join(", "),
-    template.example_topics.join(". "),
-    template.content_fit.join(", "),
-  ].join(" | ");
-
-  template.embedding = await embed(textToEmbed);
-  appendToRegistry("assets/templates/registry.jsonl", template);
-}
-
-async function registerImage(image: ImageRecord) {
-  const textToEmbed = [
-    image.description,
-    image.depicts.join(", "),
-    image.category,
-  ].join(" | ");
-
-  image.embedding = await embed(textToEmbed);
-  appendToRegistry("assets/images/registry.jsonl", image);
-}
-```
-
-### 3.4 What Gets Injected into the LLM Prompt
-
-After retrieval, the LLM sees a **shortlist**, not the full catalog.
-
-**For Stage 1 (Interpret) prompt — template selection:**
-
-```
-For scene 3, you need to show "5 steps in a deployment pipeline" (5 items).
-These templates are available — pick the best one by ID:
-
-1. step-chain-vertical (score: 0.92)
-   "Vertical chain of boxes connected by arrows. 3-8 steps. Good for 
-    sequential processes, pipelines, workflows."
-
-2. timeline-horizontal (score: 0.87)
-   "Horizontal timeline with milestone markers. 4-10 events. Good for 
-    chronological processes, release cycles, evolution."
-
-3. numbered-list-2col (score: 0.81)
-   "Two-column numbered list with descriptions. 4-8 items. Good for 
-    ordered steps, ranked lists, instructions."
-
-Selected template ID: ___
-```
-
-**For Stage 1 (Interpret) prompt — image selection:**
-
-```
-For the concept "container", these images are available — pick by ID:
-
-1. docker-container (score: 0.94) — "Blue whale carrying shipping containers. 
-   Depicts: Docker, containers, packaging, deployment."
-
-2. shipping-box (score: 0.88) — "Cardboard box with packing tape. 
-   Depicts: packaging, containment, shipping, storage."
-
-3. server-rack (score: 0.83) — "Server rack with blinking lights. 
-   Depicts: infrastructure, hosting, data center."
-
-Selected image ID: ___
-```
-
-The LLM makes the **creative choice** from a curated shortlist. It doesn't search — it picks.
-
-### 3.5 Storage & Index Options (MVP)
-
-For MVP with ~2,000 assets, heavyweight vector databases are overkill:
-
-| Option | When to use |
-|---|---|
-| **In-memory JSONL + brute-force cosine** | < 5,000 assets. Load `registry.jsonl` into memory, compute cosine on the fly. Fast enough (~10ms for 5K vectors of dim 256). |
-| **SQLite + sqlite-vss** | 5,000-50,000 assets. Structured filters via SQL, vector search via VSS extension. Single file, no server. |
-| **Dedicated vector DB (Pinecone, Qdrant)** | > 50,000 assets or multi-tenant SaaS. Probably never needed for templates, possibly for images. |
-
-**MVP recommendation:** In-memory JSONL. Load both registries at startup (~2MB for 2K records with 256-dim embeddings). Filter in JS, brute-force cosine similarity. No infrastructure dependency.
-
-### 3.5.1 Brute-Force Cosine Similarity — How It Works
-
-"Brute-force cosine" means: compare the query vector against **every** candidate vector, one by one, with no index or shortcut. It's the simplest possible vector search — a single loop.
-
-**What is cosine similarity?**
-
-Every template and image has a precomputed **embedding** — a fixed-length array of numbers (e.g. 256 floats) produced by an embedding model. The embedding captures the *meaning* of the asset's description. Two descriptions about similar topics will have embeddings that point in similar directions in 256-dimensional space.
-
-Cosine similarity measures the angle between two vectors. It ranges from -1 (opposite) to +1 (identical direction). For text embeddings, higher = more semantically similar.
-
-```
-                    A · B           Σ(aᵢ × bᵢ)
-cosine(A, B) = ─────────── = ─────────────────────
-                |A| × |B|     √Σ(aᵢ²) × √Σ(bᵢ²)
-```
-
-**The algorithm:**
-
-```typescript
-function cosineSimilarity(a: number[], b: number[]): number {
-  let dot = 0, normA = 0, normB = 0;
-  for (let i = 0; i < a.length; i++) {
-    dot += a[i] * b[i];
-    normA += a[i] * a[i];
-    normB += b[i] * b[i];
-  }
-  return dot / (Math.sqrt(normA) * Math.sqrt(normB));
-}
-
-function bruteForceSearch(
-  queryEmbedding: number[],             // embed("show 5 steps in deployment")
-  candidates: TemplateRecord[],         // ~50-200 after Phase 1 filtering
-  topK: number = 5
-): { record: TemplateRecord; score: number }[] {
-
-  // Score every candidate — this is the "brute force" part
-  const scored = candidates.map(record => ({
-    record,
-    score: cosineSimilarity(queryEmbedding, record.embedding),
-  }));
-
-  // Sort descending by score, return top K
-  scored.sort((a, b) => b.score - a.score);
-  return scored.slice(0, topK);
-}
-```
-
-**Why "brute force" is fine here:**
-
-| Factor | Value |
-|---|---|
-| Candidates after Phase 1 filter | ~50-200 (not the full 2,000) |
-| Embedding dimension | 256 floats |
-| Work per comparison | 256 multiplications + 256 additions |
-| Total comparisons | 200 × 256 = ~51,200 floating point ops |
-| Wall time | **< 1ms** on any modern CPU |
-
-Even without Phase 1 filtering — scanning all 2,000 assets raw — is ~512,000 ops, still well under 10ms. Brute force becomes a problem at 100K+ vectors, which is when you'd switch to an approximate nearest neighbor (ANN) index like HNSW (used by Qdrant, Pinecone, etc.). At MVP scale, adding an ANN index adds complexity for zero measurable benefit.
-
-**When brute-force stops being viable:**
-
-| Asset count | Brute-force time (256-dim) | Action |
-|---|---|---|
-| 2,000 | ~1ms | Use brute-force |
-| 10,000 | ~5ms | Still fine |
-| 50,000 | ~25ms | Borderline — consider SQLite-vss |
-| 200,000+ | ~100ms+ | Switch to ANN index |
-
-### 3.6 Template Spec Format (Data-Driven, Not Hardcoded)
-
-At scale, templates can't be hardcoded React components. Each template is a **parameterized JSON spec** — a layout recipe that the code generator can execute:
-
-```typescript
-interface TemplateSpec {
-  id: string
-  meta: TemplateRecord                      // the registry metadata
-  canvas: { width: 1920; height: 1080 }
-  parameters: ParameterDef[]                // what the LLM must fill in
-  elements: TemplateElement[]               // the layout recipe
-}
-
-interface ParameterDef {
-  name: string                              // "heading", "cards", "steps"
-  type: "string" | "string[]" | "object[]"
-  description: string                       // tells the LLM what to provide
-  constraints?: {
-    maxLength?: number
-    minItems?: number
-    maxItems?: number
-  }
-}
-
-// Elements use parameter references like {{heading}}, {{cards[i].title}}
-interface TemplateElement {
-  component: string
-  props: Record<string, unknown>           // values can contain {{param}} refs
-  repeat?: {                               // for lists/cards/steps
-    over: string                           // "cards", "steps"
-    as: string                             // "card", "step"
-    layout: "horizontal" | "vertical" | "grid" | "radial"
-    spacing: number                        // px between items
-    stagger: number                        // frames between items
-  }
-}
-```
-
-**Example: `card-layout-3col.json`**
+**Example output for "Explain how DNS works":**
 
 ```json
 {
-  "id": "card-layout-3col",
-  "parameters": [
-    { "name": "heading", "type": "string", "constraints": { "maxLength": 50 } },
-    { "name": "cards", "type": "object[]", "constraints": { "minItems": 2, "maxItems": 4 },
-      "description": "Each card has: number (int), icon (ImageID), title (string), description (string), color (ColorName)" }
-  ],
-  "elements": [
+  "title": "The Hidden Journey of a DNS Query",
+  "logline": "Every URL you type triggers a chain of lookups across a global hierarchy — here's how it works.",
+  "audience": "Technical professionals who use DNS daily but haven't thought about what happens under the hood",
+  "arc": {
+    "type": "journey",
+    "description": "Follow a single DNS query from browser to answer, revealing each layer of the system along the way"
+  },
+  "beats": [
     {
-      "component": "HandWrittenText",
-      "props": { "text": "{{heading}}", "x": 960, "y": 68, "fontSize": 46, "textAnchor": "middle",
-                 "startFrame": "{{sceneStart + 15}}", "durationFrames": 35 }
+      "id": "beat-1",
+      "role": "hook",
+      "intent": "Show the gap between what the user sees (instant page load) and what actually happens (complex distributed lookup)",
+      "key_idea": "You type a URL and a page appears — but between those moments, your query travels the world",
+      "emotional_note": "curiosity"
     },
     {
-      "component": "SketchLine",
-      "props": { "x1": 380, "y1": 82, "x2": 1540, "y2": 82, "color": "COLORS.orange", "strokeWidth": 3,
-                 "startFrame": "{{sceneStart + 50}}", "drawDuration": 20 }
+      "id": "beat-2",
+      "role": "setup",
+      "intent": "Establish the cast of characters in the DNS system",
+      "key_idea": "Four actors: your browser's cache, the recursive resolver, root/TLD nameservers, and the authoritative server",
+      "emotional_note": "orientation",
+      "connects_to": ["beat-1"]
     },
     {
-      "component": "SketchBox",
-      "repeat": { "over": "cards", "as": "card", "layout": "horizontal", "spacing": 575, "stagger": 15 },
-      "props": {
-        "x": "{{layoutX}}", "y": 120, "width": 450, "height": 650,
-        "startFrame": "{{itemStart}}", "drawDuration": 30,
-        "stroke": "{{card.color}}", "strokeWidth": 3, "fill": "{{card.color}}", "fillOpacity": 0.1
-      }
+      "id": "beat-3",
+      "role": "exploration",
+      "intent": "Walk through the query step by step",
+      "key_idea": "Cache miss → resolver → root → TLD → authoritative → answer propagates back",
+      "emotional_note": "engagement"
     },
     {
-      "component": "HandWrittenText",
-      "repeat": { "over": "cards", "as": "card", "layout": "horizontal", "spacing": 575, "stagger": 15 },
-      "props": {
-        "text": "{{card.number}}", "x": "{{layoutCenterX}}", "y": 205,
-        "fontSize": 72, "fill": "{{card.color}}", "fontWeight": 700, "textAnchor": "middle",
-        "startFrame": "{{itemStart + 20}}", "durationFrames": 15
-      }
+      "id": "beat-4",
+      "role": "deepening",
+      "intent": "Reveal the caching layer that makes this fast in practice",
+      "key_idea": "TTL-based caching at every level means most queries never leave your local resolver",
+      "emotional_note": "insight",
+      "connects_to": ["beat-1", "beat-3"]
     },
     {
-      "component": "{{card.icon}}",
-      "repeat": { "over": "cards", "as": "card", "layout": "horizontal", "spacing": 575, "stagger": 15 },
-      "props": {
-        "cx": "{{layoutCenterX}}", "cy": 350, "scale": 2.5,
-        "startFrame": "{{itemStart + 30}}", "drawDuration": 45
-      }
-    },
-    {
-      "component": "HandWrittenText",
-      "repeat": { "over": "cards", "as": "card", "layout": "horizontal", "spacing": 575, "stagger": 15 },
-      "props": {
-        "text": "{{card.title}}", "x": "{{layoutCenterX}}", "y": 490,
-        "fontSize": 34, "fill": "{{card.color}}", "fontWeight": 700, "textAnchor": "middle",
-        "startFrame": "{{itemStart + 55}}", "durationFrames": 20
-      }
-    },
-    {
-      "component": "HandWrittenText",
-      "repeat": { "over": "cards", "as": "card", "layout": "horizontal", "spacing": 575, "stagger": 15 },
-      "props": {
-        "text": "{{card.description}}", "x": "{{layoutCenterX}}", "y": 535,
-        "fontSize": 22, "fill": "COLORS.gray1", "fontWeight": 400, "textAnchor": "middle",
-        "startFrame": "{{itemStart + 70}}", "durationFrames": 20
-      }
+      "id": "beat-5",
+      "role": "resolution",
+      "intent": "Zoom out — show the full picture and why it matters",
+      "key_idea": "DNS is a globally distributed, hierarchical, cached database — and it resolves billions of queries per day in milliseconds",
+      "emotional_note": "satisfaction",
+      "connects_to": ["beat-1", "beat-2", "beat-3", "beat-4"]
     }
   ]
 }
 ```
 
-The **template is the layout knowledge**. The LLM only fills in the parameters. The code generator resolves `{{param}}` references, computes `{{layoutX}}` and `{{layoutCenterX}}` from the repeat layout, and computes `{{itemStart}}` from stagger.
+Notice: no mention of "scenes", "cards", "tables", or any visual concept. This is pure story.
 
-### 3.7 Revised Pipeline (with Retrieval)
+### Author's System Prompt (core)
 
 ```
-User message
-     │
-     ▼
-┌──────────┐      ┌───────────┐      ┌──────────┐      ┌──────────┐      ┌──────────┐
-│ Stage 0  │      │ Stage 1   │      │ Stage 2  │      │ Stage 3  │      │ Stage 4  │
-│ Search   │─────▶│ Interpret │─────▶│ Retrieve │─────▶│ Fill     │─────▶│ Emit +   │
-│ Intent   │      │           │      │ Assets   │      │ Templates│      │ Render   │
-│ (LLM)    │      │ (LLM)     │      │ (code)   │      │ (LLM)    │      │ (code)   │
-└──────────┘      └───────────┘      └──────────┘      └──────────┘      └──────────┘
-  ~200 tok out     ~800 tok out       no LLM call       ~2000 tok out     no LLM call
+You are a story author for animated explainer videos. Given a raw idea,
+create a narrative outline.
+
+Your job is ONLY the story — the arc, the beats, the emotional journey.
+Do NOT think about visuals, layouts, or animations. Think about:
+- What question does this video answer?
+- What does the viewer feel at each point?
+- How does each beat connect to the others?
+- What's the hook and what's the payoff?
+
+A good story outline makes a bad video impossible and a great video likely.
+A bad one makes even perfect animation feel hollow.
+
+Output valid JSON matching the StoryOutline schema.
 ```
-
-**Stage 0 — Search Intent (LLM, lightweight):**
-Extract what the video needs to show. Output: `SearchIntent` with scene needs and concept list. This is a small, fast call (~200 output tokens).
-
-**Stage 1 — Interpret (LLM, with retrieved shortlists):**
-The prompt now includes the top-5 template shortlist and top-5 image shortlist per scene need (retrieved by Stage 0's output). The LLM picks template IDs and image IDs from the shortlists, writes the on-screen text, and outputs a `VideoBlueprint` with concrete asset references.
-
-**Stage 2 — Retrieve Assets (deterministic):**
-Load the full template specs and image definitions for the chosen IDs. No LLM call.
-
-**Stage 3 — Fill Templates (LLM):**
-Given the full template specs (with `{{param}}` slots) and the `VideoBlueprint` content, the LLM fills in parameter values. This is highly constrained — the template defines what's needed, the LLM just provides the values. Output: filled parameter values per scene.
-
-**Stage 4 — Emit + Render (deterministic):**
-Resolve template parameters, compute layout positions, assign frame numbers, emit `.tsx`, render MP4.
-
-### 3.8 Why This Ordering Matters
-
-| Concern | How it's addressed |
-|---|---|
-| LLM can't see 2K templates | Stage 0 extracts search queries → retrieval narrows to ~5 per scene |
-| LLM picks wrong template | It picks from a pre-ranked shortlist of 5, not 2,000. Retrieval does the hard filtering. |
-| LLM hallucinates image names | It picks from a shortlist of 5 real images per concept. IDs are validated. |
-| Template layout quality | Layout knowledge lives in the template spec JSON, not the LLM. LLM only fills text + selects icons. |
-| Cost stays low | Stage 0 is tiny. Stage 1 sees ~50 shortlist entries, not 2,000. Stage 3 sees ~5 template specs. Total prompt size stays under 10K tokens. |
 
 ---
 
-## 4. Pipeline Architecture (Detailed)
+## 4. Role 2: Scriptwriter
 
-### Stage 0: Search Intent
+**Analog:** The person who turns the story outline into specific dialogue, narration, and on-screen text.
 
-**Input:** Raw text message.
-**Output:** `SearchIntent` — lightweight extraction of what the video needs.
+**Input:** `StoryOutline` from the Author.
 
-This is a cheap, fast LLM call. Its only job is to produce good retrieval queries.
+**Output:** `Script` — the exact text and information that will appear on screen, organized into scenes.
 
-```typescript
-interface SearchIntent {
-  topic: string                              // "Kubernetes container orchestration"
-  content_type: "explanation" | "comparison" | "list" | "process" | "definition"
-  scene_needs: SceneNeed[]
-}
+**What the Scriptwriter decides:**
+- How many scenes the video needs (mapping beats to scenes — some beats are one scene, some span two)
+- The exact text that appears on screen for each scene
+- The informational structure within each scene (bullet list? comparison? sequence of steps? single big statement?)
+- Pacing: how much information per scene
+- Connective language between scenes ("Now that we've seen X, let's look at Y")
+- Consistent terminology throughout
 
-interface SceneNeed {
-  purpose: string                            // natural language: "show 5 steps in deployment"
-  structural_hint: string                    // "step-chain" | "table" | "cards" | "diagram" | "any"
-  element_count: number
-  concepts: string[]                         // entities to illustrate: ["container", "pod", "node"]
-}
-```
-
-### Stage 1: Interpret (with shortlists)
-
-**Input:** Raw text message + retrieved template shortlists + retrieved image shortlists.
-
-**Output:** `VideoBlueprint` — the creative plan with concrete asset ID references.
+**What the Scriptwriter does NOT decide:**
+- Visual layout or component choices (that's Art Director + Animator)
+- Colors, icons, or imagery (that's Art Director)
+- Frame numbers or positions (that's Animator)
 
 ```typescript
-interface VideoBlueprint {
+interface Script {
   title: string
-  scenes: SceneBlueprint[]
+  scenes: SceneScript[]
+  terminology: Record<string, string>  // canonical terms used throughout
+                                       // e.g. { "resolver": "recursive resolver" }
 }
 
-interface SceneBlueprint {
-  templateId: string                         // chosen from shortlist, e.g. "card-layout-3col"
-  content: Record<string, unknown>           // parameter values the template needs
-  images: { slot: string; imageId: string }[] // which image goes where
+interface SceneScript {
+  scene_number: number
+  beat_ids: string[]                   // which story beats this scene covers
+  scene_type: string                   // "title", "explanation", "comparison", 
+                                       //  "sequence", "showcase", "summary", etc.
+                                       //  NOT a template ID — a semantic description
+  heading: string                      // main heading text
+  content: SceneContent                // the information to present
+  transition_in?: string               // "As we saw..." — connective text from previous
+  transition_out?: string              // "Next, let's explore..." — setup for next
+  pacing: "slow" | "medium" | "fast"   // how much time this scene needs
+  notes_for_director?: string          // creative hints: "this should feel like a 
+                                       //  reveal", "emphasize the contrast"
 }
 
+// The content is structured but not visual — it describes WHAT to show, not HOW
+type SceneContent =
+  | { type: "single-statement"; text: string }
+  | { type: "text-with-elaboration"; main: string; detail: string[] }
+  | { type: "labeled-items"; items: { label: string; description: string }[] }
+  | { type: "sequence"; steps: { label: string; detail?: string }[] }
+  | { type: "comparison"; dimensions: string[]; 
+      subjects: { name: string; values: string[] }[] }
+  | { type: "two-sides"; left: { title: string; points: string[] };
+      right: { title: string; points: string[] } }
+  | { type: "key-value-pairs"; pairs: { key: string; value: string }[] }
+  | { type: "formula"; parts: string[]; result: string }
 ```
 
-The `content` field is a generic map because each template defines its own parameter schema (via `ParameterDef[]`). The LLM fills `content` based on the template's parameter definitions.
+**Key design choice:** `SceneContent` types describe *informational structure*, not visual layout. `"labeled-items"` says "here are N things with names and descriptions" — it doesn't say whether they should be cards, a list, a table, or a hub-and-spoke diagram. That decision belongs to the Art Director.
 
-### Stages 2-4
+### Scriptwriter's System Prompt (core)
 
-Described in section 3.7 above. Stage 2 (Retrieve Assets) loads the full template specs. Stage 3 (Fill Templates) has the LLM fill parameter slots. Stage 4 (Emit + Render) resolves templates to code deterministically.
+```
+You are a scriptwriter for animated explainer videos. Given a story outline,
+write the complete script — every word that will appear on screen.
+
+Rules:
+- Each line of text must be under 40 characters (it will be rendered at
+  readable font sizes on a 1920x1080 canvas).
+- Use consistent terminology. If you call it "recursive resolver" in scene 2,
+  don't call it "DNS resolver" in scene 4 without introduction.
+- Add transition language between scenes so they flow as a narrative, not
+  a slide deck.
+- The notes_for_director field is where you communicate creative intent to
+  the visual team — "this should feel tense", "the contrast is the point",
+  "build up to the reveal".
+- You decide the content structure (list, comparison, sequence, etc.) based
+  on what best serves the information. Don't default to bullet lists.
+
+Output valid JSON matching the Script schema.
+```
 
 ---
 
-## 5. Template Resolution Engine (Stage 4 Detail)
+## 5. Role 3: Art Director
 
-Stage 4 takes filled template parameters and produces `.tsx` code. This is entirely deterministic.
+**Analog:** The person who decides the visual approach — color palette, imagery, composition style, visual metaphors.
 
-### 5.1 Repeat Layout Computation
+**Input:** `Script` from the Scriptwriter.
 
-Templates with `repeat` blocks need layout math:
+**Output:** `VisualDirection` — creative direction for each scene's look and feel.
+
+**What the Art Director decides:**
+- Visual metaphors and imagery for each scene ("represent DNS delegation as a relay race")
+- Which images/icons to use from the asset library (found via search)
+- Color assignments: which concept gets which color, and that assignment carries through the whole video
+- Composition approach per scene: "centered hero image with text below", "two-panel split", "central node with radiating connections"
+- Visual rhythm: alternating dense and sparse scenes, varying compositions to prevent monotony
+
+**What the Art Director does NOT decide:**
+- Exact pixel positions or frame numbers (that's the Animator)
+- The text content (that's the Scriptwriter — already decided)
 
 ```typescript
-function computeRepeatLayout(
-  repeat: { layout: string; spacing: number; stagger: number },
-  items: unknown[],
-  canvasWidth: number
-): { layoutX: number; layoutCenterX: number; itemStart: number }[] {
-  const n = items.length;
-
-  if (repeat.layout === "horizontal") {
-    const totalWidth = (n - 1) * repeat.spacing;
-    const startX = (canvasWidth - totalWidth) / 2 - repeat.spacing / 2;
-    return items.map((_, i) => ({
-      layoutX: startX + i * repeat.spacing,
-      layoutCenterX: startX + i * repeat.spacing + repeat.spacing / 2,
-      itemStart: i * repeat.stagger,  // relative to element's startFrame
-    }));
+interface VisualDirection {
+  global_style: {
+    color_assignments: Record<string, string>   // concept → color name
+                                                // e.g. "resolver" → "blue", "cache" → "green"
+    accent_color: string                        // primary accent for titles, underlines
+    mood: string                                // "clean and technical", "warm and friendly"
   }
+  scenes: SceneDirection[]
+}
 
-  if (repeat.layout === "vertical") {
-    return items.map((_, i) => ({
-      layoutX: 0,    // vertical uses fixed X from template
-      layoutCenterX: 0,
-      itemStart: i * repeat.stagger,
-    }));
-  }
-  // ... grid, radial
+interface SceneDirection {
+  scene_number: number
+  composition: string                 // free-text visual description:
+                                      // "Large server icon centered at top. Four labeled 
+                                      //  arrows radiate outward to smaller icons representing
+                                      //  each nameserver type. Text labels appear beside 
+                                      //  each icon."
+  imagery: ImageSelection[]           // images/icons chosen from library
+  color_usage: Record<string, string> // element → color: "heading" → "orange",
+                                      //  "step boxes" → "per the concept they represent"
+  density: "sparse" | "medium" | "dense"
+  emphasis: string                    // "the reveal at the end", "the contrast between sides"
+  reference_note?: string             // "similar to Scene 7 in AgenticAIExplainer —
+                                      //  central icon with satellite cards"
+}
+
+interface ImageSelection {
+  concept: string                     // what this image represents
+  image_id: string                    // from the asset library search
+  role_in_scene: string               // "hero image", "supporting icon", "decorative"
+  suggested_scale: "small" | "medium" | "large" | "hero"
 }
 ```
 
-### 5.2 Template Variable Resolution
+### Art Director's Toolkit: Asset Search
+
+The Art Director has access to a **search function** over the image/icon library. This is a tool the agent calls, not a pipeline stage.
 
 ```typescript
-function resolveTemplateValue(
-  expr: string,                              // "{{card.title}}" or "{{sceneStart + 15}}"
-  context: {
-    params: Record<string, unknown>,         // filled parameter values
-    sceneStart: number,
-    itemIndex?: number,
-    layoutX?: number,
-    layoutCenterX?: number,
-    itemStart?: number,
+// Tool available to the Art Director agent
+interface AssetSearchTool {
+  name: "search_assets"
+  description: "Search the image and icon library for visual assets"
+  parameters: {
+    query: string          // "server", "database", "person pointing", "brain"
+    category?: string      // "technology", "people", "abstract", "business"
+    style?: string         // "hand-drawn", "outline", "filled"
+    limit?: number         // default 5
   }
-): string | number {
-  // Simple variable: {{heading}} → params.heading
-  // Dotted path: {{card.title}} → current repeat item's title
-  // Arithmetic: {{sceneStart + 15}} → sceneStart + 15
-  // Layout vars: {{layoutX}}, {{layoutCenterX}}, {{itemStart}}
+  returns: {
+    results: {
+      id: string
+      name: string
+      description: string
+      type: "svg-component" | "raster"
+      depicts: string[]
+      relevance_score: number
+    }[]
+  }
 }
 ```
 
-### 5.3 Generated Code Structure
+**How search works under the hood:**
+- Asset registry is loaded in memory (JSONL with precomputed embeddings, as described in the retrieval section)
+- Query is embedded, cosine similarity against all assets, return top-K
+- For MVP with < 5K assets: brute-force cosine, < 10ms
+- The Art Director calls this tool multiple times per video — once per concept it needs imagery for
 
-Output follows the exact boilerplate of `AgenticAIExplainer.tsx`:
+**The critical difference from the old design:** The Art Director *decides when and what to search for* based on the script context. It's not given a pre-retrieved shortlist — it actively browses, like a real art director flipping through a stock library. It might search for "relay race" (a metaphor), not just "DNS" (the literal topic).
+
+### Fallback When Search Finds Nothing
+
+Search will sometimes return no good match — the query is too niche, the library doesn't cover that domain yet, or the metaphor is too abstract. The system handles this through a **fallback chain**, not a hard failure.
+
+**Fallback chain (Art Director follows this in order):**
+
+```
+1. Search with original query         → "kubernetes pod lifecycle"
+   Got results with score > 0.6?  ──── YES → use it
+                                  │
+                                  NO
+                                  ▼
+2. Broaden the query                  → "container", "server", "cloud infrastructure"
+   (strip specifics, try the          
+    category or parent concept)       
+   Got results with score > 0.6?  ──── YES → use it
+                                  │
+                                  NO
+                                  ▼
+3. Fall back to abstract shapes       → Use geometric primitives as visual stand-ins:
+   (no search needed — always            SketchCircle for concepts/nodes
+    available)                           SketchBox for containers/groups
+                                         SketchArrow for relationships/flow
+                                         labeled with HandWrittenText
+                                  │
+                                  ▼
+4. Flag for asset creation            → Record the unmet query in a wishlist file
+                                         so the library can be expanded later
+```
+
+**Implementation — the tool response signals quality:**
+
+```typescript
+interface AssetSearchResult {
+  results: {
+    id: string
+    name: string
+    description: string
+    type: "svg-component" | "raster"
+    depicts: string[]
+    relevance_score: number         // 0.0 - 1.0
+  }[]
+  quality: "strong" | "weak" | "none"   // added field
+  // "strong": top result score > 0.7
+  // "weak":   top result score 0.4 - 0.7 (usable but imprecise)
+  // "none":   no results or all scores < 0.4
+  suggestion?: string              // "Try broader terms: 'server', 'network'"
+}
+```
+
+When the tool returns `quality: "none"`, it also returns a `suggestion` field nudging the Art Director to broaden. If two consecutive searches return `"none"`, the Art Director falls back to geometric primitives and logs the gap.
+
+**How this appears in the VisualDirection output:**
+
+```typescript
+interface ImageSelection {
+  concept: string
+  image_id?: string               // present when search found something
+  role_in_scene: string
+  suggested_scale: "small" | "medium" | "large" | "hero"
+  fallback?: {                    // present when search found nothing
+    type: "geometric"             // "use primitives to represent this"
+    shape: "circle" | "box" | "arrow-chain" | "icon-cluster"
+    label: string                 // text label to make the shape meaningful
+    color: string                 // from the global color assignments
+  }
+}
+```
+
+The **Animator** knows how to handle both cases:
+- `image_id` present → emit that component (e.g. `<DatabaseIcon ... />`)
+- `fallback` present → compose from primitives (e.g. `SketchCircle` with a `HandWrittenText` label inside it)
+
+A labeled circle or box is never as good as a purpose-built icon, but it's far better than crashing or leaving an empty space. And the **asset gap tracking** ensures the library grows toward the concepts users actually need:
+
+```typescript
+// Written to out/asset-gaps.jsonl after each pipeline run
+interface AssetGap {
+  query: string                   // what was searched for
+  concept: string                 // what it represents in the video
+  context: string                 // scene description where it was needed
+  timestamp: string
+}
+```
+
+Over time, this file becomes the prioritized backlog for new asset creation — ordered by frequency of unmet queries.
+
+### Art Director's System Prompt (core)
+
+```
+You are the art director for an animated whiteboard explainer video.
+Given a script, decide how each scene should look.
+
+You have access to a search_assets tool to find images and icons from our
+library. Use it to find visual assets that match your creative vision.
+
+Your job:
+- Assign colors to concepts and keep them consistent across all scenes.
+  If "resolver" is blue in scene 2, it must be blue in scene 4.
+- Choose compositions that serve the content. A sequence of steps might
+  be a vertical chain, a hub-and-spoke, or a timeline — pick what tells
+  the story best.
+- Vary visual density and composition across scenes to create rhythm.
+  Don't make every scene a grid of cards.
+- Use visual metaphors when they help. "DNS delegation" could be a relay
+  race, a chain of messengers, or a tree of authority.
+- The notes_for_director field in the script contains the scriptwriter's
+  creative hints — honor them.
+
+When searching for assets:
+- If search returns quality "none" or "weak", try broader terms first.
+  "kubernetes pod lifecycle" → try "container", "server", "cloud".
+- If still no match after broadening, use a geometric fallback: a labeled
+  SketchCircle, SketchBox, or arrow-chain composed from primitives. Set
+  the `fallback` field in your output instead of `image_id`.
+- A labeled shape with the right color is always better than an irrelevant
+  icon. Don't force-pick a low-relevance result just to avoid fallback.
+
+Output valid JSON matching the VisualDirection schema.
+```
+
+---
+
+## 6. Role 4: Animator
+
+**Analog:** A Remotion developer who writes the actual animation code.
+
+**Input:** `Script` + `VisualDirection` from previous roles.
+
+**Output:** A complete `GeneratedVideo.tsx` file — real React/TypeScript code, not a JSON spec.
+
+**Why code, not JSON:** The existing codebase uses `.map()` loops, computed positions (`const sy = 420 + i * 78`), data arrays, conditional rendering (`{i < 5 && <SketchArrow ... />}`). A flat JSON spec can't express any of this. The Animator must write code to produce the same quality as hand-authored scenes.
+
+**What the Animator writes:**
+- Individual scene components (`const Scene1Title: React.FC = () => { ... }`)
+- Data arrays for repeated items (cards, steps, features)
+- Computed layout positions using arithmetic
+- `.map()` loops with stagger calculations
+- Conditional rendering for connectors between items
+- The main `GeneratedVideo` composition that renders all scenes
+
+**What the Animator's prompt contains:**
+- Full component API reference (every prop of every component)
+- Timing conventions and layout reference
+- 3 complete reference scenes from the existing codebase, showing:
+  - Static JSX composition (Scene3ThreePillars — 3-card layout)
+  - `.map()` with computed positions (Scene7ToolUse — hub-and-spoke)
+  - Data-driven step chain with conditional arrows
+
+**Validation:** The generated `.tsx` file is compiled with `tsc --noEmit`. If compilation fails, the Animator is re-prompted with the error message and asked to fix it. This is more reliable than JSON schema validation — the TypeScript compiler catches import errors, missing props, type mismatches, and syntax errors.
+
+**Artifact:** Saved as `out/4-generated-video.tsx` — users can directly edit the React code and re-render.
+
+---
+
+## 7. Role 5: Renderer
+
+**Analog:** The editing suite — takes the Animator's code and produces the deliverable.
+
+**Input:** `GeneratedVideo.tsx` code from the Animator.
+
+**Output:** `src/generated/` directory with 3 files + rendered MP4.
+
+**This role is entirely deterministic — no LLM.** It:
+
+1. Writes the Animator's `GeneratedVideo.tsx` code to `src/generated/`
+2. Generates `Root.tsx` (Remotion Composition registration with correct `durationInFrames`)
+3. Generates `index.tsx` (entry point with `registerRoot`)
+4. Runs `npx remotion render` to produce the MP4
+
+The Animator's code already includes all imports, the paper texture background, dot grid overlay, and font loading — the Renderer just writes it to disk. The Renderer's job is purely mechanical: file I/O and invoking the Remotion CLI.
+
+### Generated File Structure
+
+The Animator produces `GeneratedVideo.tsx` which looks like real hand-authored Remotion code:
 
 ```tsx
-// src/generated/GeneratedVideo.tsx
+// src/generated/GeneratedVideo.tsx (written by the Animator)
 import React from 'react';
 import { AbsoluteFill } from 'remotion';
-import {
-  SVG, Scene, AnimatedPath, HandWrittenText,
-  SketchBox, SketchCircle, SketchArrow, SketchLine,
-  RobotHead, PersonIcon, BrainIcon, GearIcon, Lightbulb,
-  ToolIcon, TargetIcon, CheckMark, CrossMark,
-  DatabaseIcon, CodeIcon, CloudIcon,
-  SketchTable, COLORS,
-} from '../studymaterial/components';
+import { SVG, Scene, HandWrittenText, SketchBox, ... } from '../studymaterial/components';
 
-const fontStyle = `
-  @import url('https://fonts.googleapis.com/css2?family=Architects+Daughter&family=Caveat:wght@400;700&display=swap');
-`;
+const Scene1Title: React.FC = () => ( ... );
+const Scene2Overview: React.FC = () => { ... };  // can use loops, variables
 
 export const GeneratedVideo: React.FC = () => (
-  <AbsoluteFill style={{ backgroundColor: '#fefefe', fontFamily: '"Architects Daughter", "Caveat", cursive' }}>
-    <style>{fontStyle}</style>
-    <AbsoluteFill style={{ backgroundImage: '...paper texture...', pointerEvents: 'none' }} />
-    <AbsoluteFill style={{ backgroundImage: '...dot grid...', pointerEvents: 'none' }} />
-    {/* scenes emitted from resolved templates */}
+  <AbsoluteFill style={{ ... }}>
+    <Scene1Title />
+    <Scene2Overview />
+    ...
   </AbsoluteFill>
 );
 ```
 
-### 5.4 Color Resolution
-
-Template color references (e.g. `"orange"`) resolve to `COLORS.orange` in emitted code:
-
-```typescript
-const COLOR_MAP: Record<string, string> = {
-  orange: 'COLORS.orange', blue: 'COLORS.blue', purple: 'COLORS.purple',
-  green: 'COLORS.green', yellow: 'COLORS.yellow', red: 'COLORS.red',
-  gray1: 'COLORS.gray1', gray2: 'COLORS.gray2', outline: 'COLORS.outline',
-};
-```
+No color resolution layer is needed — the Animator writes `COLORS.blue` directly in code since it imports the `COLORS` object.
 
 ---
 
-## 6. Implementation Plan
+## 8. How Story Coherence Works
+
+In the old template-based design, coherence was bolted on via "story skeletons" and "continuity rules." In this design, coherence is intrinsic to the role separation.
+
+### Each role enforces a different dimension of coherence
+
+| Dimension | Role responsible | How |
+|---|---|---|
+| **Narrative arc** | Author | The `beats` array defines the story's progression. Each beat has a `role` (hook, exploration, resolution) and `connects_to` links showing narrative threads. |
+| **Informational flow** | Scriptwriter | Sees the full story outline and writes all scenes at once. Adds `transition_in` / `transition_out` language. Maintains `terminology` consistency. |
+| **Visual continuity** | Art Director | Assigns `color_assignments` globally (concept → color), carried through all scenes. Varies `density` to create rhythm. |
+| **Temporal rhythm** | Animator | Sequences animations within and across scenes. Controls pacing via scene durations and stagger timing. |
+
+### Why this produces coherence without rigid constraints
+
+The Scriptwriter doesn't need a "skeleton" telling it to put the definition before the deep-dive — it has the Author's story outline, which already encodes that structure. The Author decided the arc based on the content, not based on a template.
+
+The Art Director doesn't need a "color propagation rule" — it assigns colors globally in `global_style.color_assignments`, and its system prompt says "keep them consistent." If it assigns blue to "resolver", it writes that once and every scene respects it.
+
+The key insight: **coherence is a property of having the full context.** Each agent sees all previous agents' work. The Scriptwriter sees the entire story outline. The Art Director sees the entire script. No agent works on one scene in isolation.
+
+---
+
+## 9. Asset Library at Scale
+
+### 9.1 The Registry
+
+Every image/icon is registered with metadata and a precomputed embedding:
+
+```typescript
+interface ImageRecord {
+  id: string                    // "robot-head"
+  name: string                  // "Robot Head"
+  description: string           // "Cartoon robot face with antenna, round eyes, 
+                                //  zigzag mouth. Conveys AI, automation, bots."
+  type: "svg-component" | "raster"
+  category: string              // "technology" | "people" | "business" | "science"
+  depicts: string[]             // ["robot", "AI", "automation", "bot"]
+  style: string                 // "hand-drawn"
+  component_name?: string       // "RobotHead" (for svg-components)
+  props_interface?: string      // "cx, cy, scale, startFrame, drawDuration"
+  embedding: number[]           // precomputed 256-dim vector
+}
+```
+
+### 9.2 How the Art Director Searches
+
+The Art Director calls `search_assets` as a tool whenever it needs imagery. The tool:
+
+1. Embeds the query string
+2. Optionally filters by `category` / `style`
+3. Brute-force cosine similarity against all asset embeddings
+4. Returns top-K results with descriptions
+
+For 2,000 assets at 256 dimensions, this takes < 10ms. No vector database needed.
+
+The Art Director may search multiple times per video — once for "server infrastructure", once for "person asking a question", once for "chain of connected nodes." It searches based on the **creative vision**, not just the literal topic.
+
+### 9.3 Growing the Library
+
+New images are added by:
+1. Creating the SVG component (or adding a raster image)
+2. Writing a metadata record with `description` and `depicts`
+3. Running `embed-assets` to compute the embedding
+4. Appending to `assets/images/registry.jsonl`
+
+The pipeline picks up new assets automatically — the Art Director's search results will include them.
+
+---
+
+## 10. Validation Between Roles
+
+Each handoff point has Zod validation to catch errors before they propagate.
+
+### After Author → before Scriptwriter
+
+- `beats` array is non-empty (1-10 beats)
+- Each beat has a non-empty `intent` and `key_idea`
+- At least one beat has `role: "hook"` and one has `role: "resolution"` or equivalent closing beat
+
+### After Scriptwriter → before Art Director
+
+- `scenes` array has 3-10 entries
+- Each scene has a non-empty `heading` and `content`
+- All text lines are under 50 characters
+- `terminology` is internally consistent (no key appears with multiple values)
+- Every `beat_id` reference maps to a beat from the Author's outline
+
+### After Art Director → before Animator
+
+- Every `image_id` in `imagery` exists in the asset registry
+- `color_assignments` covers all concepts mentioned in the script
+- Every scene has a `composition` description
+
+### After Animator → before Renderer
+
+- All frames are monotonically increasing
+- No coordinates outside [0, 1920] x [0, 1080]
+- All `component` names map to real imports
+- `durationInFrames` equals last scene's `endFrame`
+- No scene has `startFrame >= endFrame`
+- Text `durationFrames > 0` and `< 200`
+
+On validation failure: re-prompt the failing agent with the Zod error message. Max 1 retry.
+
+---
+
+## 11. User-Editable Artifacts
+
+Every role's output is saved as a separate file. Users can inspect, edit, and re-run from any point:
+
+```
+out/
+├── 1-story-outline.json       # Author output
+├── 2-script.json              # Scriptwriter output
+├── 3-visual-direction.json    # Art Director output
+├── 4-generated-video.tsx      # Animator output (real React code)
+├── asset-gaps.jsonl           # Unmet asset search queries
+└── generated.mp4              # Final render
+```
+
+**Re-entry points:**
+
+| Edit this | Re-run from | Use case |
+|---|---|---|
+| `1-story-outline.json` | Scriptwriter (role 2) | Change narrative arc, add/remove beats |
+| `2-script.json` | Art Director (role 3) | Reword text, change scene structure |
+| `3-visual-direction.json` | Animator (role 4) | Swap icons, change colors, alter composition |
+| `4-generated-video.tsx` | Renderer (role 5) | Edit animation code directly — adjust positions, timing, add loops, tweak layouts |
+
+The most powerful re-entry point is `4-generated-video.tsx`. Because the Animator outputs real React code (not JSON), users with React/Remotion knowledge can make surgical edits: change a `.map()` to reorder items, adjust computed positions, add conditional rendering, or refactor a data array. Then re-render without touching the LLM pipeline.
+
+---
+
+## 12. Implementation Plan
 
 ### Files to Create
 
 ```
 src/
 ├── pipeline/
-│   ├── generate.ts          # CLI entry point
-│   ├── search-intent.ts     # Stage 0: message → SearchIntent
-│   ├── retrieve.ts          # Retrieval: filter + rank templates and images
-│   ├── interpret.ts         # Stage 1: message + shortlists → VideoBlueprint
-│   ├── fill.ts              # Stage 3: template specs + blueprint → filled params
-│   ├── emit.ts              # Stage 4: filled templates → .tsx source code
-│   ├── resolve.ts           # Template variable resolution engine
-│   ├── types.ts             # All shared types
-│   ├── prompts/
-│   │   ├── search-intent.txt
-│   │   ├── interpret.txt
-│   │   └── fill.txt
-│   └── validation.ts        # Zod schemas for inter-stage validation
+│   ├── generate.ts              # CLI entry point
+│   ├── roles/
+│   │   ├── author.ts            # Role 1: idea → StoryOutline
+│   │   ├── scriptwriter.ts      # Role 2: StoryOutline → Script
+│   │   ├── art-director.ts      # Role 3: Script → VisualDirection (with search tool)
+│   │   ├── animator.ts          # Role 4: Script + VisualDirection → AnimationSpec
+│   │   └── renderer.ts          # Role 5: AnimationSpec → .tsx + MP4
+│   ├── tools/
+│   │   ├── asset-search.ts      # search_assets tool implementation
+│   │   └── asset-registry.ts    # load and query the asset registry
+│   ├── types.ts                 # StoryOutline, Script, VisualDirection, AnimationSpec
+│   ├── validation.ts            # Zod schemas for all inter-role types
+│   └── prompts/
+│       ├── author.txt
+│       ├── scriptwriter.txt
+│       ├── art-director.txt
+│       └── animator.txt         # includes full component API + reference scenes
 ├── assets/
-│   ├── templates/
-│   │   ├── registry.jsonl   # Template metadata + embeddings
-│   │   ├── title-card.json
-│   │   ├── card-layout-3col.json
-│   │   ├── step-chain-vertical.json
-│   │   ├── comparison-table-4col.json
-│   │   └── ...
 │   ├── images/
-│   │   ├── registry.jsonl   # Image metadata + embeddings
-│   │   └── svg/             # SVG icon components
-│   └── embed.ts             # Script to precompute embeddings for all assets
-├── generated/               # Output directory (gitignored)
+│   │   └── registry.jsonl       # image metadata + embeddings
+│   └── embed.ts                 # precompute embeddings script
+├── generated/                   # output directory (gitignored)
 │   ├── GeneratedVideo.tsx
 │   ├── Root.tsx
 │   └── index.tsx
@@ -754,8 +723,6 @@ src/
 }
 ```
 
-Embedding model: use Anthropic's Voyage API or OpenAI's `text-embedding-3-small` (256 dims). Chosen at implementation time based on cost.
-
 ### Scripts
 
 ```json
@@ -767,116 +734,63 @@ Embedding model: use Anthropic's Voyage API or OpenAI's `text-embedding-3-small`
 }
 ```
 
----
+### CLI Usage
 
-## 7. Validation & Error Handling
+```bash
+# Full pipeline
+npx ts-node src/pipeline/generate.ts "Explain how DNS works"
 
-### After Stage 0 → before retrieval
+# Re-run from a specific role
+npx ts-node src/pipeline/generate.ts --from=art-director --input=out/2-script.json
 
-Validate `SearchIntent`:
-- `scene_needs` has 3-7 entries
-- Each `structural_hint` is a known category or "any"
-- Each `concepts` array is non-empty
-
-### After Stage 1 → before Stage 2
-
-Validate `VideoBlueprint`:
-- Every `templateId` exists in the template registry
-- Every `imageId` in `images` exists in the image registry
-- `content` keys match the chosen template's `parameters[].name`
-- Text values satisfy the template's `constraints` (maxLength, minItems, etc.)
-- Scene count is 3-7
-
-### After Stage 3 → before Stage 4
-
-Validate filled parameters:
-- All required template parameters have values
-- Array lengths are within `minItems`/`maxItems`
-- No empty strings for required text fields
-
-### After Stage 4
-
-- Run `npx tsc --noEmit src/generated/GeneratedVideo.tsx` to verify compilation
-- Validate frame monotonicity in the resolved spec
-
-All validation uses Zod. On failure: re-prompt with the Zod error (1 retry max).
+# Preview without rendering
+npx ts-node src/pipeline/generate.ts "Compare Kafka vs RabbitMQ" --no-render
+npx remotion studio src/generated/index.tsx
+```
 
 ---
 
-## 8. Cost & Performance Estimates
+## 13. Cost & Performance
 
 | Metric | Estimate |
 |---|---|
-| LLM calls per video | 3 (search intent + interpret + fill) |
-| Embedding calls per video | 1 (embed the user message, ~100 tokens) |
-| Retrieval time | ~10ms (in-memory brute-force at 2K assets) |
-| Total LLM tokens (input) | ~6,000 (search ~500, interpret ~3,000, fill ~2,500) |
-| Total LLM tokens (output) | ~3,000 (search ~200, interpret ~800, fill ~2,000) |
-| LLM cost per video | ~$0.05-0.15 (Sonnet) |
-| LLM latency | ~4-7 seconds total |
+| LLM calls per video | 4 (author + scriptwriter + art director + animator) |
+| Art Director search calls | 3-8 (tool calls within the agent) |
+| Total input tokens | ~12,000 (grows as each role receives previous outputs) |
+| Total output tokens | ~5,000 |
+| LLM cost per video | ~$0.15-0.30 (Sonnet) |
+| LLM latency | ~8-15 seconds total (sequential roles) |
 | Remotion render time | ~10-30 seconds |
-| Total wall time | ~15-40 seconds |
-| Asset registry startup load | ~2MB, ~50ms |
+| Total wall time | ~20-45 seconds |
+
+The cost increase vs. 2-stage template filling (~$0.10) is marginal. The quality increase is not.
 
 ---
 
-## 9. User-Editable Intermediate Artifacts
+## 14. Verification
 
-Each stage saves its output for inspection and re-entry:
-
-```
-out/
-├── search-intent.json     # Stage 0 output
-├── shortlists.json        # Retrieval results (template + image candidates)
-├── blueprint.json         # Stage 1 output — editable script
-├── filled-params.json     # Stage 3 output — editable parameter values
-├── GeneratedVideo.tsx     # Stage 4 output — editable code
-└── generated.mp4          # Final render
-```
-
-Re-entry points:
-1. Edit `blueprint.json` (change text, swap template IDs, swap image IDs) → re-run from Stage 2
-2. Edit `filled-params.json` (tweak text, reorder items) → re-run from Stage 4
-3. Edit `GeneratedVideo.tsx` directly → re-render
+1. **End-to-end smoke test:** `npx ts-node src/pipeline/generate.ts "Explain how DNS works"` → valid MP4
+2. **Diverse inputs:** Test across content types:
+   - Explanation: "How does HTTPS keep your data safe?"
+   - Comparison: "Monolith vs microservices"
+   - How-to: "Setting up a Kubernetes cluster"
+   - Announcement: "Introducing our new real-time analytics API"
+   - List: "5 signs your database needs an index"
+3. **Coherence check:** Watch each generated video — do scenes flow logically? Is terminology consistent? Do colors match across scenes?
+4. **Compilation:** `npx tsc --noEmit` on every generated file
+5. **Visual QA:** Open in Remotion Studio — no overlapping text, no elements outside viewport, animations play in order
+6. **Edit roundtrip:** Edit `2-script.json`, re-run from Art Director, verify changes propagate
+7. **Asset search quality:** For 10 diverse concepts, verify `search_assets` returns relevant results
 
 ---
 
-## 10. Bootstrapping the Asset Registries
+## 15. What This Design Does NOT Cover (Future Work)
 
-The codebase already has 9 proven scene patterns and 16 icons. To bootstrap:
-
-1. **Extract existing patterns as template specs:** Convert each scene in `scenes.tsx` into a parameterized JSON template. Scene3ThreePillars becomes `card-layout-3col.json`, Scene5ComparisonTable becomes `comparison-table-4col.json`, etc.
-
-2. **Register existing icons:** Create an `ImageRecord` for each icon component in `components.tsx` with semantic descriptions and `depicts` tags.
-
-3. **Run `embed-assets`:** Precompute embeddings for all registry entries.
-
-4. **Grow incrementally:** Each new template or image added to the `assets/` directory gets registered and embedded. The retrieval layer picks it up automatically.
-
-The existing 9 patterns cover the most common content types. New templates are added when users request layouts the existing ones can't handle — not speculatively.
-
----
-
-## 11. Verification Checklist
-
-1. **Retrieval quality:** For 10 diverse inputs, verify the top-5 retrieved templates contain at least 1 reasonable match per scene
-2. **End-to-end smoke test:** `npx ts-node src/pipeline/generate.ts "Explain how DNS works"` produces valid MP4
-3. **Template coverage:** Verify each template in the registry can be filled and rendered without errors
-4. **Image coverage:** Verify each image ID in the registry resolves to a real component/file
-5. **Compilation check:** `npx tsc --noEmit` on every generated file
-6. **Visual inspection:** Open in Remotion Studio — no overlapping text, animations in order, elements within viewport
-7. **Edit roundtrip:** Modify `blueprint.json`, re-run from Stage 2, verify changes reflected
-8. **Retrieval performance:** With 2K assets, retrieval completes in < 50ms
-
----
-
-## 12. What This Design Does NOT Cover (Future Work)
-
-- Audio/voiceover generation
-- Real-time preview (streaming LLM output)
+- Audio/voiceover generation (natural next step — adds a "Voice Director" role)
+- Web UI / API server (this is CLI-only for MVP)
+- Real-time preview during generation
+- Custom brand kits (logos, fonts, color palettes)
 - Multi-language support
-- Brand customization (custom color palettes, logos, fonts)
-- Batch generation / API server
-- Template authoring UI (currently manual JSON)
+- Collaborative editing (multiple users tweaking artifacts)
+- A/B testing different creative directions
 - Raster image rendering in SVG canvas (currently SVG components only)
-- A/B testing different templates for the same content
