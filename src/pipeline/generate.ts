@@ -13,6 +13,7 @@ import { runPolishWithRetry, type AnimatorOutput } from './roles/polish';
 import { renderToFiles } from './roles/renderer';
 import { log } from './logger';
 import { CostTracker } from './cost-tracker';
+import { analyzeTsx } from './tsx-analyzer';
 import type { StoryOutline, Script, VisualDirection, LayoutSpec, TimedLayoutSpec } from './types';
 
 const ROLES = ['author', 'scriptwriter', 'art-director', 'layout', 'animate', 'polish', 'renderer'] as const;
@@ -135,11 +136,8 @@ async function main(): Promise<void> {
     } else if (from === 'renderer') {
       const inputPath = input || path.join(outDir, '6-generated-video.tsx');
       const code = fs.readFileSync(inputPath, 'utf-8');
-      const endFrameMatches = [...code.matchAll(/endFrame=\{(\d+)\}/g)];
-      const durationInFrames = endFrameMatches.length > 0
-        ? Math.max(...endFrameMatches.map((m) => parseInt(m[1])))
-        : 900;
-      polishOutput = { code, durationInFrames, sceneCount: 0 };
+      const codeAnalysis = analyzeTsx(code);
+      polishOutput = { code, durationInFrames: codeAnalysis.durationInFrames, sceneCount: codeAnalysis.sceneCount };
       log.pipelineResuming('Renderer', inputPath);
     }
   } else if (!message) {

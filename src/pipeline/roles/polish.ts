@@ -8,6 +8,7 @@ import { searchBits, fetchBit } from '../tools/bits-registry';
 import type { CostTracker } from '../cost-tracker';
 import { validateVisuals } from './visual-validator';
 import { COMPONENT_API, REFERENCE_SCENES } from './shared-prompts';
+import { analyzeTsx, validateTsxTiming, validateTsxBounds } from '../tsx-analyzer';
 
 const MODEL = 'claude-sonnet-4-20250514';
 const MAX_TOKENS = 16384;
@@ -256,22 +257,17 @@ export async function runPolishWithRetry(
 
   const text = finalText;
   const code = extractCode(text);
-  const analysis = analyzeCode(code);
+  const tsxAnalysis = analyzeTsx(code);
 
-  log.animatorCodeStats(code.length, analysis.sceneCount, analysis.durationInFrames);
+  log.animatorCodeStats(code.length, tsxAnalysis.sceneCount, tsxAnalysis.durationInFrames);
 
-  // Extract components used for logging
-  const componentMatches = code.match(/<(\w+)[\s/]/g);
-  if (componentMatches) {
-    const unique = [...new Set(componentMatches.map((m) => m.replace(/[<\s/]/g, '')))].filter(
-      (c) => /^[A-Z]/.test(c) && c !== 'React' && c !== 'AbsoluteFill'
-    );
-    log.animatorComponentsUsed(unique);
+  if (tsxAnalysis.componentNames.length > 0) {
+    log.animatorComponentsUsed(tsxAnalysis.componentNames);
   }
 
-  // ── Validation chain (compile → visual) ──────────────────────────────
+  // ── Validation chain (compile → AST → visual) ───────────────────────
   let currentCode = code;
-  let currentAnalysis = analysis;
+  let currentTsxAnalysis = tsxAnalysis;
 
   // Compile check
   log.animatorCompiling();
@@ -285,15 +281,31 @@ export async function runPolishWithRetry(
     );
     if (fixed) {
       currentCode = fixed.code;
-      currentAnalysis = { durationInFrames: fixed.durationInFrames, sceneCount: fixed.sceneCount };
+      currentTsxAnalysis = analyzeTsx(currentCode);
     } else {
-      return { code: currentCode, ...currentAnalysis };
+      return { code: currentCode, durationInFrames: currentTsxAnalysis.durationInFrames, sceneCount: currentTsxAnalysis.sceneCount };
     }
   }
   log.animatorCompileSuccess();
 
+  // AST validation — check timing and bounds from parsed code
+  const timingIssues = validateTsxTiming(currentTsxAnalysis);
+  const boundsIssues = validateTsxBounds(currentTsxAnalysis);
+  const astIssues = [timingIssues, boundsIssues].filter(Boolean).join('\n\n');
+  if (astIssues) {
+    const fixed = await retryWithFeedback(
+      client, timedLayout, visualDirection, currentCode,
+      `The code was parsed and the following structural issues were found:\n\n${astIssues}\n\nPlease fix these issues and output the corrected COMPLETE .tsx file. Output ONLY the code, nothing else.`,
+      costTracker
+    );
+    if (fixed) {
+      currentCode = fixed.code;
+      currentTsxAnalysis = analyzeTsx(currentCode);
+    }
+  }
+
   // Visual validation — render keyframes and critique with vision
-  const currentOutput: AnimatorOutput = { code: currentCode, ...currentAnalysis };
+  const currentOutput: AnimatorOutput = { code: currentCode, durationInFrames: currentTsxAnalysis.durationInFrames, sceneCount: currentTsxAnalysis.sceneCount };
   const visualCritique = await validateVisuals(client, currentOutput, costTracker);
   if (visualCritique) {
     const fixed = await retryWithFeedback(
@@ -344,9 +356,9 @@ async function retryWithFeedback(
 
   const retryText = retryResponse.content[0].type === 'text' ? retryResponse.content[0].text : '';
   const retryCode = extractCode(retryText);
-  const retryAnalysis = analyzeCode(retryCode);
+  const retryTsxAnalysis = analyzeTsx(retryCode);
 
-  log.animatorCodeStats(retryCode.length, retryAnalysis.sceneCount, retryAnalysis.durationInFrames);
+  log.animatorCodeStats(retryCode.length, retryTsxAnalysis.sceneCount, retryTsxAnalysis.durationInFrames);
 
   const retryCompileError = tryCompile(retryCode);
   if (retryCompileError) {
@@ -355,25 +367,13 @@ async function retryWithFeedback(
   }
   log.animatorCompileSuccess();
 
-  return { code: retryCode, ...retryAnalysis };
+  return { code: retryCode, durationInFrames: retryTsxAnalysis.durationInFrames, sceneCount: retryTsxAnalysis.sceneCount };
 }
 
 function extractCode(text: string): string {
   const codeMatch = text.match(/```(?:tsx?)?\s*([\s\S]*?)```/);
   if (codeMatch) return codeMatch[1].trim();
   return text.trim();
-}
-
-function analyzeCode(code: string): { durationInFrames: number; sceneCount: number } {
-  const sceneMatches = code.match(/const Scene\d+/g);
-  const sceneCount = sceneMatches ? sceneMatches.length : 0;
-
-  const endFrameMatches = [...code.matchAll(/endFrame=\{(\d+)\}/g)];
-  const lastEndFrame = endFrameMatches.length > 0
-    ? Math.max(...endFrameMatches.map((m) => parseInt(m[1])))
-    : 900;
-
-  return { durationInFrames: lastEndFrame, sceneCount };
 }
 
 function tryCompile(code: string): string | null {
