@@ -234,7 +234,7 @@ async function main(): Promise<void> {
   // ── Role 6: Polish ─────────────────────────────────────────────────────
   if (startIndex <= 5 && !polishOutput) {
     log.roleStart(6, 'Polish');
-    polishOutput = await runPolishWithRetry(client, timedLayout!, visualDirection!, costTracker);
+    polishOutput = await runPolishWithRetry(client, timedLayout!, visualDirection!, costTracker, message);
     saveArtifact(outDir, '6-generated-video.tsx', polishOutput.code);
     log.roleComplete(
       'Polish',

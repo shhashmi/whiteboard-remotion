@@ -2,7 +2,9 @@
 
 ## Overview
 
-A 5-stage sequential pipeline that transforms a raw idea into a rendered MP4 video. Each stage is an independent role with a focused responsibility. Stages communicate through saved artifacts — JSON files or source code — enabling the pipeline to be paused, inspected, edited, and resumed from any point.
+A 7-stage sequential pipeline that transforms a raw idea into a rendered MP4 video. Each stage is an independent role with a focused responsibility. Stages communicate through saved artifacts — JSON files or source code — enabling the pipeline to be paused, inspected, edited, and resumed from any point.
+
+The original "Animator" role was split into three stages — Layout, Animate, and Polish — to separate spatial positioning, timing, and code generation into distinct concerns.
 
 ---
 
@@ -12,13 +14,13 @@ A 5-stage sequential pipeline that transforms a raw idea into a rendered MP4 vid
 User Idea (text)
        |
        v
-  +---------+     +--------------+     +---------------+     +----------+     +----------+
-  | Author  | --> | Scriptwriter | --> | Art Director  | --> | Animator | --> | Renderer |
-  +---------+     +--------------+     +---------------+     +----------+     +----------+
-       |                |                     |                    |                |
-       v                v                     v                    v                v
-  story-outline     script.json        visual-direction     GeneratedVideo    generated.mp4
-     .json                                  .json               .tsx
+  +---------+     +--------------+     +---------------+     +--------+     +---------+     +--------+     +----------+
+  | Author  | --> | Scriptwriter | --> | Art Director  | --> | Layout | --> | Animate | --> | Polish | --> | Renderer |
+  +---------+     +--------------+     +---------------+     +--------+     +---------+     +--------+     +----------+
+       |                |                     |                   |              |               |                |
+       v                v                     v                   v              v               v                v
+  story-outline     script.json        visual-direction      layout.json   timed-layout    GeneratedVideo    generated.mp4
+     .json                                  .json                              .json           .tsx
 ```
 
 ---
@@ -98,9 +100,9 @@ User Idea (text)
 
 **Key constraints:**
 - Colors must be consistent across all scenes — if a concept is blue in scene 2, it stays blue everywhere
-- The mood field guides the Animator's choice of rendering style:
-  - "clean and modern" / "polished" signals the Animator to use remotion-bits components
-  - "hand-drawn sketch" / "whiteboard" signals the Animator to use SVG whiteboard primitives
+- The mood field guides the Polish role's choice of rendering style:
+  - "clean and modern" / "polished" signals use of remotion-bits components
+  - "hand-drawn sketch" / "whiteboard" signals use of SVG whiteboard primitives
 - Composition hints can suggest specific component types: "Use animated text reveal for the title", "Show animated counter from 0 to 1000", "Display code with syntax highlighting"
 - The Art Director does not write code — it describes visuals in natural language
 
@@ -108,11 +110,61 @@ User Idea (text)
 
 ---
 
-## Stage 4: Animator
+## Stage 4: Layout
 
-**Purpose:** Write the complete video as a React/Remotion component — real, executable code.
+**Purpose:** Position every visual element on the 1920x1080 canvas — deciding *where* things go without concerning itself with timing or code.
 
-**Receives:** Both the script (from the Scriptwriter) and the visual direction (from the Art Director).
+**Receives:** The script (from the Scriptwriter) and the visual direction (from the Art Director).
+
+**Produces:** A layout spec (`LayoutSpec`) containing:
+- Per-scene element lists, each with a component name, bounding box (`x, y, w, h`), and props
+- Optional group assignments for elements that should animate together (e.g., "cards", "steps")
+
+**Tools:** None.
+
+**Key constraints:**
+- All elements must fit within the 1920x1080 canvas
+- Uses the component API reference (shared via `shared-prompts.ts`) to pick valid components
+- Decides spatial composition only — no frame numbers, no animation timing
+- Groups related elements so the Animate role can stagger them
+
+**Saved artifact:** `out/4-layout.json`
+
+---
+
+## Stage 5: Animate
+
+**Purpose:** Assign timing, stagger, and pacing to every element in the layout — deciding *when* things appear and how long they take.
+
+**Receives:** The layout spec (from Layout) and the script (for pacing guidance).
+
+**Produces:** A timed layout spec (`TimedLayoutSpec`) containing:
+- Per-scene start/end frames
+- Per-element `startFrame` and `durationFrames`
+- `totalDurationInFrames` for the entire video
+
+**Tools:**
+
+| Tool | Purpose |
+|------|---------|
+| `search_skills` | Search Remotion skill rules for timing patterns, stagger techniques, and pacing conventions. |
+| `fetch_skill` | Fetch the full content of a specific skill rule with code examples. |
+
+**Key constraints:**
+- Scene frame ranges must be contiguous (Scene1: 0-300, Scene2: 300-600, etc.)
+- All content animations must complete by `endFrame - 60` (30-frame hold + 30-frame fade-out)
+- Pacing guidance from the script (slow/medium/fast) informs scene duration
+- Validated with `TimedLayoutSpecSchema` Zod schema and custom timing checks
+
+**Saved artifact:** `out/5-timed-layout.json`
+
+---
+
+## Stage 6: Polish
+
+**Purpose:** Write the complete video as a React/Remotion component — real, executable code — from the fully specified timed layout.
+
+**Receives:** The timed layout spec (from Animate) and the visual direction (from the Art Director).
 
 **Produces:** A complete TypeScript/React file (`GeneratedVideo.tsx`) containing:
 - Individual scene components, each as a React function
@@ -124,27 +176,21 @@ User Idea (text)
 
 | Tool | Purpose |
 |------|---------|
-| `search_skills` | Search Remotion best-practice rules by topic. Finds animation patterns, timing techniques, spring configurations, chart recipes, transition approaches, text animation patterns. |
-| `fetch_skill` | Fetch the full content of a specific skill rule. Returns detailed explanations and code examples for a technique (e.g., spring animation configs, pie chart patterns, sequencing). |
-| `search_bits` | Search the remotion-bits component library for reusable animation components. Finds ready-to-use React components like animated text, counters, code blocks, gradient transitions. |
-| `fetch_bit` | Fetch a specific remotion-bits example by ID. Returns full source code showing how a component is used, its props, and styling patterns. |
-
-**How tools are used:**
-- Before writing any code, the Animator searches for relevant animation techniques and reusable components
-- It fetches skill rules to learn best-practice patterns (e.g., spring configs for smooth vs bouncy motion)
-- It fetches bit examples to see how remotion-bits components work (e.g., AnimatedText props and usage)
-- After the research phase, it writes the complete code using discovered patterns and components
-- This is a multi-turn conversation — the Animator may make several search/fetch calls before producing code
+| `search_skills` | Search Remotion best-practice rules by topic. Finds animation patterns, spring configs, chart recipes, transition approaches. |
+| `fetch_skill` | Fetch the full content of a specific skill rule with detailed code examples. |
+| `search_bits` | Search the remotion-bits component library for reusable animation components. |
+| `fetch_bit` | Fetch a specific remotion-bits example by ID. Returns full source code. |
 
 **Three rendering modes** (chosen based on visual direction mood):
 - **SVG mode:** Whiteboard aesthetic using SketchBox, HandWrittenText, icons inside an SVG wrapper
 - **HTML mode:** Clean/modern aesthetic using remotion-bits components (AnimatedText, TypeWriter, AnimatedCounter, CodeBlock, etc.) with CSS styling
-- **Hybrid mode:** Both SVG and HTML layers stacked in the same scene — whiteboard drawings underneath, polished text animations on top
+- **Hybrid mode:** Both SVG and HTML layers stacked in the same scene
 
 **Post-generation validation:**
-1. **TypeScript compilation check** — the generated code is compiled with `tsc` to catch import errors, type mismatches, and syntax issues
-2. **Timing violation check** — a custom analyzer scans all animations to ensure they complete by `endFrame - 60` (leaving room for hold and fade-out)
-3. If either check fails, the Animator retries with the error feedback
+1. **AST-based TSX analysis** — the generated code is parsed with Babel to extract scenes, elements, timing, and bounds. Catches timing violations and off-canvas elements without requiring `tsc` compilation.
+2. **Visual validation** — rendered keyframes are screenshotted and reviewed by an LLM vision model to catch overlapping text, empty frames, off-canvas elements, and poor layout.
+3. **Lesson memory** — visual mistakes from past runs are loaded and injected into the prompt to prevent recurrence.
+4. If validation fails, the Polish role retries with the error/critique feedback.
 
 **Key constraints:**
 - All animation must be driven by `useCurrentFrame()` — CSS transitions/animations are forbidden
@@ -154,15 +200,15 @@ User Idea (text)
 - Text must be under 40 characters per line, font size at least 20
 - Canvas is 1920x1080
 
-**Saved artifact:** `out/4-generated-video.tsx`
+**Saved artifact:** `out/6-generated-video.tsx`
 
 ---
 
-## Stage 5: Renderer
+## Stage 7: Renderer
 
 **Purpose:** Write the final files to disk and render the video to MP4.
 
-**Receives:** The generated video code from the Animator.
+**Receives:** The generated video code from the Polish role.
 
 **Produces:**
 - `src/generated/GeneratedVideo.tsx` — the scene code
@@ -190,8 +236,10 @@ The pipeline can be re-entered at any stage by providing a previously saved arti
 |---------|-------|-------------|
 | `--from=scriptwriter --input=out/1-story-outline.json` | Author | Scriptwriter |
 | `--from=art-director --input=out/2-script.json` | Author, Scriptwriter | Art Director |
-| `--from=animator` | Author, Scriptwriter, Art Director | Animator |
-| `--from=renderer` | All LLM stages | Renderer only |
+| `--from=layout --input=out/3-visual-direction.json` | Author, Scriptwriter, Art Director | Layout |
+| `--from=animate --input=out/4-layout.json` | Author through Art Director | Animate |
+| `--from=polish --input=out/5-timed-layout.json` | Author through Animate | Polish |
+| `--from=renderer --input=out/6-generated-video.tsx` | All LLM stages | Renderer only |
 
 This enables a human-in-the-loop workflow: run the pipeline, inspect an intermediate artifact, hand-edit it, then resume from the next stage.
 
@@ -203,26 +251,28 @@ This enables a human-in-the-loop workflow: run the pipeline, inspect an intermed
 |------|----------------|-------------|
 | Author | None | — |
 | Scriptwriter | None | — |
-| Art Director | `search_assets` | Internal icon/image registry (49 SVG components across 6 categories) |
-| Animator | `search_skills` | Remotion skill rules (37 best-practice files covering animation, timing, transitions, charts, 3D, text, audio, etc.) |
-| Animator | `fetch_skill` | Same skill rules — fetches full content with code examples |
-| Animator | `search_bits` | remotion-bits catalog (42 example compositions covering text animation, counters, typewriter, code blocks, particles, gradients, 3D scenes) |
-| Animator | `fetch_bit` | Same catalog — fetches full source code of a specific example |
+| Art Director | `search_assets` | Internal icon/image registry (48 SVG components across 6 categories) |
+| Layout | None | — |
+| Animate | `search_skills`, `fetch_skill` | Remotion skill rules (animation timing, stagger, pacing) |
+| Polish | `search_skills`, `fetch_skill` | Same skill rules — animation patterns with code examples |
+| Polish | `search_bits`, `fetch_bit` | remotion-bits catalog (text animation, counters, typewriter, code blocks, particles, gradients, 3D scenes) |
 
 ---
 
 ## Component Libraries
 
-The Animator has access to two distinct component libraries:
+The Polish role has access to two distinct component libraries:
 
-**Whiteboard Primitives** (SVG-based, hand-drawn aesthetic):
+**Whiteboard Primitives** (SVG-based, hand-drawn aesthetic) — `src/shared/components.tsx`:
 - Text: HandWrittenText (typewriter reveal)
 - Shapes: SketchBox, SketchCircle, AnimatedPath
 - Connectors: SketchArrow, SketchLine, DottedConnector
 - Tables: SketchTable
 - Status: CheckMark, CrossMark
-- Icons: 30+ categorized SVG icons (technology, people, abstract, business, flow, structure)
-- Parametric: FlowChain, CycleArrow, TreeDiagram, NetworkGraph, and more
+- Icons: 48 categorized SVG icons (technology, people, abstract, business, flow, structure)
+
+**Motion Patterns** (SVG-based, parametric) — `src/shared/motions.tsx`:
+- FlowChain, CycleArrow, TreeDiagram, NetworkGraph, and more
 
 **remotion-bits** (HTML/CSS-based, polished aesthetic):
 - AnimatedText: word/character/line split with stagger and easing
@@ -244,5 +294,43 @@ The two libraries cannot be mixed inside the same container — SVG components g
 | Author | Zod schema validation on JSON output | Retry once with error feedback |
 | Scriptwriter | Zod schema validation on JSON output | Retry once with error feedback |
 | Art Director | Zod schema validation on JSON output | Retry without tools (geometric fallbacks only) |
-| Animator | TypeScript compilation + timing violation analysis | Retry once with compilation/timing errors |
+| Layout | Zod schema validation + bounds checking | Retry once with error feedback |
+| Animate | Zod schema validation + timing checks | Retry once with error feedback |
+| Polish | AST analysis (tsx-analyzer) + vision-based frame critique + lesson memory | Retry once with compilation/timing/visual errors |
 | Renderer | File system writes + Remotion render | Fail with error |
+
+### TSX Analyzer
+
+The `tsx-analyzer.ts` module parses generated code using Babel AST instead of regex, providing reliable extraction of:
+- Scene components with their start/end frames
+- Individual elements with positioning and timing props
+- Duration and scene count for the Renderer
+- Timing violation detection (animations that extend past `endFrame - 60`)
+- Bounds validation (elements outside the 1920x1080 canvas)
+
+### Visual Validator
+
+The `visual-validator.ts` module renders keyframes from the generated video and sends them to a vision LLM for critique. It checks for:
+- Overlapping or cut-off text
+- Empty frames where content should be present
+- Off-canvas elements
+- Poor layout and visual hierarchy
+- Element occlusion
+- Contrast issues
+
+### Lesson Memory
+
+The `lesson-memory.ts` module tracks visual mistakes across pipeline runs in `out/lessons.jsonl`. Common issues are deduplicated, ranked by frequency, and injected into the Polish role's prompt so the model avoids repeating known mistakes.
+
+---
+
+## Cost & Performance Tracking
+
+The pipeline tracks token usage and cost per role via `CostTracker`. After each run, a summary is logged showing input/output tokens and estimated cost per stage.
+
+| Metric | Estimate |
+|---|---|
+| LLM calls per video | 6 (author + scriptwriter + art director + layout + animate + polish) |
+| Art Director search calls | 3-8 (tool calls within the agent) |
+| Animate/Polish skill/bit searches | 2-6 (tool calls within each agent) |
+| Remotion render time | ~10-30 seconds |

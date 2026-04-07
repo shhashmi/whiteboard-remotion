@@ -45,15 +45,17 @@ Or read from a custom file:
 npm run generate -- --prompt=my-idea.txt
 ```
 
-This runs 5 roles sequentially:
+This runs 7 roles sequentially:
 
 1. **Author** — creates a narrative arc with story beats
 2. **Scriptwriter** — writes scene-by-scene on-screen text
 3. **Art Director** — decides colors, icons, composition (searches the asset library)
-4. **Animator** — writes the actual Remotion/React code (`.tsx`)
-5. **Renderer** — writes files to `src/generated/` and renders to MP4
+4. **Layout** — positions every element on the 1920x1080 canvas (JSON)
+5. **Animate** — assigns timing, stagger, and pacing to each element (JSON)
+6. **Polish** — writes the final Remotion/React code (`.tsx`) from the timed layout
+7. **Renderer** — writes files to `src/generated/` and renders to MP4
 
-Output lands in `out/generated.mp4`. Takes ~30-60 seconds.
+Output lands in `out/generated.mp4`.
 
 ### Generate Without Rendering
 
@@ -75,8 +77,11 @@ Every role saves its output to `out/`. Edit any artifact and re-run from that po
 # Edit out/2-script.json, then re-run from Art Director onward
 npm run generate -- --from=art-director --input=out/2-script.json
 
+# Edit the timed layout, then re-run from Polish onward
+npm run generate -- --from=polish --input=out/5-timed-layout.json
+
 # Edit the generated React code directly, then just re-render
-npm run generate -- --from=renderer --input=out/4-generated-video.tsx
+npm run generate -- --from=renderer --input=out/6-generated-video.tsx
 ```
 
 ### Pipeline Artifacts
@@ -86,8 +91,11 @@ out/
 ├── 1-story-outline.json       # Author output — narrative arc and beats
 ├── 2-script.json              # Scriptwriter output — scene text and structure
 ├── 3-visual-direction.json    # Art Director output — colors, icons, composition
-├── 4-generated-video.tsx      # Animator output — real React/Remotion code
+├── 4-layout.json              # Layout output — element positions on canvas
+├── 5-timed-layout.json        # Animate output — timing and stagger per element
+├── 6-generated-video.tsx      # Polish output — real React/Remotion code
 ├── asset-gaps.jsonl           # Icons the Art Director couldn't find
+├── lessons.jsonl              # Visual mistakes learned from past runs
 └── generated.mp4              # Final video
 ```
 
@@ -125,10 +133,10 @@ src/your-video/
 
 ### 2. Build scenes using the component library
 
-Use primitives from `src/studymaterial/components.tsx`:
+Use primitives from `src/shared/components.tsx`:
 
 ```tsx
-import { Scene, SVG, HandWrittenText, SketchBox, COLORS } from '../studymaterial/components';
+import { Scene, SVG, HandWrittenText, SketchBox, COLORS } from '../shared/components';
 
 export const Scene1: React.FC = () => (
   <Scene startFrame={0} endFrame={300}>
@@ -159,37 +167,43 @@ src/
 │   ├── generate.ts              # CLI entry point
 │   ├── types.ts                 # Shared TypeScript types
 │   ├── validation.ts            # Zod schemas for inter-role validation
+│   ├── tsx-analyzer.ts          # AST-based analysis of generated .tsx code
+│   ├── logger.ts                # Structured pipeline logging
+│   ├── cost-tracker.ts          # Token usage and cost tracking
+│   ├── lesson-memory.ts         # Learns from visual mistakes across runs
 │   ├── roles/
 │   │   ├── author.ts            # Role 1: idea → story outline
 │   │   ├── scriptwriter.ts      # Role 2: story → scene scripts
 │   │   ├── art-director.ts      # Role 3: script → visual direction (uses asset search)
-│   │   ├── animator.ts          # Role 4: script + visuals → Remotion .tsx code
-│   │   └── renderer.ts          # Role 5: code → files + MP4
+│   │   ├── layout.ts            # Role 4: script + visuals → element positions (JSON)
+│   │   ├── animate.ts           # Role 5: layout → timed layout with stagger (JSON)
+│   │   ├── polish.ts            # Role 6: timed layout → final React/Remotion .tsx code
+│   │   ├── renderer.ts          # Role 7: code → files + MP4
+│   │   ├── visual-validator.ts  # Vision-based frame critique (screenshots → LLM)
+│   │   └── shared-prompts.ts    # Component API and reference scenes shared across roles
 │   └── tools/
-│       └── asset-registry.ts    # Icon/image search
+│       ├── asset-registry.ts    # Icon/image search for Art Director
+│       ├── bits-registry.ts     # remotion-bits component search for Polish
+│       └── skill-registry.ts    # Animation skill/pattern search for Animate & Polish
 ├── assets/images/
-│   └── registry.jsonl           # 16 registered icons with metadata
-├── studymaterial/               # Hand-authored Agentic AI explainer
-│   ├── components.tsx           # Animation primitives (SketchBox, HandWrittenText, icons, etc.)
-│   ├── scenes.tsx               # 10 scene components
-│   └── AgenticAIExplainer.tsx   # Main composition
+│   └── registry.jsonl           # 48 registered icons with metadata
 ├── shared/
-│   └── components.tsx           # Base animation primitives
+│   ├── components.tsx           # Animation primitives (SketchBox, HandWrittenText, icons, etc.)
+│   ├── motions.tsx              # Motion pattern components (FlowChain, TreeDiagram, etc.)
+│   └── icons/                   # SVG icon components
 ├── generated/                   # Pipeline output (gitignored)
 │   ├── GeneratedVideo.tsx
 │   ├── Root.tsx
 │   └── index.tsx
-├── whiteboard-explainer/        # Simple whiteboard demo
 ├── cfpb-riskcheck/              # Corporate video example
-├── 3danimation/                 # 3D card stack demo
-└── 3danimationZpattern/         # Z-pattern 3D cards demo
+└── studymaterial/               # Hand-authored Agentic AI explainer (reference)
 ```
 
 ## Adding Icons to the Asset Library
 
 The Art Director searches `src/assets/images/registry.jsonl` for icons when composing scenes. To add a new one:
 
-1. Create the SVG component in `src/studymaterial/components.tsx`
+1. Create the SVG component in `src/shared/components.tsx` or `src/shared/icons/`
 2. Add a metadata line to `registry.jsonl`:
 
 ```json

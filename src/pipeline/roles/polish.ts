@@ -9,6 +9,7 @@ import type { CostTracker } from '../cost-tracker';
 import { validateVisuals } from './visual-validator';
 import { COMPONENT_API, REFERENCE_SCENES } from './shared-prompts';
 import { analyzeTsx, validateTsxTiming, validateTsxBounds } from '../tsx-analyzer';
+import { recordLessons, loadTopLessons, formatLessonsForPrompt } from '../lesson-memory';
 
 const MODEL = 'claude-sonnet-4-20250514';
 const MAX_TOKENS = 16384;
@@ -87,7 +88,7 @@ const POLISH_TOOLS: Anthropic.Messages.Tool[] = [
   },
 ];
 
-const SYSTEM_PROMPT = `You are a Remotion developer translating a fully-specified timed layout into production-ready React/TSX code for whiteboard-style animated explainer videos.
+const BASE_SYSTEM_PROMPT = `You are a Remotion developer translating a fully-specified timed layout into production-ready React/TSX code for whiteboard-style animated explainer videos.
 
 The layout (what goes where) and timing (when things animate) are ALREADY DECIDED in the timed layout spec. Your job is to faithfully translate this spec into clean, polished Remotion code. Add visual micro-details: background fills with subtle opacity, drop shadows where appropriate, easing refinements, and clean code structure.
 
@@ -152,6 +153,11 @@ TRANSLATION RULES:
 
 Output ONLY the .tsx file content. No explanation, no markdown wrapping.`;
 
+function buildSystemPrompt(): string {
+  const lessons = formatLessonsForPrompt(loadTopLessons(10));
+  return lessons ? `${BASE_SYSTEM_PROMPT}\n\n${lessons}` : BASE_SYSTEM_PROMPT;
+}
+
 export interface AnimatorOutput {
   code: string;
   durationInFrames: number;
@@ -162,7 +168,8 @@ export async function runPolishWithRetry(
   client: Anthropic,
   timedLayout: TimedLayoutSpec,
   visualDirection: VisualDirection,
-  costTracker?: CostTracker
+  costTracker?: CostTracker,
+  topic?: string
 ): Promise<AnimatorOutput> {
   log.polishGenerating(timedLayout.scenes.length);
 
@@ -183,7 +190,7 @@ export async function runPolishWithRetry(
     const response = await client.messages.create({
       model: MODEL,
       max_tokens: MAX_TOKENS,
-      system: SYSTEM_PROMPT,
+      system: buildSystemPrompt(),
       tools: POLISH_TOOLS,
       messages,
     });
@@ -308,6 +315,7 @@ export async function runPolishWithRetry(
   const currentOutput: AnimatorOutput = { code: currentCode, durationInFrames: currentTsxAnalysis.durationInFrames, sceneCount: currentTsxAnalysis.sceneCount };
   const visualCritique = await validateVisuals(client, currentOutput, costTracker);
   if (visualCritique) {
+    recordLessons(visualCritique, topic);
     const fixed = await retryWithFeedback(
       client, timedLayout, visualDirection, currentCode,
       `The code was rendered to keyframe images and a visual review found these issues:\n\n${visualCritique}\n\nPlease fix the visual issues and output the corrected COMPLETE .tsx file. Output ONLY the code, nothing else.`,
@@ -335,7 +343,7 @@ async function retryWithFeedback(
   const retryResponse = await client.messages.create({
     model: MODEL,
     max_tokens: MAX_TOKENS,
-    system: SYSTEM_PROMPT,
+    system: buildSystemPrompt(),
     messages: [
       {
         role: 'user',
