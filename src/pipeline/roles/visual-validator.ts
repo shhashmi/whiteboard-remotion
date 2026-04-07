@@ -3,7 +3,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
 import { execSync } from 'child_process';
-import type { AnimatorOutput } from './animator';
+import type { AnimatorOutput } from './polish';
 import { renderToFiles } from './renderer';
 import { log } from '../logger';
 import type { CostTracker } from '../cost-tracker';

@@ -92,7 +92,7 @@ export const log = {
 
   roleStart(roleNumber: number, roleName: string) {
     console.log(
-      `${COLORS.bold}${COLORS.blue}── [${roleNumber}/5] ${roleName} ─────────────────────────────────────${COLORS.reset}`
+      `${COLORS.bold}${COLORS.blue}── [${roleNumber}/7] ${roleName} ─────────────────────────────────────${COLORS.reset}`
     );
   },
 
@@ -195,6 +195,60 @@ export const log = {
         `${timestamp()}    Scene ${s.scene_number}: ${COLORS.dim}[${s.density}]${COLORS.reset} ${truncate(s.composition, 60)} ${COLORS.dim}(${s.imageCount} images)${COLORS.reset}`
       );
     }
+  },
+
+  // ── Layout-specific ─────────────────────────────────────────────────────
+
+  layoutGenerating(sceneCount: number) {
+    console.log(`${timestamp()}  Generating layout for ${sceneCount} scenes...`);
+  },
+
+  layoutResult(sceneCount: number, elementCount: number) {
+    console.log(`${timestamp()}  Layout: ${sceneCount} scenes, ${elementCount} elements`);
+  },
+
+  layoutBoundsViolation(issues: string) {
+    console.log(`${timestamp()}  ${COLORS.red}Layout bounds issues:${COLORS.reset}`);
+    const lines = issues.split('\n').slice(0, 8);
+    for (const line of lines) {
+      console.log(`${timestamp()}    ${COLORS.red}${line}${COLORS.reset}`);
+    }
+    if (issues.split('\n').length > 8) {
+      console.log(`${timestamp()}    ${COLORS.dim}... (${issues.split('\n').length - 8} more lines)${COLORS.reset}`);
+    }
+  },
+
+  // ── Animate-specific ───────────────────────────────────────────────────
+
+  animateGenerating(sceneCount: number) {
+    console.log(`${timestamp()}  Adding timing to ${sceneCount} scenes...`);
+  },
+
+  animateResult(totalFrames: number, sceneCount: number) {
+    const durationSec = (totalFrames / 30).toFixed(1);
+    console.log(`${timestamp()}  Timed layout: ${sceneCount} scenes, ${totalFrames} frames (${durationSec}s)`);
+  },
+
+  animateTimingViolation(issues: string) {
+    console.log(`${timestamp()}  ${COLORS.red}Timing violations:${COLORS.reset}`);
+    const lines = issues.split('\n').slice(0, 10);
+    for (const line of lines) {
+      console.log(`${timestamp()}    ${COLORS.red}${line}${COLORS.reset}`);
+    }
+    if (issues.split('\n').length > 10) {
+      console.log(`${timestamp()}    ${COLORS.dim}... (${issues.split('\n').length - 10} more lines)${COLORS.reset}`);
+    }
+  },
+
+  // ── Polish-specific ────────────────────────────────────────────────────
+
+  polishGenerating(sceneCount: number) {
+    console.log(`${timestamp()}  Generating polished Remotion code for ${sceneCount} scenes...`);
+  },
+
+  polishResult(codeLength: number) {
+    const sizeKB = (codeLength / 1024).toFixed(1);
+    console.log(`${timestamp()}  Polished code: ${sizeKB}KB`);
   },
 
   // ── Animator tool usage ─────────────────────────────────────────────────

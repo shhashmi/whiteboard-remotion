@@ -7,13 +7,15 @@ import * as path from 'path';
 import { runAuthorWithRetry } from './roles/author';
 import { runScriptwriterWithRetry } from './roles/scriptwriter';
 import { runArtDirectorWithRetry } from './roles/art-director';
-import { runAnimatorWithRetry, type AnimatorOutput } from './roles/animator';
+import { runLayoutWithRetry } from './roles/layout';
+import { runAnimateWithRetry } from './roles/animate';
+import { runPolishWithRetry, type AnimatorOutput } from './roles/polish';
 import { renderToFiles } from './roles/renderer';
 import { log } from './logger';
 import { CostTracker } from './cost-tracker';
-import type { StoryOutline, Script, VisualDirection } from './types';
+import type { StoryOutline, Script, VisualDirection, LayoutSpec, TimedLayoutSpec } from './types';
 
-const ROLES = ['author', 'scriptwriter', 'art-director', 'animator', 'renderer'] as const;
+const ROLES = ['author', 'scriptwriter', 'art-director', 'layout', 'animate', 'polish', 'renderer'] as const;
 type RoleName = (typeof ROLES)[number];
 
 const DEFAULT_INPUT_FILE = 'input.txt';
@@ -89,6 +91,8 @@ function loadJson<T>(filePath: string): T {
   return JSON.parse(fs.readFileSync(filePath, 'utf-8')) as T;
 }
 
+const TOTAL_ROLES = ROLES.length;
+
 async function main(): Promise<void> {
   const pipelineStart = Date.now();
   const { message, from, input, noRender } = parseArgs();
@@ -99,7 +103,9 @@ async function main(): Promise<void> {
   let storyOutline: StoryOutline | undefined;
   let script: Script | undefined;
   let visualDirection: VisualDirection | undefined;
-  let animatorOutput: AnimatorOutput | undefined;
+  let layoutSpec: LayoutSpec | undefined;
+  let timedLayout: TimedLayoutSpec | undefined;
+  let polishOutput: AnimatorOutput | undefined;
 
   if (from) {
     startRole = from;
@@ -111,19 +117,29 @@ async function main(): Promise<void> {
       const inputPath = input || path.join(outDir, '2-script.json');
       script = loadJson<Script>(inputPath);
       log.pipelineResuming('Art Director', inputPath);
-    } else if (from === 'animator') {
+    } else if (from === 'layout') {
       script = loadJson<Script>(path.join(outDir, '2-script.json'));
       const inputPath = input || path.join(outDir, '3-visual-direction.json');
       visualDirection = loadJson<VisualDirection>(inputPath);
-      log.pipelineResuming('Animator', inputPath);
+      log.pipelineResuming('Layout', inputPath);
+    } else if (from === 'animate') {
+      script = loadJson<Script>(path.join(outDir, '2-script.json'));
+      const inputPath = input || path.join(outDir, '4-layout.json');
+      layoutSpec = loadJson<LayoutSpec>(inputPath);
+      log.pipelineResuming('Animate', inputPath);
+    } else if (from === 'polish') {
+      visualDirection = loadJson<VisualDirection>(path.join(outDir, '3-visual-direction.json'));
+      const inputPath = input || path.join(outDir, '5-timed-layout.json');
+      timedLayout = loadJson<TimedLayoutSpec>(inputPath);
+      log.pipelineResuming('Polish', inputPath);
     } else if (from === 'renderer') {
-      const inputPath = input || path.join(outDir, '4-generated-video.tsx');
+      const inputPath = input || path.join(outDir, '6-generated-video.tsx');
       const code = fs.readFileSync(inputPath, 'utf-8');
       const endFrameMatches = [...code.matchAll(/endFrame=\{(\d+)\}/g)];
       const durationInFrames = endFrameMatches.length > 0
         ? Math.max(...endFrameMatches.map((m) => parseInt(m[1])))
         : 900;
-      animatorOutput = { code, durationInFrames, sceneCount: 0 };
+      polishOutput = { code, durationInFrames, sceneCount: 0 };
       log.pipelineResuming('Renderer', inputPath);
     }
   } else if (!message) {
@@ -132,9 +148,10 @@ async function main(): Promise<void> {
         '  npm run generate                              Read prompt from input.txt\n' +
         '  npm run generate -- --prompt=my-idea.txt      Read prompt from custom file\n' +
         '  npm run generate -- "Your idea here"          Inline prompt\n' +
-        '  npm run generate -- --from=art-director       Re-run from a role\n' +
+        '  npm run generate -- --from=layout             Re-run from a role\n' +
         '  npm run generate -- --no-render               Skip MP4 render\n' +
         '\n' +
+        'Roles: author, scriptwriter, art-director, layout, animate, polish, renderer\n' +
         'Set ANTHROPIC_API_KEY in .env or as an environment variable.'
     );
     process.exit(1);
@@ -196,20 +213,40 @@ async function main(): Promise<void> {
     log.roleComplete('Art Director', `${visualDirection.scenes.length} scenes directed, mood: ${visualDirection.global_style.mood}`);
   }
 
-  // ── Role 4: Animator ────────────────────────────────────────────────────
-  if (startIndex <= 3 && !animatorOutput) {
-    log.roleStart(4, 'Animator');
-    animatorOutput = await runAnimatorWithRetry(client, script!, visualDirection!, costTracker);
-    saveArtifact(outDir, '4-generated-video.tsx', animatorOutput.code);
+  // ── Role 4: Layout ─────────────────────────────────────────────────────
+  if (startIndex <= 3 && !layoutSpec) {
+    log.roleStart(4, 'Layout');
+    layoutSpec = await runLayoutWithRetry(client, script!, visualDirection!, costTracker);
+    saveArtifact(outDir, '4-layout.json', layoutSpec);
+    const totalElements = layoutSpec.scenes.reduce((sum, s) => sum + s.elements.length, 0);
+    log.roleComplete('Layout', `${layoutSpec.scenes.length} scenes, ${totalElements} elements positioned`);
+  }
+
+  // ── Role 5: Animate ────────────────────────────────────────────────────
+  if (startIndex <= 4 && !timedLayout) {
+    log.roleStart(5, 'Animate');
+    timedLayout = await runAnimateWithRetry(client, layoutSpec!, script!, costTracker);
+    saveArtifact(outDir, '5-timed-layout.json', timedLayout);
     log.roleComplete(
-      'Animator',
-      `${animatorOutput.sceneCount} scene components, ${animatorOutput.durationInFrames} frames (${(animatorOutput.durationInFrames / 30).toFixed(1)}s), ${(animatorOutput.code.length / 1024).toFixed(1)}KB code`
+      'Animate',
+      `${timedLayout.scenes.length} scenes timed, ${timedLayout.totalDurationInFrames} frames (${(timedLayout.totalDurationInFrames / 30).toFixed(1)}s)`
     );
   }
 
-  // ── Role 5: Renderer ───────────────────────────────────────────────────
-  log.roleStart(5, 'Renderer');
-  renderToFiles(animatorOutput!, generatedDir);
+  // ── Role 6: Polish ─────────────────────────────────────────────────────
+  if (startIndex <= 5 && !polishOutput) {
+    log.roleStart(6, 'Polish');
+    polishOutput = await runPolishWithRetry(client, timedLayout!, visualDirection!, costTracker);
+    saveArtifact(outDir, '6-generated-video.tsx', polishOutput.code);
+    log.roleComplete(
+      'Polish',
+      `${polishOutput.sceneCount} scene components, ${polishOutput.durationInFrames} frames (${(polishOutput.durationInFrames / 30).toFixed(1)}s), ${(polishOutput.code.length / 1024).toFixed(1)}KB code`
+    );
+  }
+
+  // ── Role 7: Renderer ───────────────────────────────────────────────────
+  log.roleStart(7, 'Renderer');
+  renderToFiles(polishOutput!, generatedDir);
 
   if (!noRender) {
     log.rendererStartingRemotionRender();

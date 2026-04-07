@@ -1,6 +1,6 @@
 import * as fs from 'fs';
 import * as path from 'path';
-import type { AnimatorOutput } from './animator';
+import type { AnimatorOutput } from './polish';
 import { log } from '../logger';
 
 function generateRootTsx(durationInFrames: number): string {

@@ -94,9 +94,47 @@ export interface ImageSelection {
   };
 }
 
-// ─── Role 4: Animator output ────────────────────────────────────────────────
-// The Animator outputs a complete .tsx file (real React code), not a JSON spec.
-// See AnimatorOutput in roles/animator.ts.
+// ─── Role 4: Layout output ──────────────────────────────────────────────────
+
+export interface LayoutElement {
+  id: string;
+  component: string;
+  bounds: { x: number; y: number; w: number; h: number };
+  props: Record<string, unknown>;
+  group?: string;
+}
+
+export interface SceneLayout {
+  scene_number: number;
+  heading: string;
+  elements: LayoutElement[];
+}
+
+export interface LayoutSpec {
+  scenes: SceneLayout[];
+}
+
+// ─── Role 5: Animate output ────────────────────────────────────────────────
+
+export interface TimedLayoutElement extends LayoutElement {
+  startFrame: number;
+  durationFrames: number;
+}
+
+export interface TimedSceneLayout extends SceneLayout {
+  startFrame: number;
+  endFrame: number;
+  elements: TimedLayoutElement[];
+}
+
+export interface TimedLayoutSpec {
+  scenes: TimedSceneLayout[];
+  totalDurationInFrames: number;
+}
+
+// ─── Role 6: Polish output ─────────────────────────────────────────────────
+// The Polish role outputs a complete .tsx file (real React code).
+// See AnimatorOutput in roles/polish.ts.
 
 // ─── Asset Registry ─────────────────────────────────────────────────────────
 
