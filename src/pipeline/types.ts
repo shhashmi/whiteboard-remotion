@@ -111,6 +111,10 @@ export interface ImageRecord {
   component_name?: string;
   props_interface?: string;
   embedding?: number[];
+  aliases?: string[];
+  subcategory?: string;
+  parametric?: boolean;
+  variants?: string[];
 }
 
 export interface AssetSearchResult {

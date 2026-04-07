@@ -1,3 +1,5 @@
+import type { CostSummary } from './cost-tracker';
+
 const COLORS = {
   reset: '\x1b[0m',
   dim: '\x1b[2m',
@@ -195,6 +197,31 @@ export const log = {
     }
   },
 
+  // ── Animator tool usage ─────────────────────────────────────────────────
+
+  animatorToolCall(toolName: string, query: string, turn: number) {
+    console.log(`${timestamp()}    ${COLORS.magenta}${toolName}${COLORS.reset}("${query}") ${COLORS.dim}[turn ${turn}]${COLORS.reset}`);
+  },
+
+  animatorToolResult(toolName: string, resultCount: number) {
+    console.log(`${timestamp()}    ${COLORS.dim}→ ${resultCount} result(s)${COLORS.reset}`);
+  },
+
+  // ── Detailed tool logging ──────────────────────────────────────────────
+
+  toolCallDetail(toolName: string, input: Record<string, unknown>, turn: number) {
+    const params = Object.entries(input)
+      .map(([k, v]) => `${k}=${JSON.stringify(v)}`)
+      .join(', ');
+    console.log(`${timestamp()}    ${COLORS.magenta}▶ ${toolName}${COLORS.reset}(${params}) ${COLORS.dim}[turn ${turn}]${COLORS.reset}`);
+  },
+
+  toolResultDetail(toolName: string, response: unknown) {
+    const json = typeof response === 'string' ? response : JSON.stringify(response);
+    const preview = truncate(json.replace(/\n/g, ' '), 200);
+    console.log(`${timestamp()}    ${COLORS.dim}◀ ${toolName} response: ${preview}${COLORS.reset}`);
+  },
+
   // ── Animator-specific ───────────────────────────────────────────────────
 
   animatorGenerating(scriptScenes: number) {
@@ -267,9 +294,35 @@ export const log = {
     console.log(`${timestamp()}  ${COLORS.red}Remotion render failed${COLORS.reset}`);
     console.log(`${timestamp()}  ${COLORS.yellow}Preview manually: npx remotion studio src/generated/index.tsx${COLORS.reset}`);
   },
+
+  // ── Cost summary ───────────────────────────────────────────────────────
+
+  pipelineCostSummary(summary: CostSummary, totalElapsedSecs: number) {
+    console.log(
+      `\n${COLORS.bold}${COLORS.yellow}── Cost Summary ────────────────────────────────────────${COLORS.reset}`
+    );
+    console.log(`${timestamp()}  LLM calls: ${summary.callCount}`);
+    console.log(`${timestamp()}  Total tokens: ${fmtNum(summary.totalInputTokens)} input + ${fmtNum(summary.totalOutputTokens)} output`);
+    console.log(`${timestamp()}  ${COLORS.bold}Estimated cost: $${summary.totalCostUsd.toFixed(4)}${COLORS.reset}`);
+    console.log(`${timestamp()}  Pipeline wall time: ${totalElapsedSecs.toFixed(1)}s`);
+
+    console.log(`${timestamp()}  ${COLORS.dim}Breakdown by role:${COLORS.reset}`);
+    for (const [role, data] of Object.entries(summary.byRole)) {
+      console.log(
+        `${timestamp()}    ${role}: ${data.calls} call(s), ${fmtNum(data.inputTokens)} in + ${fmtNum(data.outputTokens)} out = $${data.costUsd.toFixed(4)}`
+      );
+    }
+    console.log(
+      `${COLORS.bold}${COLORS.yellow}────────────────────────────────────────────────────────${COLORS.reset}\n`
+    );
+  },
 };
 
 function truncate(str: string, maxLen: number): string {
   if (str.length <= maxLen) return str;
   return str.substring(0, maxLen - 3) + '...';
+}
+
+function fmtNum(n: number): string {
+  return n.toLocaleString('en-US');
 }

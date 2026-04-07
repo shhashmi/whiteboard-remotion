@@ -2,6 +2,7 @@ import Anthropic from '@anthropic-ai/sdk';
 import type { StoryOutline, Script } from '../types';
 import { ScriptSchema, validate } from '../validation';
 import { log } from '../logger';
+import type { CostTracker } from '../cost-tracker';
 
 const MODEL = 'claude-sonnet-4-20250514';
 const MAX_TOKENS = 4096;
@@ -49,7 +50,8 @@ Output ONLY valid JSON matching this schema:
 
 export async function runScriptwriterWithRetry(
   client: Anthropic,
-  storyOutline: StoryOutline
+  storyOutline: StoryOutline,
+  costTracker?: CostTracker
 ): Promise<Script> {
   log.roleCallingLLM(MODEL, MAX_TOKENS);
   const start = Date.now();
@@ -71,6 +73,7 @@ export async function runScriptwriterWithRetry(
     response.usage.output_tokens,
     Date.now() - start
   );
+  costTracker?.record('Scriptwriter', MODEL, response.usage.input_tokens, response.usage.output_tokens, Date.now() - start);
 
   const text = response.content[0].type === 'text' ? response.content[0].text : '';
 
@@ -109,6 +112,7 @@ export async function runScriptwriterWithRetry(
       retryResponse.usage.output_tokens,
       Date.now() - retryStart
     );
+    costTracker?.record('Scriptwriter', MODEL, retryResponse.usage.input_tokens, retryResponse.usage.output_tokens, Date.now() - retryStart);
 
     const retryText = retryResponse.content[0].type === 'text' ? retryResponse.content[0].text : '';
     const json = extractJson(retryText);

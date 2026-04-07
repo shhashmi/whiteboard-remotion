@@ -20,6 +20,7 @@
     "compilerOptions": {
       "module": "commonjs",
       "moduleResolution": "node"
-    }
+    },
+    "transpileOnly": true
   }
 }

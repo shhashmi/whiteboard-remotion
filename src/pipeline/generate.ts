@@ -10,6 +10,7 @@ import { runArtDirectorWithRetry } from './roles/art-director';
 import { runAnimatorWithRetry, type AnimatorOutput } from './roles/animator';
 import { renderToFiles } from './roles/renderer';
 import { log } from './logger';
+import { CostTracker } from './cost-tracker';
 import type { StoryOutline, Script, VisualDirection } from './types';
 
 const ROLES = ['author', 'scriptwriter', 'art-director', 'animator', 'renderer'] as const;
@@ -142,12 +143,13 @@ async function main(): Promise<void> {
   }
 
   const client = new Anthropic();
+  const costTracker = new CostTracker();
   const startIndex = ROLES.indexOf(startRole);
 
   // ── Role 1: Author ──────────────────────────────────────────────────────
   if (startIndex <= 0 && !storyOutline) {
     log.roleStart(1, 'Author');
-    storyOutline = await runAuthorWithRetry(client, message!);
+    storyOutline = await runAuthorWithRetry(client, message!, costTracker);
     log.authorResult(
       storyOutline.title,
       storyOutline.logline,
@@ -162,7 +164,7 @@ async function main(): Promise<void> {
   // ── Role 2: Scriptwriter ────────────────────────────────────────────────
   if (startIndex <= 1 && !script) {
     log.roleStart(2, 'Scriptwriter');
-    script = await runScriptwriterWithRetry(client, storyOutline!);
+    script = await runScriptwriterWithRetry(client, storyOutline!, costTracker);
     log.scriptwriterResult(script.scenes.length, Object.keys(script.terminology).length);
     log.scriptwriterScenes(script.scenes.map((s) => ({
       scene_number: s.scene_number,
@@ -177,7 +179,7 @@ async function main(): Promise<void> {
   // ── Role 3: Art Director ────────────────────────────────────────────────
   if (startIndex <= 2 && !visualDirection) {
     log.roleStart(3, 'Art Director');
-    visualDirection = await runArtDirectorWithRetry(client, script!);
+    visualDirection = await runArtDirectorWithRetry(client, script!, costTracker);
     log.artDirectorResult(
       visualDirection.global_style.mood,
       visualDirection.global_style.accent_color,
@@ -197,7 +199,7 @@ async function main(): Promise<void> {
   // ── Role 4: Animator ────────────────────────────────────────────────────
   if (startIndex <= 3 && !animatorOutput) {
     log.roleStart(4, 'Animator');
-    animatorOutput = await runAnimatorWithRetry(client, script!, visualDirection!);
+    animatorOutput = await runAnimatorWithRetry(client, script!, visualDirection!, costTracker);
     saveArtifact(outDir, '4-generated-video.tsx', animatorOutput.code);
     log.roleComplete(
       'Animator',
@@ -223,8 +225,11 @@ async function main(): Promise<void> {
     }
   }
 
-  const elapsed = ((Date.now() - pipelineStart) / 1000).toFixed(1);
-  log.roleComplete('Renderer', `files written to ${generatedDir}/ (total pipeline: ${elapsed}s)`);
+  const elapsedSecs = (Date.now() - pipelineStart) / 1000;
+  log.roleComplete('Renderer', `files written to ${generatedDir}/ (total pipeline: ${elapsedSecs.toFixed(1)}s)`);
+
+  // Log cost summary
+  log.pipelineCostSummary(costTracker.summarize(), elapsedSecs);
 
   if (noRender) {
     log.pipelineDoneNoRender();

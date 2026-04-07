@@ -3,16 +3,27 @@ import type { Script, VisualDirection, AssetGap } from '../types';
 import { VisualDirectionSchema, validate } from '../validation';
 import { searchAssets } from '../tools/asset-registry';
 import { log } from '../logger';
+import type { CostTracker } from '../cost-tracker';
 import * as fs from 'fs';
 import * as path from 'path';
 
 const MODEL = 'claude-sonnet-4-20250514';
 const MAX_TOKENS = 4096;
 
-const SYSTEM_PROMPT = `You are the art director for an animated whiteboard explainer video.
+const SYSTEM_PROMPT = `You are the art director for an animated video.
 Given a script, decide how each scene should look.
 
 You have access to a search_assets tool to find images and icons from our library. Use it to find visual assets that match your creative vision.
+
+The Animator has two component libraries available:
+1. Whiteboard primitives — hand-drawn SVG boxes, arrows, icons (sketch aesthetic)
+2. remotion-bits — polished HTML animation components (animated text with word/character reveals, typewriter effects, animated counters, code blocks with syntax highlighting, gradient backgrounds, staggered motion)
+
+You can suggest visual styles in the "mood" and "composition" fields:
+- "clean and modern" or "polished" → Animator will prefer remotion-bits components
+- "hand-drawn sketch" or "whiteboard" → Animator will prefer whiteboard primitives
+- You can mix styles: "Use animated text reveal for the title, sketch boxes for the diagram below"
+- Composition hints like "Use animated text reveal", "Show animated counter from 0 to 1000", or "Display code with syntax highlighting" guide component choice
 
 Your job:
 - Assign colors to concepts and keep them consistent across all scenes. If "resolver" is blue in scene 2, it must be blue in scene 4.
@@ -20,6 +31,20 @@ Your job:
 - Vary visual density and composition across scenes to create rhythm. Don't make every scene a grid of cards.
 - Use visual metaphors when they help. "DNS delegation" could be a relay race, a chain of messengers, or a tree of authority.
 - The notes_for_director field in the script contains the scriptwriter's creative hints — honor them.
+
+ASSET CATEGORIES: technology, people, abstract, business, flow, structure
+
+PARAMETRIC ASSETS — some assets are configurable and can represent many concepts:
+- CycleArrow: search for "loop", "cycle", "iteration" — configure segments and broken props
+- FlowChain: search for "process", "pipeline", "steps" — provide step labels in composition
+- TreeDiagram: search for "hierarchy", "organization", "tree"
+- NetworkGraph: search for "network", "connections", "graph"
+- GridIcon: search for "matrix", "grid", "table"
+- PieChart/LineGraph/ProgressBar: search for data visualization needs
+
+When using a parametric asset, include configuration hints in your composition description.
+Example: "CycleArrow with 3 segments showing observe-think-act loop, scale=2, centered"
+Example: "FlowChain with steps=['Parse','Validate','Execute'], horizontal, blue"
 
 When searching for assets:
 - If search returns quality "none" or "weak", try broader terms first.
@@ -71,7 +96,7 @@ const SEARCH_TOOL: Anthropic.Messages.Tool = {
       },
       category: {
         type: 'string',
-        description: 'Filter by category: technology, people, abstract, business, science',
+        description: 'Filter by category: technology, people, abstract, business, flow, structure',
       },
       limit: {
         type: 'number',
@@ -84,10 +109,11 @@ const SEARCH_TOOL: Anthropic.Messages.Tool = {
 
 export async function runArtDirectorWithRetry(
   client: Anthropic,
-  script: Script
+  script: Script,
+  costTracker?: CostTracker
 ): Promise<VisualDirection> {
   try {
-    return await runArtDirector(client, script);
+    return await runArtDirector(client, script, costTracker);
   } catch (error) {
     log.roleRetrying((error as Error).message);
     log.roleRetryCallLLM(MODEL);
@@ -110,6 +136,7 @@ export async function runArtDirectorWithRetry(
       retryResponse.usage.output_tokens,
       Date.now() - retryStart
     );
+    costTracker?.record('Art Director', MODEL, retryResponse.usage.input_tokens, retryResponse.usage.output_tokens, Date.now() - retryStart);
 
     const text = retryResponse.content[0].type === 'text' ? retryResponse.content[0].text : '';
     const json = extractJson(text);
@@ -121,7 +148,8 @@ export async function runArtDirectorWithRetry(
 
 async function runArtDirector(
   client: Anthropic,
-  script: Script
+  script: Script,
+  costTracker?: CostTracker
 ): Promise<VisualDirection> {
   const assetGaps: AssetGap[] = [];
   const messages: Anthropic.Messages.MessageParam[] = [
@@ -151,6 +179,7 @@ async function runArtDirector(
       response.usage.output_tokens,
       Date.now() - start
     );
+    costTracker?.record('Art Director', MODEL, response.usage.input_tokens, response.usage.output_tokens, Date.now() - start);
 
     const toolUseBlocks: Anthropic.Messages.ToolUseBlock[] = [];
     for (const block of response.content) {
@@ -175,11 +204,13 @@ async function runArtDirector(
       if (toolUse.name === 'search_assets') {
         const input = toolUse.input as { query: string; category?: string; limit?: number };
 
+        log.toolCallDetail('search_assets', input as Record<string, unknown>, turn + 1);
         log.artDirectorSearching(input.query, turn + 1);
         const result = searchAssets(input.query, {
           category: input.category,
           limit: input.limit,
         });
+        log.toolResultDetail('search_assets', result);
 
         const topMatch = result.results.length > 0 ? result.results[0].name : null;
         const topScore = result.results.length > 0 ? result.results[0].relevance_score : 0;

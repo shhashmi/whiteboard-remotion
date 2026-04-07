@@ -36,14 +36,66 @@ function cosineSimilarity(a: number[], b: number[]): number {
   return denom === 0 ? 0 : dot / denom;
 }
 
-// Simple keyword-based search (no embedding model dependency for MVP)
-function keywordScore(query: string, record: ImageRecord): number {
-  const queryTerms = query.toLowerCase().split(/\s+/);
+// Synonym expansion for improved search recall
+const SYNONYMS: Record<string, string[]> = {
+  workflow: ['process', 'flow', 'pipeline', 'sequence'],
+  hierarchy: ['tree', 'organization', 'levels', 'structure'],
+  tradeoff: ['balance', 'comparison', 'scale', 'versus'],
+  security: ['lock', 'shield', 'protection', 'safety'],
+  network: ['connection', 'graph', 'nodes', 'links', 'internet'],
+  plan: ['blueprint', 'strategy', 'roadmap', 'planning'],
+  loop: ['cycle', 'circular', 'iteration', 'recurring'],
+  step: ['sequence', 'process', 'chain', 'flow'],
+  team: ['group', 'people', 'collaboration', 'organization'],
+  error: ['warning', 'alert', 'caution', 'danger'],
+  search: ['find', 'investigate', 'magnify', 'lookup'],
+  data: ['chart', 'graph', 'analytics', 'metrics', 'statistics'],
+  phone: ['mobile', 'device', 'smartphone'],
+  email: ['envelope', 'mail', 'message', 'communication'],
+  server: ['infrastructure', 'rack', 'hosting', 'backend'],
+  grid: ['matrix', 'table', 'pattern', 'squares'],
+  person: ['human', 'user', 'people', 'individual'],
+  progress: ['bar', 'completion', 'loading', 'capacity'],
+  reflection: ['mirror', 'thinking', 'self', 'introspection'],
+};
+
+const CATEGORY_KEYWORDS: Record<string, string[]> = {
+  technology: ['tech', 'computer', 'server', 'code', 'cloud', 'keyboard', 'phone', 'wifi', 'grid'],
+  people: ['person', 'human', 'team', 'group', 'people', 'user'],
+  abstract: ['idea', 'concept', 'think', 'brain', 'star', 'flag', 'lock', 'shield', 'warning'],
+  business: ['chart', 'data', 'document', 'report', 'graph', 'progress'],
+  flow: ['process', 'workflow', 'cycle', 'loop', 'funnel', 'decision', 'arrow', 'chain'],
+  structure: ['hierarchy', 'tree', 'network', 'layers', 'scale', 'blueprint', 'plan'],
+};
+
+function expandQuery(terms: string[]): string[] {
+  const expanded = new Set(terms);
+  for (const term of terms) {
+    const syns = SYNONYMS[term];
+    if (syns) syns.forEach((s) => expanded.add(s));
+  }
+  return Array.from(expanded);
+}
+
+function detectCategoryBoost(terms: string[]): string | null {
+  for (const [category, keywords] of Object.entries(CATEGORY_KEYWORDS)) {
+    for (const term of terms) {
+      if (keywords.includes(term)) return category;
+    }
+  }
+  return null;
+}
+
+// Keyword-based search with synonym expansion
+function keywordScore(query: string, record: ImageRecord, boostCategory: string | null): number {
+  const queryTerms = expandQuery(query.toLowerCase().split(/\s+/));
   const searchableText = [
     record.name,
     record.description,
     ...record.depicts,
     record.category,
+    ...(record.aliases || []),
+    ...(record.variants || []),
   ]
     .join(' ')
     .toLowerCase();
@@ -52,7 +104,13 @@ function keywordScore(query: string, record: ImageRecord): number {
   for (const term of queryTerms) {
     if (searchableText.includes(term)) matches++;
   }
-  return queryTerms.length > 0 ? matches / queryTerms.length : 0;
+  let score = queryTerms.length > 0 ? matches / queryTerms.length : 0;
+
+  if (boostCategory && record.category === boostCategory) {
+    score *= 1.5;
+  }
+
+  return Math.min(score, 1);
 }
 
 export function searchAssets(
@@ -71,16 +129,10 @@ export function searchAssets(
     candidates = candidates.filter((a) => a.style === options.style);
   }
 
-  // Score each candidate
+  // Score each candidate with synonym expansion and category boosting
+  const boostCategory = detectCategoryBoost(query.toLowerCase().split(/\s+/));
   const scored = candidates.map((record) => {
-    // Use embeddings if available, otherwise keyword matching
-    let score: number;
-    if (record.embedding && record.embedding.length > 0) {
-      // Would use query embedding here — for MVP, fall back to keyword
-      score = keywordScore(query, record);
-    } else {
-      score = keywordScore(query, record);
-    }
+    const score = keywordScore(query, record, boostCategory);
     return { record, score };
   });
 
