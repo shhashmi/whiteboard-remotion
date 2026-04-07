@@ -55,6 +55,41 @@ ICONS (all share: cx, cy, scale, startFrame, drawDuration):
 
 COLORS: COLORS.outline, COLORS.orange, COLORS.blue, COLORS.purple, COLORS.green,
         COLORS.yellow, COLORS.red, COLORS.gray1, COLORS.gray2, COLORS.gray3, COLORS.white
+
+MOTION PRIMITIVES (from src/shared/motions.tsx — "verbs" that compose with the above "nouns"):
+
+FlowPulse — Repeating pulse/glow animation that draws attention to an element
+  Props: startFrame (number), durationFrames (number),
+         cycleDuration? (number, default 30), minOpacity? (number, default 0.4),
+         maxOpacity? (number, default 1.0), minScale? (number, default 1.0),
+         maxScale? (number, default 1.05), svg? (boolean, default false), children
+
+StaggerMap — Staggered entrance for repeated items (replaces manual map+offset math)
+  Props: startFrame (number), staggerDelay? (number, default 25), count (number),
+         children: (index: number, startFrame: number) => ReactNode
+  Usage: <StaggerMap startFrame={700} staggerDelay={30} count={items.length}>
+           {(i, sf) => <SketchBox key={i} ... startFrame={sf} />}
+         </StaggerMap>
+
+SpringReveal — Spring-physics entrance animation (bouncy, overshoots naturally)
+  Props: startFrame (number), direction? ("up"|"down"|"left"|"right"|"scale"|"none", default "up"),
+         distance? (number, default 30), damping? (number, default 12),
+         mass? (number, default 0.5), stiffness? (number, default 120),
+         svg? (boolean, default false), children, style? (CSSProperties)
+
+CountUp — Animated number counter (renders as SVG <text> by default)
+  Props: startFrame (number), durationFrames (number), to (number),
+         from? (number, default 0), decimals? (number, default 0),
+         prefix? (string, ""), suffix? (string, ""),
+         x? (number), y? (number), fontSize? (number, default 48),
+         fill? (string), textAnchor? (string, default "middle"),
+         svg? (boolean, default true), style? (CSSProperties)
+
+CameraPan — Viewport pan/zoom with keyframes
+  Props: keyframes (Array<{frame: number, x: number, y: number, scale: number}>), children
+  Usage: <CameraPan keyframes={[{frame: 0, x: 0, y: 0, scale: 1}, {frame: 90, x: 500, y: 0, scale: 1.2}]}>
+           <AbsoluteFill>...</AbsoluteFill>
+         </CameraPan>
 `;
 
 export const TIMING_REFERENCE = `

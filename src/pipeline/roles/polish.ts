@@ -110,6 +110,9 @@ import {
   SketchTable, AnimatedPath, CheckMark, CrossMark, COLORS,
   // ... only import icons you actually use
 } from '../shared/components';
+import {
+  FlowPulse, StaggerMap, SpringReveal, CountUp, CameraPan,
+} from '../shared/motions';
 
 const Scene1Title: React.FC = () => ( ... );
 const Scene2Whatever: React.FC = () => { ... };
