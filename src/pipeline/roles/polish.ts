@@ -289,17 +289,21 @@ export async function runPolishWithRetry(
     if (fixed) {
       currentCode = fixed.code;
       currentTsxAnalysis = analyzeTsx(currentCode);
+      log.animatorCompileSuccess();
     } else {
       return { code: currentCode, durationInFrames: currentTsxAnalysis.durationInFrames, sceneCount: currentTsxAnalysis.sceneCount };
     }
+  } else {
+    log.animatorCompileSuccess();
   }
-  log.animatorCompileSuccess();
 
   // AST validation — check timing and bounds from parsed code
   const timingIssues = validateTsxTiming(currentTsxAnalysis);
   const boundsIssues = validateTsxBounds(currentTsxAnalysis);
   const astIssues = [timingIssues, boundsIssues].filter(Boolean).join('\n\n');
   if (astIssues) {
+    if (timingIssues) log.animatorTimingViolations(timingIssues);
+    if (boundsIssues) log.layoutBoundsViolation(boundsIssues);
     const fixed = await retryWithFeedback(
       client, timedLayout, visualDirection, currentCode,
       `The code was parsed and the following structural issues were found:\n\n${astIssues}\n\nPlease fix these issues and output the corrected COMPLETE .tsx file. Output ONLY the code, nothing else.`,

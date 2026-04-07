@@ -129,6 +129,7 @@ export async function runLayoutWithRetry(
       continue;
     }
 
+    log.roleValidationPassed('LayoutSpec schema + bounds');
     const totalElements = spec.scenes.reduce((sum, s) => sum + s.elements.length, 0);
     log.layoutResult(spec.scenes.length, totalElements);
     return spec;
@@ -137,7 +138,7 @@ export async function runLayoutWithRetry(
   // If we exhausted retries, return the last spec with warnings
   if (lastSpec) {
     const totalElements = lastSpec.scenes.reduce((sum, s) => sum + s.elements.length, 0);
-    log.layoutResult(totalElements, totalElements);
+    log.layoutResult(lastSpec.scenes.length, totalElements);
     return lastSpec;
   }
 

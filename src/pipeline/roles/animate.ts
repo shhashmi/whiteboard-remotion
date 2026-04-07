@@ -184,6 +184,7 @@ export async function runAnimateWithRetry(
   try {
     const parsed = JSON.parse(json);
     spec = validate(TimedLayoutSpecSchema, parsed, 'TimedLayoutSpec');
+    log.roleValidationPassed('TimedLayoutSpec schema');
   } catch (err) {
     // Retry once with parse error feedback
     log.roleRetrying((err as Error).message);

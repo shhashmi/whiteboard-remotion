@@ -164,6 +164,7 @@ async function main(): Promise<void> {
   // ── Role 1: Author ──────────────────────────────────────────────────────
   if (startIndex <= 0 && !storyOutline) {
     log.roleStart(1, 'Author');
+    log.roleInput(`prompt (${message!.length} chars)`);
     storyOutline = await runAuthorWithRetry(client, message!, costTracker);
     log.authorResult(
       storyOutline.title,
@@ -179,6 +180,7 @@ async function main(): Promise<void> {
   // ── Role 2: Scriptwriter ────────────────────────────────────────────────
   if (startIndex <= 1 && !script) {
     log.roleStart(2, 'Scriptwriter');
+    log.roleInput(`story outline: "${storyOutline!.title}" (${storyOutline!.beats.length} beats)`);
     script = await runScriptwriterWithRetry(client, storyOutline!, costTracker);
     log.scriptwriterResult(script.scenes.length, Object.keys(script.terminology).length);
     log.scriptwriterScenes(script.scenes.map((s) => ({
@@ -194,6 +196,7 @@ async function main(): Promise<void> {
   // ── Role 3: Art Director ────────────────────────────────────────────────
   if (startIndex <= 2 && !visualDirection) {
     log.roleStart(3, 'Art Director');
+    log.roleInput(`script: "${script!.title}" (${script!.scenes.length} scenes)`);
     visualDirection = await runArtDirectorWithRetry(client, script!, costTracker);
     log.artDirectorResult(
       visualDirection.global_style.mood,
@@ -214,6 +217,7 @@ async function main(): Promise<void> {
   // ── Role 4: Layout ─────────────────────────────────────────────────────
   if (startIndex <= 3 && !layoutSpec) {
     log.roleStart(4, 'Layout');
+    log.roleInput(`script (${script!.scenes.length} scenes) + visual direction (mood: ${visualDirection!.global_style.mood})`);
     layoutSpec = await runLayoutWithRetry(client, script!, visualDirection!, costTracker);
     saveArtifact(outDir, '4-layout.json', layoutSpec);
     const totalElements = layoutSpec.scenes.reduce((sum, s) => sum + s.elements.length, 0);
@@ -223,6 +227,8 @@ async function main(): Promise<void> {
   // ── Role 5: Animate ────────────────────────────────────────────────────
   if (startIndex <= 4 && !timedLayout) {
     log.roleStart(5, 'Animate');
+    const layoutElements = layoutSpec!.scenes.reduce((sum, s) => sum + s.elements.length, 0);
+    log.roleInput(`layout (${layoutSpec!.scenes.length} scenes, ${layoutElements} elements) + script`);
     timedLayout = await runAnimateWithRetry(client, layoutSpec!, script!, costTracker);
     saveArtifact(outDir, '5-timed-layout.json', timedLayout);
     log.roleComplete(
@@ -234,6 +240,7 @@ async function main(): Promise<void> {
   // ── Role 6: Polish ─────────────────────────────────────────────────────
   if (startIndex <= 5 && !polishOutput) {
     log.roleStart(6, 'Polish');
+    log.roleInput(`timed layout (${timedLayout!.scenes.length} scenes, ${timedLayout!.totalDurationInFrames} frames) + visual direction`);
     polishOutput = await runPolishWithRetry(client, timedLayout!, visualDirection!, costTracker, message);
     saveArtifact(outDir, '6-generated-video.tsx', polishOutput.code);
     log.roleComplete(
@@ -244,6 +251,7 @@ async function main(): Promise<void> {
 
   // ── Role 7: Renderer ───────────────────────────────────────────────────
   log.roleStart(7, 'Renderer');
+  log.roleInput(`code (${(polishOutput!.code.length / 1024).toFixed(1)}KB, ${polishOutput!.sceneCount} scenes, ${polishOutput!.durationInFrames} frames)`);
   renderToFiles(polishOutput!, generatedDir);
 
   if (!noRender) {

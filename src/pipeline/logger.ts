@@ -96,6 +96,10 @@ export const log = {
     );
   },
 
+  roleInput(description: string) {
+    console.log(`${timestamp()}  ${COLORS.dim}Input: ${description}${COLORS.reset}`);
+  },
+
   roleCallingLLM(model: string, maxTokens: number) {
     console.log(`${timestamp()}  ${COLORS.dim}Calling ${model} (max ${maxTokens} tokens)...${COLORS.reset}`);
   },

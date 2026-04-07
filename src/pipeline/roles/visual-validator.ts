@@ -93,6 +93,7 @@ export async function validateVisuals(
     }
 
     // Call vision model for critique
+    log.roleCallingLLM(VISION_MODEL, MAX_VISION_TOKENS);
     const start = Date.now();
     const response = await client.messages.create({
       model: VISION_MODEL,
