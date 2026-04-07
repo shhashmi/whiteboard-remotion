@@ -6,6 +6,7 @@ import { log } from '../logger';
 import { searchSkills, fetchSkill } from '../tools/skill-registry';
 import { searchBits, fetchBit } from '../tools/bits-registry';
 import type { CostTracker } from '../cost-tracker';
+import { validateVisuals } from './visual-validator';
 
 const MODEL = 'claude-sonnet-4-20250514';
 const MAX_TOKENS = 16384;
@@ -428,32 +429,57 @@ export async function runAnimatorWithRetry(
     log.animatorComponentsUsed(unique);
   }
 
+  // ── Validation chain (compile → timing → visual) ──────────────────────
+  let currentCode = code;
+  let currentAnalysis = analysis;
+
   // Compile check
   log.animatorCompiling();
-  const compileError = tryCompile(code);
+  const compileError = tryCompile(currentCode);
   if (compileError) {
     log.animatorCompileError(compileError);
-    const fixedCode = await retryWithFeedback(
-      client, script, visualDirection, code,
-      `The code above has TypeScript compile errors:\n\n${compileError}\n\nPlease fix the errors and output the corrected COMPLETE .tsx file. Output ONLY the code, nothing else.`
+    const fixed = await retryWithFeedback(
+      client, script, visualDirection, currentCode,
+      `The code above has TypeScript compile errors:\n\n${compileError}\n\nPlease fix the errors and output the corrected COMPLETE .tsx file. Output ONLY the code, nothing else.`,
+      costTracker
     );
-    if (fixedCode) return fixedCode;
-    return { code, ...analysis };
+    if (fixed) {
+      currentCode = fixed.code;
+      currentAnalysis = { durationInFrames: fixed.durationInFrames, sceneCount: fixed.sceneCount };
+    } else {
+      return { code: currentCode, ...currentAnalysis };
+    }
   }
   log.animatorCompileSuccess();
 
   // Timing violation check
-  const timingError = checkTimingViolations(code);
+  const timingError = checkTimingViolations(currentCode);
   if (timingError) {
     log.animatorTimingViolations(timingError);
-    const fixedCode = await retryWithFeedback(
-      client, script, visualDirection, code,
-      `The code above has TIMING VIOLATIONS — animations extend into or past the scene fade-out zone:\n\n${timingError}\n\nFor each violation, either move the animation earlier, shorten its duration, or increase the scene's endFrame so that ALL animations complete by endFrame - 60. Output the corrected COMPLETE .tsx file. Output ONLY the code, nothing else.`
+    const fixed = await retryWithFeedback(
+      client, script, visualDirection, currentCode,
+      `The code above has TIMING VIOLATIONS — animations extend into or past the scene fade-out zone:\n\n${timingError}\n\nFor each violation, either move the animation earlier, shorten its duration, or increase the scene's endFrame so that ALL animations complete by endFrame - 60. Output the corrected COMPLETE .tsx file. Output ONLY the code, nothing else.`,
+      costTracker
     );
-    if (fixedCode) return fixedCode;
+    if (fixed) {
+      currentCode = fixed.code;
+      currentAnalysis = { durationInFrames: fixed.durationInFrames, sceneCount: fixed.sceneCount };
+    }
   }
 
-  return { code, ...analysis };
+  // Visual validation — render keyframes and critique with vision
+  const currentOutput: AnimatorOutput = { code: currentCode, ...currentAnalysis };
+  const visualCritique = await validateVisuals(client, currentOutput, costTracker);
+  if (visualCritique) {
+    const fixed = await retryWithFeedback(
+      client, script, visualDirection, currentCode,
+      `The code was rendered to keyframe images and a visual review found these issues:\n\n${visualCritique}\n\nPlease fix the visual issues and output the corrected COMPLETE .tsx file. Output ONLY the code, nothing else.`,
+      costTracker
+    );
+    if (fixed) return fixed;
+  }
+
+  return currentOutput;
 }
 
 async function retryWithFeedback(
@@ -461,7 +487,8 @@ async function retryWithFeedback(
   script: Script,
   visualDirection: VisualDirection,
   originalCode: string,
-  feedback: string
+  feedback: string,
+  costTracker?: CostTracker
 ): Promise<AnimatorOutput | null> {
   log.roleRetrying(feedback.split('\n')[0]);
   log.roleRetryCallLLM(MODEL);
@@ -481,11 +508,13 @@ async function retryWithFeedback(
     ],
   });
 
+  const retryDurationMs = Date.now() - retryStart;
   log.roleLLMResponse(
     retryResponse.usage.input_tokens,
     retryResponse.usage.output_tokens,
-    Date.now() - retryStart
+    retryDurationMs
   );
+  costTracker?.record('Animator', MODEL, retryResponse.usage.input_tokens, retryResponse.usage.output_tokens, retryDurationMs);
 
   const retryText = retryResponse.content[0].type === 'text' ? retryResponse.content[0].text : '';
   const retryCode = extractCode(retryText);

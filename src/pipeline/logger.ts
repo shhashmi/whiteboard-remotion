@@ -269,6 +269,39 @@ export const log = {
     }
   },
 
+  // ── Visual Validator ────────────────────────────────────────────────────
+
+  visualValidatorRendering(frames: number[]) {
+    console.log(`${timestamp()}  ${COLORS.dim}Rendering ${frames.length} keyframes for visual validation: [${frames.join(', ')}]${COLORS.reset}`);
+  },
+
+  visualValidatorFrameFailed(frame: number, error: string) {
+    console.log(`${timestamp()}  ${COLORS.yellow}Keyframe ${frame} render failed: ${truncate(error, 100)}${COLORS.reset}`);
+  },
+
+  visualValidatorSkipped(reason: string) {
+    console.log(`${timestamp()}  ${COLORS.yellow}Visual validation skipped: ${reason}${COLORS.reset}`);
+  },
+
+  visualValidatorCritiquing(frameCount: number) {
+    console.log(`${timestamp()}  ${COLORS.dim}Sending ${frameCount} keyframes to vision model for critique...${COLORS.reset}`);
+  },
+
+  visualValidatorPassed() {
+    console.log(`${timestamp()}  ${COLORS.green}Visual validation passed${COLORS.reset}`);
+  },
+
+  visualValidatorFailed(critique: string) {
+    console.log(`${timestamp()}  ${COLORS.red}Visual validation found issues:${COLORS.reset}`);
+    const lines = critique.split('\n').slice(0, 8);
+    for (const line of lines) {
+      console.log(`${timestamp()}    ${COLORS.red}${line}${COLORS.reset}`);
+    }
+    if (critique.split('\n').length > 8) {
+      console.log(`${timestamp()}    ${COLORS.dim}... (${critique.split('\n').length - 8} more lines)${COLORS.reset}`);
+    }
+  },
+
   // ── Renderer-specific ───────────────────────────────────────────────────
 
   rendererWriting(dir: string) {
