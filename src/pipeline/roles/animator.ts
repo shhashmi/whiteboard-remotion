@@ -3,9 +3,86 @@ import * as fs from 'fs';
 import * as path from 'path';
 import type { Script, VisualDirection } from '../types';
 import { log } from '../logger';
+import { searchSkills, fetchSkill } from '../tools/skill-registry';
+import { searchBits, fetchBit } from '../tools/bits-registry';
+import type { CostTracker } from '../cost-tracker';
 
 const MODEL = 'claude-sonnet-4-20250514';
 const MAX_TOKENS = 16384;
+
+const ANIMATOR_TOOLS: Anthropic.Messages.Tool[] = [
+  {
+    name: 'search_skills',
+    description:
+      'Search the animation skills library for reusable animation patterns and techniques.',
+    input_schema: {
+      type: 'object' as const,
+      properties: {
+        query: {
+          type: 'string',
+          description: 'Search query for finding animation skills/patterns',
+        },
+        limit: {
+          type: 'number',
+          description: 'Max results to return (default 5)',
+        },
+      },
+      required: ['query'],
+    },
+  },
+  {
+    name: 'fetch_skill',
+    description: 'Fetch full details and content for a specific animation skill by name.',
+    input_schema: {
+      type: 'object' as const,
+      properties: {
+        name: {
+          type: 'string',
+          description: 'The name of the skill to fetch',
+        },
+      },
+      required: ['name'],
+    },
+  },
+  {
+    name: 'search_bits',
+    description:
+      'Search the remotion-bits component library for reusable, polished animation components.',
+    input_schema: {
+      type: 'object' as const,
+      properties: {
+        query: {
+          type: 'string',
+          description: 'Search query for finding component bits',
+        },
+        tags: {
+          type: 'array',
+          items: { type: 'string' },
+          description: 'Filter by tags (AND logic)',
+        },
+        limit: {
+          type: 'number',
+          description: 'Max results to return (default 5)',
+        },
+      },
+      required: ['query'],
+    },
+  },
+  {
+    name: 'fetch_bit',
+    description: 'Fetch full details and source code for a specific component bit by id.',
+    input_schema: {
+      type: 'object' as const,
+      properties: {
+        id: {
+          type: 'string',
+          description: 'The id of the bit to fetch',
+        },
+      },
+      required: ['id'],
+    },
+  },
+];
 
 const COMPONENT_API = `
 COMPONENT API REFERENCE (all from src/studymaterial/components.tsx):
@@ -177,6 +254,12 @@ ${TIMING_REFERENCE}
 
 ${REFERENCE_SCENES}
 
+You have access to tools for discovering animation techniques and reusable components:
+- search_skills / fetch_skill: Find and read animation patterns and best practices
+- search_bits / fetch_bit: Find and read polished, reusable remotion-bits components
+
+Use these tools to research relevant skills and components before writing your code. After researching, produce the final .tsx file.
+
 YOUR OUTPUT MUST BE A COMPLETE, VALID .tsx FILE. Follow this exact structure:
 
 \`\`\`tsx
@@ -236,31 +319,101 @@ export interface AnimatorOutput {
 export async function runAnimatorWithRetry(
   client: Anthropic,
   script: Script,
-  visualDirection: VisualDirection
+  visualDirection: VisualDirection,
+  costTracker?: CostTracker
 ): Promise<AnimatorOutput> {
   log.animatorGenerating(script.scenes.length);
-  log.roleCallingLLM(MODEL, MAX_TOKENS);
-  const start = Date.now();
 
-  const response = await client.messages.create({
-    model: MODEL,
-    max_tokens: MAX_TOKENS,
-    system: SYSTEM_PROMPT,
-    messages: [
-      {
-        role: 'user',
-        content: `Here is the script:\n\n${JSON.stringify(script, null, 2)}\n\nHere is the visual direction:\n\n${JSON.stringify(visualDirection, null, 2)}\n\nWrite the complete GeneratedVideo.tsx file. Output ONLY the .tsx code, nothing else.`,
-      },
-    ],
-  });
+  const messages: Anthropic.Messages.MessageParam[] = [
+    {
+      role: 'user',
+      content: `Here is the script:\n\n${JSON.stringify(script, null, 2)}\n\nHere is the visual direction:\n\n${JSON.stringify(visualDirection, null, 2)}\n\nUse the search_skills and search_bits tools to find relevant animation patterns and components, then write the complete GeneratedVideo.tsx file. Output ONLY the .tsx code as your final response.`,
+    },
+  ];
 
-  log.roleLLMResponse(
-    response.usage.input_tokens,
-    response.usage.output_tokens,
-    Date.now() - start
-  );
+  let finalText = '';
+  const maxTurns = 15;
 
-  const text = response.content[0].type === 'text' ? response.content[0].text : '';
+  for (let turn = 0; turn < maxTurns; turn++) {
+    log.roleCallingLLM(MODEL, MAX_TOKENS);
+    const start = Date.now();
+
+    const response = await client.messages.create({
+      model: MODEL,
+      max_tokens: MAX_TOKENS,
+      system: SYSTEM_PROMPT,
+      tools: ANIMATOR_TOOLS,
+      messages,
+    });
+
+    log.roleLLMResponse(
+      response.usage.input_tokens,
+      response.usage.output_tokens,
+      Date.now() - start
+    );
+    costTracker?.record('Animator', MODEL, response.usage.input_tokens, response.usage.output_tokens, Date.now() - start);
+
+    const toolUseBlocks: Anthropic.Messages.ToolUseBlock[] = [];
+    for (const block of response.content) {
+      if (block.type === 'text') {
+        finalText = block.text;
+      } else if (block.type === 'tool_use') {
+        toolUseBlocks.push(block);
+      }
+    }
+
+    if (toolUseBlocks.length === 0) break;
+
+    messages.push({ role: 'assistant', content: response.content });
+
+    const toolResults: Anthropic.Messages.ToolResultBlockParam[] = [];
+    for (const toolUse of toolUseBlocks) {
+      let result: unknown;
+
+      switch (toolUse.name) {
+        case 'search_skills': {
+          const input = toolUse.input as { query: string; limit?: number };
+          log.animatorToolCall('search_skills', input.query, turn + 1);
+          result = searchSkills(input.query, input.limit);
+          log.animatorToolResult('search_skills', Array.isArray(result) ? result.length : 0);
+          break;
+        }
+        case 'fetch_skill': {
+          const input = toolUse.input as { name: string };
+          log.animatorToolCall('fetch_skill', input.name, turn + 1);
+          result = fetchSkill(input.name);
+          log.animatorToolResult('fetch_skill', result ? 1 : 0);
+          break;
+        }
+        case 'search_bits': {
+          const input = toolUse.input as { query: string; tags?: string[]; limit?: number };
+          log.animatorToolCall('search_bits', input.query, turn + 1);
+          result = searchBits(input.query, input.tags, input.limit);
+          log.animatorToolResult('search_bits', Array.isArray(result) ? result.length : 0);
+          break;
+        }
+        case 'fetch_bit': {
+          const input = toolUse.input as { id: string };
+          log.animatorToolCall('fetch_bit', input.id, turn + 1);
+          result = fetchBit(input.id);
+          log.animatorToolResult('fetch_bit', result ? 1 : 0);
+          break;
+        }
+        default:
+          result = { error: `Unknown tool: ${toolUse.name}` };
+      }
+
+      toolResults.push({
+        type: 'tool_result',
+        tool_use_id: toolUse.id,
+        content: JSON.stringify(result),
+      });
+    }
+
+    messages.push({ role: 'user', content: toolResults });
+  }
+
+  const text = finalText;
   const code = extractCode(text);
   const analysis = analyzeCode(code);
 
