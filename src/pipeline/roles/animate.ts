@@ -7,7 +7,7 @@ import { searchSkills, fetchSkill } from '../tools/skill-registry';
 import { TIMING_REFERENCE } from './shared-prompts';
 
 const MODEL = 'claude-sonnet-4-20250514';
-const MAX_TOKENS = 8192;
+const MAX_TOKENS = 16384;
 
 const ANIMATE_TOOLS: Anthropic.Messages.Tool[] = [
   {
@@ -131,6 +131,10 @@ export async function runAnimateWithRetry(
       Date.now() - start
     );
     costTracker?.record('Animate', MODEL, response.usage.input_tokens, response.usage.output_tokens, Date.now() - start);
+
+    if (response.stop_reason === 'max_tokens') {
+      log.roleRetrying(`Response truncated (hit ${MAX_TOKENS} token limit)`);
+    }
 
     const toolUseBlocks: Anthropic.Messages.ToolUseBlock[] = [];
     for (const block of response.content) {
@@ -266,7 +270,11 @@ async function retryWithFeedback(
 }
 
 function extractJson(text: string): string {
-  const codeMatch = text.match(/```(?:json)?\s*([\s\S]*?)```/);
-  if (codeMatch) return codeMatch[1].trim();
+  // Try closed code fence first
+  const closed = text.match(/```(?:json)?\s*([\s\S]*?)```/);
+  if (closed) return closed[1].trim();
+  // Handle truncated response: strip opening fence if present
+  const open = text.match(/```(?:json)?\s*([\s\S]*)/);
+  if (open) return open[1].trim();
   return text.trim();
 }

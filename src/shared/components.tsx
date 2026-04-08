@@ -116,6 +116,27 @@ interface HandWrittenTextProps {
   fontWeight?: number | string;
   textAnchor?: 'start' | 'middle' | 'end';
   letterSpacing?: number;
+  maxWidth?: number;
+}
+
+function wrapText(text: string, fontSize: number, maxWidth: number, letterSpacing: number): string[] {
+  const charWidth = fontSize * 0.55 + letterSpacing;
+  const maxCharsPerLine = Math.max(1, Math.floor(maxWidth / charWidth));
+  const words = text.split(' ');
+  const lines: string[] = [];
+  let currentLine = '';
+
+  for (const word of words) {
+    const candidate = currentLine ? `${currentLine} ${word}` : word;
+    if (candidate.length > maxCharsPerLine && currentLine) {
+      lines.push(currentLine);
+      currentLine = word;
+    } else {
+      currentLine = candidate;
+    }
+  }
+  if (currentLine) lines.push(currentLine);
+  return lines;
 }
 
 export const HandWrittenText: React.FC<HandWrittenTextProps> = ({
@@ -130,6 +151,7 @@ export const HandWrittenText: React.FC<HandWrittenTextProps> = ({
   fontWeight = 700,
   textAnchor = 'middle',
   letterSpacing,
+  maxWidth,
 }) => {
   const frame = useCurrentFrame();
   const charCount = Math.floor(
@@ -139,6 +161,30 @@ export const HandWrittenText: React.FC<HandWrittenTextProps> = ({
     })
   );
   const visibleText = text.slice(0, charCount);
+
+  if (maxWidth) {
+    const lines = wrapText(visibleText, fontSize, maxWidth, letterSpacing || 0);
+    const lineHeight = fontSize * 1.35;
+    return (
+      <text
+        x={x}
+        y={y}
+        fontSize={fontSize}
+        fill={fill}
+        fontFamily={fontFamily}
+        fontWeight={fontWeight}
+        textAnchor={textAnchor}
+        dominantBaseline="auto"
+        letterSpacing={letterSpacing}
+      >
+        {lines.map((line, i) => (
+          <tspan key={i} x={x} dy={i === 0 ? 0 : lineHeight}>
+            {line}
+          </tspan>
+        ))}
+      </text>
+    );
+  }
 
   return (
     <text

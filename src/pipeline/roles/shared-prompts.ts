@@ -6,10 +6,11 @@
 export const COMPONENT_API = `
 COMPONENT API REFERENCE (all from src/studymaterial/components.tsx):
 
-HandWrittenText — Typewriter character-by-character text reveal in SVG
+HandWrittenText — Typewriter character-by-character text reveal in SVG (auto-wraps when maxWidth is set)
   Props: text (string), x (number), y (number), startFrame (number), durationFrames (number),
          fontSize? (number, default 32), fill? (string, default COLORS.outline),
-         fontWeight? (number|string, default 700), textAnchor? ("start"|"middle"|"end", default "middle")
+         fontWeight? (number|string, default 700), textAnchor? ("start"|"middle"|"end", default "middle"),
+         maxWidth? (number — text auto-wraps into multiple lines within this pixel width)
 
 AnimatedPath — SVG path with stroke-dash draw animation
   Props: d (string), startFrame (number), drawDuration (number),
@@ -130,6 +131,13 @@ LAYOUT (1920x1080 canvas):
 - Content area: y=120 to y=950
 - Side margins: 60-120px
 - Hero icon: cx=960, cy=300-440, scale=2-4
+
+GROUPING — elements that intentionally overlap MUST share a "group" value so the overlap validator skips them:
+- Title + its underline → group: "s{N}-header"
+- Icon/circle + label text centered on it → group: "s{N}-{name}"
+- Container (SketchBox/SketchCircle) + all content inside it → same group
+- Any decorative element layered on top of another → same group
+Elements that are spatially separate and should NOT overlap do NOT need a group.
 `;
 
 export const REFERENCE_SCENES = `

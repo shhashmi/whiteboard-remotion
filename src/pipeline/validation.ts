@@ -162,7 +162,7 @@ export const TimedLayoutSpecSchema = z.object({
 
 // ─── Layout bounds validation ───────────────────────────────────────────────
 
-export function validateLayoutBounds(spec: { scenes: { scene_number: number; elements: { id: string; bounds: { x: number; y: number; w: number; h: number }; props: Record<string, unknown>; group?: string }[] }[] }): string | null {
+export function validateLayoutBounds(spec: { scenes: { scene_number: number; elements: { id: string; component: string; bounds: { x: number; y: number; w: number; h: number }; props: Record<string, unknown>; group?: string }[] }[] }): string | null {
   const issues: string[] = [];
 
   for (const scene of spec.scenes) {
@@ -176,13 +176,6 @@ export function validateLayoutBounds(spec: { scenes: { scene_number: number; ele
         );
       }
 
-      // Text length check
-      const text = el.props.text;
-      if (typeof text === 'string' && text.length > 40) {
-        issues.push(
-          `Scene ${scene.scene_number}, ${el.id}: text "${text.slice(0, 30)}..." is ${text.length} chars (max 40)`
-        );
-      }
     }
 
     // Overlap detection between non-grouped elements
@@ -194,6 +187,17 @@ export function validateLayoutBounds(spec: { scenes: { scene_number: number; ele
 
         // Skip overlap check if elements are in the same group (intentional stacking)
         if (a.group && a.group === b.group) continue;
+
+        // Skip overlap for underlines (thin SketchLines) against adjacent text/elements
+        const aIsUnderline = a.component === 'SketchLine' && a.bounds.h <= 15;
+        const bIsUnderline = b.component === 'SketchLine' && b.bounds.h <= 15;
+        if (aIsUnderline || bIsUnderline) continue;
+
+        // Skip overlap when one element is a container and the other's origin is inside it
+        const aIsContainer = a.component === 'SketchBox' || a.component === 'SketchCircle';
+        const bIsContainer = b.component === 'SketchBox' || b.component === 'SketchCircle';
+        if (aIsContainer && !bIsContainer && pointInBounds(b.bounds.x + b.bounds.w / 2, b.bounds.y + b.bounds.h / 2, a.bounds)) continue;
+        if (bIsContainer && !aIsContainer && pointInBounds(a.bounds.x + a.bounds.w / 2, a.bounds.y + a.bounds.h / 2, b.bounds)) continue;
 
         const overlapX = Math.max(0, Math.min(a.bounds.x + a.bounds.w, b.bounds.x + b.bounds.w) - Math.max(a.bounds.x, b.bounds.x));
         const overlapY = Math.max(0, Math.min(a.bounds.y + a.bounds.h, b.bounds.y + b.bounds.h) - Math.max(a.bounds.y, b.bounds.y));

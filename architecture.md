@@ -65,7 +65,7 @@ User Idea (text)
 **Tools:** None.
 
 **Key constraints:**
-- Every line of text must be under 40 characters (readability at video resolution)
+- Text auto-wraps when maxWidth is set on HandWrittenText (readability at video resolution)
 - Terminology must be consistent — if a concept is named one way, it stays that way throughout
 - The Scriptwriter does not decide visuals or layout — only what information each scene conveys
 
@@ -197,7 +197,7 @@ User Idea (text)
 - Every scene uses the `<Scene>` wrapper which provides 30-frame fade in/out
 - Scene frame ranges must be contiguous (Scene1: 0-300, Scene2: 300-600, etc.)
 - All content animations must complete by `endFrame - 60` (30-frame hold + 30-frame fade-out)
-- Text must be under 40 characters per line, font size at least 20
+- HandWrittenText auto-wraps when maxWidth is set, font size at least 20
 - Canvas is 1920x1080
 
 **Saved artifact:** `out/6-generated-video.tsx`

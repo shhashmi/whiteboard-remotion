@@ -240,8 +240,7 @@ You are a scriptwriter for animated explainer videos. Given a story outline,
 write the complete script — every word that will appear on screen.
 
 Rules:
-- Each line of text must be under 40 characters (it will be rendered at
-  readable font sizes on a 1920x1080 canvas).
+- Keep text concise but natural — text auto-wraps on the 1920x1080 canvas when maxWidth is set.
 - Use consistent terminology. If you call it "recursive resolver" in scene 2,
   don't call it "DNS resolver" in scene 4 without introduction.
 - Add transition language between scenes so they flow as a narrative, not

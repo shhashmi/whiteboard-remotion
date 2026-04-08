@@ -6,7 +6,7 @@ import { LayoutSpecSchema, validate, validateLayout } from '../validation';
 import { COMPONENT_API, LAYOUT_CONVENTIONS } from './shared-prompts';
 
 const MODEL = 'claude-sonnet-4-20250514';
-const MAX_TOKENS = 8192;
+const MAX_TOKENS = 16384;
 
 const SYSTEM_PROMPT = `You are a layout designer for whiteboard-style animated explainer videos on a 1920×1080 canvas.
 
@@ -55,7 +55,7 @@ OUTPUT FORMAT — a JSON object with this structure:
 
 RULES:
 - Every element must have a bounding box (bounds) that fits within 0,0 → 1920,1080
-- Text must be under 40 characters per line
+- HandWrittenText auto-wraps when maxWidth is set — ensure bounds.w accommodates readable text at the chosen fontSize
 - Use appropriate fontSize: titles 42-48, headings 30-36, body 20-26, labels 18-22
 - For icons, the bounds should reflect the icon's visual footprint (based on scale)
 - Use "group" to tag elements that belong together (e.g. all cards, all steps in a sequence)
@@ -88,7 +88,7 @@ export async function runLayoutWithRetry(
       const layoutError = validateLayout(lastSpec, script);
       messages.push(
         { role: 'assistant', content: JSON.stringify(lastSpec, null, 2) },
-        { role: 'user', content: `The layout has issues:\n\n${layoutError}\n\nFix the issues and output the corrected JSON. Output ONLY the JSON.` }
+        { role: 'user', content: `The layout has issues:\n\n${layoutError}\n\nHINT: If two elements intentionally overlap (e.g. title + underline, icon + label text, content inside a container), give them the same "group" value — the validator skips overlap checks within a group.\n\nFix the issues and output the corrected JSON. Output ONLY the JSON.` }
       );
       log.roleRetrying(layoutError?.split('\n')[0] || 'Layout validation failed');
     }
@@ -109,6 +109,10 @@ export async function runLayoutWithRetry(
       Date.now() - start
     );
     costTracker?.record('Layout', MODEL, response.usage.input_tokens, response.usage.output_tokens, Date.now() - start);
+
+    if (response.stop_reason === 'max_tokens') {
+      log.roleRetrying(`Response truncated (hit ${MAX_TOKENS} token limit)`);
+    }
 
     const text = response.content[0].type === 'text' ? response.content[0].text : '';
     const json = extractJson(text);
@@ -146,8 +150,11 @@ export async function runLayoutWithRetry(
 }
 
 function extractJson(text: string): string {
-  // Try to extract JSON from markdown code fence
-  const codeMatch = text.match(/```(?:json)?\s*([\s\S]*?)```/);
-  if (codeMatch) return codeMatch[1].trim();
+  // Try closed code fence first
+  const closed = text.match(/```(?:json)?\s*([\s\S]*?)```/);
+  if (closed) return closed[1].trim();
+  // Handle truncated response: strip opening fence if present
+  const open = text.match(/```(?:json)?\s*([\s\S]*)/);
+  if (open) return open[1].trim();
   return text.trim();
 }
