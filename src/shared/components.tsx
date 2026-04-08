@@ -46,6 +46,8 @@ interface AnimatedPathProps {
   opacity?: number;
   strokeLinecap?: 'butt' | 'round' | 'square';
   strokeLinejoin?: 'miter' | 'round' | 'bevel';
+  strokeDasharray?: string;
+  strokeOpacity?: number;
 }
 
 export const AnimatedPath: React.FC<AnimatedPathProps> = ({
@@ -61,6 +63,8 @@ export const AnimatedPath: React.FC<AnimatedPathProps> = ({
   opacity = 1,
   strokeLinecap = 'round',
   strokeLinejoin = 'round',
+  strokeDasharray,
+  strokeOpacity,
 }) => {
   const frame = useCurrentFrame();
 
@@ -91,8 +95,9 @@ export const AnimatedPath: React.FC<AnimatedPathProps> = ({
       strokeLinecap={strokeLinecap}
       strokeLinejoin={strokeLinejoin}
       pathLength={pathLength}
-      strokeDasharray={1}
-      strokeDashoffset={strokeProgress}
+      strokeDasharray={strokeDasharray ?? 1}
+      strokeDashoffset={strokeDasharray ? undefined : strokeProgress}
+      strokeOpacity={strokeOpacity}
       opacity={elemOpacity}
     />
   );

@@ -2,7 +2,7 @@ import Anthropic from '@anthropic-ai/sdk';
 import type { Script, VisualDirection, LayoutSpec } from '../types';
 import { log } from '../logger';
 import type { CostTracker } from '../cost-tracker';
-import { LayoutSpecSchema, validate, validateLayoutBounds } from '../validation';
+import { LayoutSpecSchema, validate, validateLayout } from '../validation';
 import { COMPONENT_API, LAYOUT_CONVENTIONS } from './shared-prompts';
 
 const MODEL = 'claude-sonnet-4-20250514';
@@ -85,12 +85,12 @@ export async function runLayoutWithRetry(
 
     if (attempt > 0 && lastSpec) {
       // Retry with feedback
-      const boundsError = validateLayoutBounds(lastSpec);
+      const layoutError = validateLayout(lastSpec, script);
       messages.push(
         { role: 'assistant', content: JSON.stringify(lastSpec, null, 2) },
-        { role: 'user', content: `The layout has issues:\n\n${boundsError}\n\nFix the issues and output the corrected JSON. Output ONLY the JSON.` }
+        { role: 'user', content: `The layout has issues:\n\n${layoutError}\n\nFix the issues and output the corrected JSON. Output ONLY the JSON.` }
       );
-      log.roleRetrying(boundsError?.split('\n')[0] || 'Layout validation failed');
+      log.roleRetrying(layoutError?.split('\n')[0] || 'Layout validation failed');
     }
 
     log.roleCallingLLM(MODEL, MAX_TOKENS);
@@ -122,9 +122,9 @@ export async function runLayoutWithRetry(
       continue;
     }
 
-    const boundsError = validateLayoutBounds(spec);
-    if (boundsError) {
-      log.layoutBoundsViolation(boundsError);
+    const layoutError = validateLayout(spec, script);
+    if (layoutError) {
+      log.layoutBoundsViolation(layoutError);
       lastSpec = spec;
       continue;
     }

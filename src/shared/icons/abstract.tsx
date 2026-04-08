@@ -580,3 +580,138 @@ export const NumberBadge: React.FC<NumberBadgeProps> = ({
     </g>
   );
 };
+
+// ─── EyeIcon ──────────────────────────────────────────────────────────────────
+interface EyeIconProps {
+  cx: number;
+  cy: number;
+  scale?: number;
+  startFrame: number;
+  drawDuration: number;
+  color?: string;
+}
+
+export const EyeIcon: React.FC<EyeIconProps> = ({ cx, cy, scale = 1, startFrame, drawDuration, color = COLORS.blue }) => {
+  const s = scale;
+  const dur3 = Math.floor(drawDuration / 3);
+
+  // Eye outline (almond shape)
+  const eyeOutlineD =
+    `M ${cx - 45 * s} ${cy + 1 * s} ` +
+    `C ${cx - 45 * s} ${cy - 22 * s}, ${cx - 18 * s} ${cy - 28 * s}, ${cx + 2 * s} ${cy - 26 * s} ` +
+    `C ${cx + 22 * s} ${cy - 24 * s}, ${cx + 46 * s} ${cy - 18 * s}, ${cx + 47 * s} ${cy + 2 * s} ` +
+    `C ${cx + 46 * s} ${cy + 22 * s}, ${cx + 20 * s} ${cy + 28 * s}, ${cx - 1 * s} ${cy + 26 * s} ` +
+    `C ${cx - 22 * s} ${cy + 24 * s}, ${cx - 45 * s} ${cy + 18 * s}, ${cx - 45 * s} ${cy + 1 * s} Z`;
+
+  // Iris (outer circle)
+  const irisR = 18 * s;
+  const irisK = irisR * 0.56;
+  const irisD =
+    `M ${cx} ${cy - irisR + 1 * s} ` +
+    `C ${cx + irisK} ${cy - irisR + 1 * s}, ${cx + irisR - 1 * s} ${cy - irisK}, ${cx + irisR - 1 * s} ${cy + 1 * s} ` +
+    `C ${cx + irisR - 1 * s} ${cy + irisK}, ${cx + irisK} ${cy + irisR}, ${cx} ${cy + irisR} ` +
+    `C ${cx - irisK} ${cy + irisR}, ${cx - irisR + 1 * s} ${cy + irisK}, ${cx - irisR + 1 * s} ${cy + 1 * s} ` +
+    `C ${cx - irisR + 1 * s} ${cy - irisK}, ${cx - irisK} ${cy - irisR + 1 * s}, ${cx} ${cy - irisR + 1 * s} Z`;
+
+  // Pupil (inner circle)
+  const pupilR = 8 * s;
+  const pupilK = pupilR * 0.56;
+  const pupilD =
+    `M ${cx} ${cy - pupilR} ` +
+    `C ${cx + pupilK} ${cy - pupilR}, ${cx + pupilR} ${cy - pupilK}, ${cx + pupilR} ${cy} ` +
+    `C ${cx + pupilR} ${cy + pupilK}, ${cx + pupilK} ${cy + pupilR}, ${cx} ${cy + pupilR} ` +
+    `C ${cx - pupilK} ${cy + pupilR}, ${cx - pupilR} ${cy + pupilK}, ${cx - pupilR} ${cy} ` +
+    `C ${cx - pupilR} ${cy - pupilK}, ${cx - pupilK} ${cy - pupilR}, ${cx} ${cy - pupilR} Z`;
+
+  return (
+    <g>
+      <AnimatedPath 
+        d={eyeOutlineD} 
+        startFrame={startFrame} 
+        drawDuration={dur3} 
+        stroke={COLORS.outline} 
+        strokeWidth={2.5} 
+        fill={COLORS.white} 
+        fillOpacity={0.9} 
+      />
+      <AnimatedPath 
+        d={irisD} 
+        startFrame={startFrame + dur3} 
+        drawDuration={dur3} 
+        stroke={COLORS.outline} 
+        strokeWidth={2} 
+        fill={color} 
+        fillOpacity={0.7} 
+      />
+      <AnimatedPath 
+        d={pupilD} 
+        startFrame={startFrame + dur3 * 2} 
+        drawDuration={dur3} 
+        stroke={COLORS.outline} 
+        strokeWidth={1.5} 
+        fill={COLORS.outline} 
+        fillOpacity={1} 
+      />
+    </g>
+  );
+};
+
+// ─── LightningBoltIcon ────────────────────────────────────────────────────────
+interface LightningBoltIconProps {
+  cx: number;
+  cy: number;
+  scale?: number;
+  startFrame: number;
+  drawDuration: number;
+  color?: string;
+}
+
+export const LightningBoltIcon: React.FC<LightningBoltIconProps> = ({ 
+  cx, cy, scale = 1, startFrame, drawDuration, color = COLORS.yellow 
+}) => {
+  const s = scale;
+  const dur2 = Math.floor(drawDuration / 2);
+
+  // Main lightning bolt zigzag
+  const boltD =
+    `M ${cx - 8 * s} ${cy - 35 * s} ` +
+    `L ${cx + 12 * s} ${cy - 35 * s} ` +
+    `L ${cx - 6 * s} ${cy - 8 * s} ` +
+    `L ${cx + 15 * s} ${cy - 10 * s} ` +
+    `L ${cx - 18 * s} ${cy + 28 * s} ` +
+    `L ${cx - 2 * s} ${cy + 12 * s} ` +
+    `L ${cx - 12 * s} ${cy + 8 * s} ` +
+    `L ${cx + 5 * s} ${cy - 15 * s} ` +
+    `L ${cx - 8 * s} ${cy - 35 * s} Z`;
+
+  // Speed lines radiating outward
+  const speedLinesD =
+    `M ${cx + 25 * s} ${cy - 20 * s} L ${cx + 40 * s} ${cy - 25 * s} ` +
+    `M ${cx + 28 * s} ${cy - 5 * s} L ${cx + 45 * s} ${cy - 8 * s} ` +
+    `M ${cx + 22 * s} ${cy + 12 * s} L ${cx + 38 * s} ${cy + 15 * s} ` +
+    `M ${cx - 25 * s} ${cy - 25 * s} L ${cx - 40 * s} ${cy - 30 * s} ` +
+    `M ${cx - 22 * s} ${cy + 15 * s} L ${cx - 35 * s} ${cy + 20 * s}`;
+
+  return (
+    <g>
+      <AnimatedPath 
+        d={boltD} 
+        startFrame={startFrame} 
+        drawDuration={dur2} 
+        stroke={COLORS.outline} 
+        strokeWidth={2.5} 
+        fill={color} 
+        fillOpacity={0.8}
+        strokeLinejoin="round"
+      />
+      <AnimatedPath 
+        d={speedLinesD} 
+        startFrame={startFrame + dur2} 
+        drawDuration={dur2} 
+        stroke={COLORS.outline} 
+        strokeWidth={2} 
+        strokeLinecap="round"
+      />
+    </g>
+  );
+};

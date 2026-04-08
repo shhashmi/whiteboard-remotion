@@ -558,3 +558,187 @@ export const GridIcon: React.FC<GridIconProps> = ({
     </g>
   );
 };
+
+// ─── RadarSensorIcon ──────────────────────────────────────────────────────────
+interface RadarSensorIconProps {
+  cx: number;
+  cy: number;
+  scale?: number;
+  startFrame: number;
+  drawDuration: number;
+  color?: string;
+}
+
+export const RadarSensorIcon: React.FC<RadarSensorIconProps> = ({
+  cx, cy, scale = 1, startFrame, drawDuration, color = COLORS.blue,
+}) => {
+  const s = scale;
+  const dur4 = Math.floor(drawDuration / 4);
+
+  // Base unit/sensor housing
+  const baseD =
+    `M ${cx - 25 * s} ${cy + 28 * s} ` +
+    `L ${cx + 25 * s} ${cy + 28 * s} ` +
+    `Q ${cx + 27 * s} ${cy + 28 * s}, ${cx + 27 * s} ${cy + 25 * s} ` +
+    `L ${cx + 27 * s} ${cy + 15 * s} ` +
+    `Q ${cx + 27 * s} ${cy + 12 * s}, ${cx + 25 * s} ${cy + 12 * s} ` +
+    `L ${cx - 25 * s} ${cy + 12 * s} ` +
+    `Q ${cx - 27 * s} ${cy + 12 * s}, ${cx - 27 * s} ${cy + 15 * s} ` +
+    `L ${cx - 27 * s} ${cy + 25 * s} ` +
+    `Q ${cx - 27 * s} ${cy + 28 * s}, ${cx - 25 * s} ${cy + 28 * s} Z`;
+
+  // Inner radar arc 1 (closest)
+  const arc1R = 20 * s;
+  const arc1D =
+    `M ${cx - arc1R * 0.707} ${cy + 20 * s - arc1R * 0.707} ` +
+    `A ${arc1R} ${arc1R} 0 0 1 ${cx + arc1R * 0.707} ${cy + 20 * s - arc1R * 0.707}`;
+
+  // Middle radar arc 2
+  const arc2R = 35 * s;
+  const arc2D =
+    `M ${cx - arc2R * 0.707} ${cy + 20 * s - arc2R * 0.707} ` +
+    `A ${arc2R} ${arc2R} 0 0 1 ${cx + arc2R * 0.707} ${cy + 20 * s - arc2R * 0.707}`;
+
+  // Outer radar arc 3 (farthest)
+  const arc3R = 50 * s;
+  const arc3D =
+    `M ${cx - arc3R * 0.707} ${cy + 20 * s - arc3R * 0.707} ` +
+    `A ${arc3R} ${arc3R} 0 0 1 ${cx + arc3R * 0.707} ${cy + 20 * s - arc3R * 0.707}`;
+
+  return (
+    <g>
+      <AnimatedPath 
+        d={baseD} 
+        startFrame={startFrame} 
+        drawDuration={dur4} 
+        stroke={COLORS.outline} 
+        strokeWidth={2.5} 
+        fill={color} 
+        fillOpacity={0.6} 
+      />
+      <AnimatedPath 
+        d={arc1D} 
+        startFrame={startFrame + dur4} 
+        drawDuration={dur4} 
+        stroke={color} 
+        strokeWidth={2} 
+        strokeOpacity={0.9}
+      />
+      <AnimatedPath 
+        d={arc2D} 
+        startFrame={startFrame + dur4 * 2} 
+        drawDuration={dur4} 
+        stroke={color} 
+        strokeWidth={2} 
+        strokeOpacity={0.6}
+      />
+      <AnimatedPath 
+        d={arc3D} 
+        startFrame={startFrame + dur4 * 3} 
+        drawDuration={dur4} 
+        stroke={color} 
+        strokeWidth={2} 
+        strokeOpacity={0.4}
+      />
+    </g>
+  );
+};
+
+// ─── SensorEyeIcon ────────────────────────────────────────────────────────────
+interface SensorEyeIconProps {
+  cx: number;
+  cy: number;
+  scale?: number;
+  startFrame: number;
+  drawDuration: number;
+  color?: string;
+}
+
+export const SensorEyeIcon: React.FC<SensorEyeIconProps> = ({ 
+  cx, cy, scale = 1, startFrame, drawDuration, color = COLORS.blue 
+}) => {
+  const s = scale;
+  const dur4 = Math.floor(drawDuration / 4);
+
+  // Main eye shape (almond)
+  const eyeD = 
+    `M ${cx - 35 * s} ${cy} ` +
+    `C ${cx - 35 * s} ${cy - 18 * s}, ${cx - 12 * s} ${cy - 22 * s}, ${cx} ${cy - 22 * s} ` +
+    `C ${cx + 12 * s} ${cy - 22 * s}, ${cx + 36 * s} ${cy - 18 * s}, ${cx + 36 * s} ${cy} ` +
+    `C ${cx + 36 * s} ${cy + 18 * s}, ${cx + 12 * s} ${cy + 23 * s}, ${cx} ${cy + 23 * s} ` +
+    `C ${cx - 12 * s} ${cy + 23 * s}, ${cx - 35 * s} ${cy + 18 * s}, ${cx - 35 * s} ${cy} Z`;
+
+  // Iris (circle with slight wobble)
+  const irisR = 12 * s;
+  const iK = irisR * 0.56;
+  const irisD = 
+    `M ${cx} ${cy - irisR} ` +
+    `C ${cx + iK + 0.5} ${cy - irisR}, ${cx + irisR} ${cy - iK - 0.5}, ${cx + irisR} ${cy} ` +
+    `C ${cx + irisR} ${cy + iK + 0.5}, ${cx + iK - 0.5} ${cy + irisR}, ${cx} ${cy + irisR} ` +
+    `C ${cx - iK - 0.5} ${cy + irisR}, ${cx - irisR} ${cy + iK - 0.5}, ${cx - irisR} ${cy} ` +
+    `C ${cx - irisR} ${cy - iK + 0.5}, ${cx - iK + 0.5} ${cy - irisR}, ${cx} ${cy - irisR} Z`;
+
+  // Pupil (smaller circle)
+  const pupilR = 4 * s;
+  const pK = pupilR * 0.56;
+  const pupilD = 
+    `M ${cx} ${cy - pupilR} ` +
+    `C ${cx + pK} ${cy - pupilR}, ${cx + pupilR} ${cy - pK}, ${cx + pupilR} ${cy} ` +
+    `C ${cx + pupilR} ${cy + pK}, ${cx + pK} ${cy + pupilR}, ${cx} ${cy + pupilR} ` +
+    `C ${cx - pK} ${cy + pupilR}, ${cx - pupilR} ${cy + pK}, ${cx - pupilR} ${cy} ` +
+    `C ${cx - pupilR} ${cy - pK}, ${cx - pK} ${cy - pupilR}, ${cx} ${cy - pupilR} Z`;
+
+  // Detection waves/signals (three concentric arcs)
+  const wave1D = 
+    `M ${cx + 45 * s} ${cy - 15 * s} ` +
+    `C ${cx + 55 * s} ${cy - 8 * s}, ${cx + 55 * s} ${cy + 8 * s}, ${cx + 45 * s} ${cy + 15 * s}`;
+  
+  const wave2D = 
+    `M ${cx + 52 * s} ${cy - 20 * s} ` +
+    `C ${cx + 65 * s} ${cy - 10 * s}, ${cx + 65 * s} ${cy + 10 * s}, ${cx + 52 * s} ${cy + 20 * s}`;
+  
+  const wave3D = 
+    `M ${cx + 59 * s} ${cy - 25 * s} ` +
+    `C ${cx + 75 * s} ${cy - 12 * s}, ${cx + 75 * s} ${cy + 12 * s}, ${cx + 59 * s} ${cy + 25 * s}`;
+
+  const wavesD = `${wave1D} ${wave2D} ${wave3D}`;
+
+  return (
+    <g>
+      <AnimatedPath 
+        d={eyeD} 
+        startFrame={startFrame} 
+        drawDuration={dur4} 
+        stroke={COLORS.outline} 
+        strokeWidth={2.5} 
+        fill={COLORS.white} 
+        fillOpacity={0.9} 
+      />
+      <AnimatedPath 
+        d={irisD} 
+        startFrame={startFrame + dur4} 
+        drawDuration={dur4} 
+        stroke={COLORS.outline} 
+        strokeWidth={2} 
+        fill={color} 
+        fillOpacity={0.7} 
+      />
+      <AnimatedPath 
+        d={pupilD} 
+        startFrame={startFrame + dur4 * 2} 
+        drawDuration={dur4} 
+        stroke={COLORS.outline} 
+        strokeWidth={1.5} 
+        fill={COLORS.outline} 
+      />
+      <AnimatedPath 
+        d={wavesD} 
+        startFrame={startFrame + dur4 * 3} 
+        drawDuration={dur4} 
+        stroke={color} 
+        strokeWidth={2} 
+        fill="none" 
+      />
+    </g>
+  );
+};

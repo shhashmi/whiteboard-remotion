@@ -49,9 +49,22 @@ CrossMark — Animated red X
   Props: cx (number), cy (number), scale (number), startFrame (number), drawDuration (number), color? (string)
 
 ICONS (all share: cx, cy, scale, startFrame, drawDuration):
-  RobotHead (+color), PersonIcon (+shirtColor,hairColor), BrainIcon, GearIcon (+color),
-  Lightbulb, ToolIcon, TargetIcon, DatabaseIcon, CodeIcon, CloudIcon,
-  BookIcon (+color,label), MonitorIcon, BarChart, ClockIcon, DocStack
+  [technology]: RobotHead (+color), GearIcon (+color), ToolIcon, DatabaseIcon, CodeIcon, CloudIcon, MonitorIcon, KeyboardIcon (+color), MobilePhone (+color), ServerRack (+color), EnvelopeIcon (+color), WiFiSignal (+color), GridIcon (+rows,cols,color), RadarSensorIcon (+color), SensorEyeIcon (+color)
+  [people]: PersonIcon (+shirtColor,hairColor), PersonSitting (+shirtColor,color), PersonPresenting (+shirtColor,color), TwoPersons (+color), TeamGroup (+color)
+  [abstract]: BrainIcon, Lightbulb, TargetIcon, BookIcon (+color,label), ClockIcon, SpeechBubble, LockIcon (+color), ShieldIcon (+color), MagnifyingGlass (+color), WarningTriangle (+color), PuzzlePiece (+color), StarIcon (+color), FlagIcon (+color), MirrorIcon (+color), NumberBadge (+number,color), EyeIcon (+color), LightningBoltIcon (+color)
+  [business]: BarChart, DocStack, PieChart (+slices,colors), LineGraph (+color), ProgressBar (+percent,color), ProjectPlannerIcon (+color)
+  [flow]: CycleArrow (+segments,broken,color), FlowChain (+steps,direction,color), FunnelIcon (+color), DecisionDiamond (+color), DottedConnector (+x1,y1,x2,y2,color,dashed)
+  [structure]: TreeDiagram (+levels,color), StackedLayers (+layerCount,color), NetworkGraph (+nodeCount,color), ScaleIcon (+color), BlueprintIcon (+color)
+  [science]: DNAEvolutionIcon (+color), AtomIcon (+color), MicroscopeIcon (+color), BeakerIcon (+color), MagnetIcon (+color), GlobeIcon (+color)
+  [transport]: CarIcon (+color), AutonomousCarIcon (+color), AirplaneIcon (+color), ShipIcon (+color), BicycleIcon (+color)
+  [communication]: ChatbotIcon (+color), VideoCallIcon (+color), BroadcastIcon (+color), AntennaIcon (+color)
+  [nature]: GrowthTransformIcon (+color), MountainPeakIcon (+color), WaveIcon (+color), FlameIcon (+color), SunIcon (+color), MoonIcon (+color), FlowerIcon (+color)
+  [objects]: CompassIcon (+color), RocketIcon (+color), TrophyIcon (+color), CalendarIcon (+color), CameraIcon (+color), MegaphoneIcon (+color), HourglassIcon (+color), AnchorIcon (+color), CrownIcon (+color), ScissorsIcon (+color), GiftIcon (+color), MusicNoteIcon (+color), PaintBrushIcon (+color), PencilIcon (+color), FolderIcon (+color), TrashIcon (+color), TagIcon (+color), MicrophoneIcon (+color), SpeakerIcon (+color), HeadphonesIcon (+color), USBPlugIcon (+color)
+  [actions]: UploadIcon (+color), DownloadIcon (+color), SyncIcon (+color), PlayIcon (+color), PauseIcon (+color), ExpandIcon (+color), ShareIcon (+color)
+  [finance]: CoinIcon (+color), WalletIcon (+color), BankIcon (+color), CreditCardIcon (+color), DollarSignIcon (+color)
+  [status]: SmileyIcon (+color), ThumbsUpIcon (+color), HeartIcon (+color), CheckCircleIcon (+color), InfoCircleIcon (+color), NotificationBellIcon (+color)
+  [places]: FactoryIcon (+color), ShoppingCartIcon (+color), HandshakeIcon (+color), SatelliteIcon (+color), WindmillIcon (+color), RecycleIcon (+color), BridgeIcon (+color), CircuitBoardIcon (+color)
+
 
 COLORS: COLORS.outline, COLORS.orange, COLORS.blue, COLORS.purple, COLORS.green,
         COLORS.yellow, COLORS.red, COLORS.gray1, COLORS.gray2, COLORS.gray3, COLORS.white

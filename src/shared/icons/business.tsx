@@ -249,3 +249,97 @@ export const ProgressBar: React.FC<ProgressBarProps> = ({
     </g>
   );
 };
+
+// ─── ProjectPlannerIcon ──────────────────────────────────────────────────────
+interface ProjectPlannerIconProps {
+  cx: number;
+  cy: number;
+  scale?: number;
+  startFrame: number;
+  drawDuration: number;
+  color?: string;
+}
+
+export const ProjectPlannerIcon: React.FC<ProjectPlannerIconProps> = ({
+  cx, cy, scale = 1, startFrame, drawDuration, color = COLORS.blue,
+}) => {
+  const s = scale;
+  const dur4 = Math.floor(drawDuration / 4);
+
+  // Main clipboard/board background
+  const boardD =
+    `M ${cx - 28 * s} ${cy - 35 * s} ` +
+    `L ${cx + 28 * s} ${cy - 35 * s} ` +
+    `Q ${cx + 30 * s} ${cy - 35 * s}, ${cx + 30 * s} ${cy - 33 * s} ` +
+    `L ${cx + 30 * s} ${cy + 32 * s} ` +
+    `Q ${cx + 30 * s} ${cy + 34 * s}, ${cx + 28 * s} ${cy + 34 * s} ` +
+    `L ${cx - 28 * s} ${cy + 34 * s} ` +
+    `Q ${cx - 30 * s} ${cy + 34 * s}, ${cx - 30 * s} ${cy + 32 * s} ` +
+    `L ${cx - 30 * s} ${cy - 33 * s} ` +
+    `Q ${cx - 30 * s} ${cy - 35 * s}, ${cx - 28 * s} ${cy - 35 * s} Z`;
+
+  // Timeline/Gantt chart horizontal bars
+  const timelineD =
+    `M ${cx - 22 * s} ${cy - 22 * s} L ${cx + 8 * s} ${cy - 22 * s} ` +
+    `M ${cx - 22 * s} ${cy - 12 * s} L ${cx + 18 * s} ${cy - 12 * s} ` +
+    `M ${cx - 22 * s} ${cy - 2 * s} L ${cx + 2 * s} ${cy - 2 * s} ` +
+    `M ${cx - 22 * s} ${cy + 8 * s} L ${cx + 22 * s} ${cy + 8 * s} ` +
+    `M ${cx - 22 * s} ${cy + 18 * s} L ${cx + 12 * s} ${cy + 18 * s}`;
+
+  // Connecting network arrows/lines
+  const connectionsD =
+    `M ${cx + 8 * s} ${cy - 20 * s} L ${cx + 14 * s} ${cy - 16 * s} L ${cx + 18 * s} ${cy - 14 * s} ` +
+    `M ${cx + 2 * s} ${cy + 0 * s} L ${cx + 8 * s} ${cy + 4 * s} L ${cx + 22 * s} ${cy + 6 * s} ` +
+    `M ${cx + 12 * s} ${cy + 20 * s} L ${cx + 18 * s} ${cy + 24 * s} ` +
+    // Small arrowheads
+    `M ${cx + 16 * s} ${cy - 17 * s} L ${cx + 18 * s} ${cy - 14 * s} L ${cx + 15 * s} ${cy - 15 * s} ` +
+    `M ${cx + 20 * s} ${cy + 5 * s} L ${cx + 22 * s} ${cy + 6 * s} L ${cx + 20 * s} ${cy + 7 * s}`;
+
+  // Task checkboxes and checkmarks
+  const tasksD =
+    // Checkboxes
+    `M ${cx - 26 * s} ${cy - 26 * s} L ${cx - 22 * s} ${cy - 26 * s} L ${cx - 22 * s} ${cy - 18 * s} L ${cx - 26 * s} ${cy - 18 * s} Z ` +
+    `M ${cx - 26 * s} ${cy - 16 * s} L ${cx - 22 * s} ${cy - 16 * s} L ${cx - 22 * s} ${cy - 8 * s} L ${cx - 26 * s} ${cy - 8 * s} Z ` +
+    `M ${cx - 26 * s} ${cy - 6 * s} L ${cx - 22 * s} ${cy - 6 * s} L ${cx - 22 * s} ${cy + 2 * s} L ${cx - 26 * s} ${cy + 2 * s} Z ` +
+    // Checkmarks
+    `M ${cx - 25 * s} ${cy - 22 * s} L ${cx - 24 * s} ${cy - 20 * s} L ${cx - 23 * s} ${cy - 24 * s} ` +
+    `M ${cx - 25 * s} ${cy + 0 * s} L ${cx - 24 * s} ${cy + 2 * s} L ${cx - 23 * s} ${cy - 2 * s}`;
+
+  return (
+    <g>
+      <AnimatedPath
+        d={boardD}
+        startFrame={startFrame}
+        drawDuration={dur4}
+        stroke={COLORS.outline}
+        strokeWidth={2.5}
+        fill={COLORS.white}
+        fillOpacity={0.9}
+      />
+      <AnimatedPath
+        d={timelineD}
+        startFrame={startFrame + dur4}
+        drawDuration={dur4}
+        stroke={color}
+        strokeWidth={3}
+        strokeLinecap="round"
+      />
+      <AnimatedPath
+        d={connectionsD}
+        startFrame={startFrame + dur4 * 2}
+        drawDuration={dur4}
+        stroke={COLORS.orange}
+        strokeWidth={2}
+        strokeLinecap="round"
+      />
+      <AnimatedPath
+        d={tasksD}
+        startFrame={startFrame + dur4 * 3}
+        drawDuration={dur4}
+        stroke={COLORS.green}
+        strokeWidth={2}
+        strokeLinecap="round"
+      />
+    </g>
+  );
+};
