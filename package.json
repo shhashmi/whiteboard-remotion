@@ -1,37 +1,28 @@
 {
   "name": "whiteboard-remotion",
-  "version": "1.0.0",
-  "description": "Whiteboard-style animated explainer video",
+  "version": "2.0.0",
+  "description": "Single-shot Remotion whiteboard video generator powered by Claude Opus 4.6",
   "scripts": {
-    "start": "remotion studio",
-    "render:whiteboard-explainer": "remotion render src/index.tsx WhiteboardExplainer out/whiteboard-explainer.mp4",
-    "studio": "npx remotion studio src/studymaterial/index.tsx",
-    "render": "npx remotion render src/studymaterial/index.tsx AgenticAIExplainer out/video.mp4",
-    "render:preview": "npx remotion render src/studymaterial/index.tsx AgenticAIExplainer out/preview.mp4 --crf=28",
-    "render:hq": "npx remotion render src/studymaterial/index.tsx AgenticAIExplainer out/video_hq.mp4 --crf=15",
-    "generate": "npx ts-node src/pipeline/generate.ts",
-    "studio:generated": "npx remotion studio src/generated/index.tsx",
-    "render:generated": "npx remotion render src/generated/index.tsx GeneratedVideo out/generated.mp4"
+    "generate": "ts-node src/generate.ts",
+    "studio": "remotion studio src/index.tsx",
+    "studio:generated": "remotion studio src/generated/index.tsx",
+    "render:generated": "remotion render src/generated/index.tsx GeneratedVideo out/generated.mp4",
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.82.0",
     "@babel/parser": "^7.29.2",
-    "@babel/traverse": "^7.29.0",
-    "@babel/types": "^7.29.0",
     "@remotion/cli": "4.0.290",
     "dotenv": "^17.4.1",
-    "prism-react-renderer": "^2.4.1",
     "react": "18.2.0",
     "react-dom": "18.2.0",
-    "remotion": "4.0.290",
-    "remotion-bits": "file:../../remotion-bits",
-    "ts-node": "^10.9.2",
-    "zod": "^4.3.6"
+    "remotion": "4.0.290"
   },
   "devDependencies": {
-    "@types/babel__traverse": "^7.28.0",
+    "@types/node": "^20.0.0",
     "@types/react": "18.2.0",
     "@types/react-dom": "18.2.0",
+    "ts-node": "^10.9.2",
     "typescript": "5.3.3"
   }
 }
