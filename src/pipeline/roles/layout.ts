@@ -4,6 +4,13 @@ import { log } from '../logger';
 import type { CostTracker } from '../cost-tracker';
 import { LayoutSpecSchema, validate, validateLayout } from '../validation';
 import { COMPONENT_API, LAYOUT_CONVENTIONS } from './shared-prompts';
+import {
+  LAYOUT_TOOLS,
+  measureText,
+  checkBounds,
+  checkOverlaps,
+  suggestGrid,
+} from '../tools/layout-tools';
 
 const MODEL = 'claude-sonnet-4-20250514';
 const MAX_TOKENS = 16384;
@@ -22,6 +29,17 @@ For each scene, decide:
 3. What colors and visual properties each element needs
 4. How to group related elements (e.g. "cards", "steps") for later stagger animation
 
+You have tools to validate your work as you go. The recommended workflow is:
+
+1. For each scene, plan which components you need.
+2. Call \`measure_text\` for every text element to get real dimensions before placing it.
+3. Use \`suggest_grid\` when you have 2+ similar items (cards, steps) to lay out — do not compute grid math yourself.
+4. After drafting a scene's elements, call \`check_bounds\` and \`check_overlaps\` on that scene.
+5. Fix any issues the tools report and re-check until clean.
+6. Only output the final JSON when all scenes pass \`check_bounds\` and \`check_overlaps\` with no issues.
+
+DO NOT skip the tool calls. Layouts that look fine to you often fail validation downstream — the tools catch this earlier.
+
 OUTPUT FORMAT — a JSON object with this structure:
 {
   "scenes": [
@@ -39,7 +57,8 @@ OUTPUT FORMAT — a JSON object with this structure:
           "id": "s1-underline",
           "component": "SketchLine",
           "bounds": { "x": 380, "y": 78, "w": 1160, "h": 8 },
-          "props": { "x1": 380, "y1": 82, "x2": 1540, "y2": 82, "color": "COLORS.orange", "strokeWidth": 3 }
+          "props": { "x1": 380, "y1": 82, "x2": 1540, "y2": 82, "color": "COLORS.orange", "strokeWidth": 3 },
+          "layer_intent": { "type": "attached", "target": "s1-title", "reason": "underline decoration beneath title text" }
         },
         {
           "id": "s1-card-0",
@@ -64,6 +83,23 @@ RULES:
 - Include ALL text from the script — don't skip content
 - Follow the art director's composition, density, and color_usage guidance
 
+LAYER INTENT — declaring intentional overlaps
+
+When two elements overlap on purpose, declare it on the element that "sits on top" using the layer_intent field:
+
+  { "id": "...", "bounds": {...}, "props": {...},
+    "layer_intent": { "type": "...", "target": "<id>", "reason": "<one-line>" } }
+
+Intent types:
+- stack_above: this element sits visibly above target with offset (use for fanned card stacks)
+- stack_below: this element sits visibly below target with offset
+- overlay: this element covers most of target (use for modals, captions over images)
+- badge: this element is a small accent at a corner of target (use for status dots, "new" tags)
+- behind: this element extends behind target as a backdrop (use for spotlights, glow regions)
+- attached: this element is physically bound to target (use for underlines under titles, labels on arrows)
+
+The reason field is required and must briefly justify the overlap. Do not use layer_intent to silence false positives — only use it for genuinely intentional overlaps. Most elements will NOT need layer_intent.
+
 Output ONLY the JSON. No explanation, no markdown wrapping.`;
 
 export async function runLayoutWithRetry(
@@ -74,25 +110,17 @@ export async function runLayoutWithRetry(
 ): Promise<LayoutSpec> {
   log.layoutGenerating(script.scenes.length);
 
-  const userMessage = `Here is the script:\n\n${JSON.stringify(script, null, 2)}\n\nHere is the visual direction:\n\n${JSON.stringify(visualDirection, null, 2)}\n\nProduce the layout JSON spec. Output ONLY the JSON.`;
+  const messages: Anthropic.Messages.MessageParam[] = [
+    {
+      role: 'user',
+      content: `Here is the script:\n\n${JSON.stringify(script, null, 2)}\n\nHere is the visual direction:\n\n${JSON.stringify(visualDirection, null, 2)}\n\nProduce the layout JSON spec. Use the tools to measure text, check bounds, check overlaps, and compute grids as you go. Output ONLY the final JSON once all checks pass.`,
+    },
+  ];
 
-  let lastSpec: LayoutSpec | null = null;
+  let finalText = '';
+  const maxTurns = 15;
 
-  for (let attempt = 0; attempt < 3; attempt++) {
-    const messages: Anthropic.Messages.MessageParam[] = [
-      { role: 'user', content: userMessage },
-    ];
-
-    if (attempt > 0 && lastSpec) {
-      // Retry with feedback
-      const layoutError = validateLayout(lastSpec, script);
-      messages.push(
-        { role: 'assistant', content: JSON.stringify(lastSpec, null, 2) },
-        { role: 'user', content: `The layout has issues:\n\n${layoutError}\n\nHINT: If two elements intentionally overlap (e.g. title + underline, icon + label text, content inside a container), give them the same "group" value — the validator skips overlap checks within a group.\n\nFix the issues and output the corrected JSON. Output ONLY the JSON.` }
-      );
-      log.roleRetrying(layoutError?.split('\n')[0] || 'Layout validation failed');
-    }
-
+  for (let turn = 0; turn < maxTurns; turn++) {
     log.roleCallingLLM(MODEL, MAX_TOKENS);
     const start = Date.now();
 
@@ -100,6 +128,7 @@ export async function runLayoutWithRetry(
       model: MODEL,
       max_tokens: MAX_TOKENS,
       system: SYSTEM_PROMPT,
+      tools: LAYOUT_TOOLS,
       messages,
     });
 
@@ -114,39 +143,90 @@ export async function runLayoutWithRetry(
       log.roleRetrying(`Response truncated (hit ${MAX_TOKENS} token limit)`);
     }
 
-    const text = response.content[0].type === 'text' ? response.content[0].text : '';
-    const json = extractJson(text);
-
-    let spec: LayoutSpec;
-    try {
-      const parsed = JSON.parse(json);
-      spec = validate(LayoutSpecSchema, parsed, 'LayoutSpec');
-    } catch (err) {
-      log.roleRetrying((err as Error).message);
-      continue;
+    const toolUseBlocks: Anthropic.Messages.ToolUseBlock[] = [];
+    for (const block of response.content) {
+      if (block.type === 'text') {
+        finalText = block.text;
+      } else if (block.type === 'tool_use') {
+        toolUseBlocks.push(block);
+      }
     }
 
-    const layoutError = validateLayout(spec, script);
-    if (layoutError) {
-      log.layoutBoundsViolation(layoutError);
-      lastSpec = spec;
-      continue;
+    if (toolUseBlocks.length === 0) break;
+
+    messages.push({ role: 'assistant', content: response.content });
+
+    const toolResults: Anthropic.Messages.ToolResultBlockParam[] = [];
+    for (const toolUse of toolUseBlocks) {
+      let result: unknown;
+
+      switch (toolUse.name) {
+        case 'measure_text': {
+          const input = toolUse.input as { text: string; fontSize: number; fontWeight?: number };
+          log.animatorToolCall('measure_text', input.text.slice(0, 40), turn + 1);
+          result = measureText(input.text, input.fontSize, input.fontWeight);
+          log.animatorToolResult('measure_text', 1);
+          break;
+        }
+        case 'check_bounds': {
+          const input = toolUse.input as { elements: Array<{ id: string; component: string; bounds: { x: number; y: number; w: number; h: number }; props: Record<string, unknown>; group?: string }> };
+          log.animatorToolCall('check_bounds', `${input.elements.length} elements`, turn + 1);
+          result = checkBounds(input.elements);
+          log.animatorToolResult('check_bounds', Array.isArray(result) ? result.length : 0);
+          break;
+        }
+        case 'check_overlaps': {
+          const input = toolUse.input as { elements: Array<{ id: string; component: string; bounds: { x: number; y: number; w: number; h: number }; props: Record<string, unknown>; group?: string }> };
+          log.animatorToolCall('check_overlaps', `${input.elements.length} elements`, turn + 1);
+          result = checkOverlaps(input.elements);
+          log.animatorToolResult('check_overlaps', Array.isArray(result) ? result.length : 0);
+          break;
+        }
+        case 'suggest_grid': {
+          const input = toolUse.input as { count: number; region: { x: number; y: number; w: number; h: number }; gap?: number };
+          log.animatorToolCall('suggest_grid', `${input.count} items`, turn + 1);
+          result = suggestGrid(input);
+          log.animatorToolResult('suggest_grid', Array.isArray(result) ? result.length : 0);
+          break;
+        }
+        default:
+          result = { error: `Unknown tool: ${toolUse.name}` };
+      }
+
+      toolResults.push({
+        type: 'tool_result',
+        tool_use_id: toolUse.id,
+        content: JSON.stringify(result),
+      });
     }
 
-    log.roleValidationPassed('LayoutSpec schema + bounds');
-    const totalElements = spec.scenes.reduce((sum, s) => sum + s.elements.length, 0);
-    log.layoutResult(spec.scenes.length, totalElements);
-    return spec;
+    messages.push({ role: 'user', content: toolResults });
   }
 
-  // If we exhausted retries, return the last spec with warnings
-  if (lastSpec) {
-    const totalElements = lastSpec.scenes.reduce((sum, s) => sum + s.elements.length, 0);
-    log.layoutResult(lastSpec.scenes.length, totalElements);
-    return lastSpec;
+  // Parse and validate final output
+  const json = extractJson(finalText);
+  let spec: LayoutSpec;
+  try {
+    const parsed = JSON.parse(json);
+    spec = validate(LayoutSpecSchema, parsed, 'LayoutSpec');
+  } catch (err) {
+    throw new Error(`Layout generation failed: ${(err as Error).message}`);
   }
 
-  throw new Error('Layout generation failed after 3 attempts');
+  // Safety-net validation: if this fires, the tool loop claimed success but the validator disagrees.
+  // This means the tools and the validator are out of sync — a bug that must be fixed, not silenced.
+  const layoutError = validateLayout(spec, script);
+  if (layoutError) {
+    log.layoutBoundsViolation(layoutError);
+    throw new Error(
+      `Layout safety-net validation failed — tools and validator disagree:\n${layoutError}`
+    );
+  }
+
+  log.roleValidationPassed('LayoutSpec schema + bounds');
+  const totalElements = spec.scenes.reduce((sum, s) => sum + s.elements.length, 0);
+  log.layoutResult(spec.scenes.length, totalElements);
+  return spec;
 }
 
 function extractJson(text: string): string {

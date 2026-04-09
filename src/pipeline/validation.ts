@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import type { SceneContent, Script } from './types';
+import { buildElementMap, isOverlapJustifiedByIntent, OVERLAP_THRESHOLD, type ElementWithIntent } from './tools/intent-resolver';
 
 // ─── StoryOutline validation ────────────────────────────────────────────────
 
@@ -124,12 +125,19 @@ const BoundsSchema = z.object({
   h: z.number().positive(),
 });
 
+const LayerIntentSchema = z.object({
+  type: z.enum(['stack_above', 'stack_below', 'overlay', 'badge', 'behind', 'attached']),
+  target: z.string().min(1),
+  reason: z.string().min(1),
+});
+
 const LayoutElementSchema = z.object({
   id: z.string().min(1),
   component: z.string().min(1),
   bounds: BoundsSchema,
   props: z.record(z.string(), z.unknown()),
   group: z.string().optional(),
+  layer_intent: LayerIntentSchema.optional(),
 });
 
 const SceneLayoutSchema = z.object({
@@ -162,7 +170,7 @@ export const TimedLayoutSpecSchema = z.object({
 
 // ─── Layout bounds validation ───────────────────────────────────────────────
 
-export function validateLayoutBounds(spec: { scenes: { scene_number: number; elements: { id: string; component: string; bounds: { x: number; y: number; w: number; h: number }; props: Record<string, unknown>; group?: string }[] }[] }): string | null {
+export function validateLayoutBounds(spec: { scenes: { scene_number: number; elements: { id: string; component: string; bounds: { x: number; y: number; w: number; h: number }; props: Record<string, unknown>; group?: string; layer_intent?: { type: string; target: string; reason: string } }[] }[] }): string | null {
   const issues: string[] = [];
 
   for (const scene of spec.scenes) {
@@ -180,6 +188,7 @@ export function validateLayoutBounds(spec: { scenes: { scene_number: number; ele
 
     // Overlap detection between non-grouped elements
     const elements = scene.elements;
+    const elementMap = buildElementMap(elements);
     for (let i = 0; i < elements.length; i++) {
       for (let j = i + 1; j < elements.length; j++) {
         const a = elements[i];
@@ -188,16 +197,8 @@ export function validateLayoutBounds(spec: { scenes: { scene_number: number; ele
         // Skip overlap check if elements are in the same group (intentional stacking)
         if (a.group && a.group === b.group) continue;
 
-        // Skip overlap for underlines (thin SketchLines) against adjacent text/elements
-        const aIsUnderline = a.component === 'SketchLine' && a.bounds.h <= 15;
-        const bIsUnderline = b.component === 'SketchLine' && b.bounds.h <= 15;
-        if (aIsUnderline || bIsUnderline) continue;
-
-        // Skip overlap when one element is a container and the other's origin is inside it
-        const aIsContainer = a.component === 'SketchBox' || a.component === 'SketchCircle';
-        const bIsContainer = b.component === 'SketchBox' || b.component === 'SketchCircle';
-        if (aIsContainer && !bIsContainer && pointInBounds(b.bounds.x + b.bounds.w / 2, b.bounds.y + b.bounds.h / 2, a.bounds)) continue;
-        if (bIsContainer && !aIsContainer && pointInBounds(a.bounds.x + a.bounds.w / 2, a.bounds.y + a.bounds.h / 2, b.bounds)) continue;
+        // Skip overlap if justified by declared layer_intent
+        if (isOverlapJustifiedByIntent(a, b, elementMap)) continue;
 
         const overlapX = Math.max(0, Math.min(a.bounds.x + a.bounds.w, b.bounds.x + b.bounds.w) - Math.max(a.bounds.x, b.bounds.x));
         const overlapY = Math.max(0, Math.min(a.bounds.y + a.bounds.h, b.bounds.y + b.bounds.h) - Math.max(a.bounds.y, b.bounds.y));
@@ -207,7 +208,7 @@ export function validateLayoutBounds(spec: { scenes: { scene_number: number; ele
         const areaB = b.bounds.w * b.bounds.h;
         const smallerArea = Math.min(areaA, areaB);
 
-        if (smallerArea > 0 && overlapArea / smallerArea > 0.3) {
+        if (smallerArea > 0 && overlapArea / smallerArea > OVERLAP_THRESHOLD) {
           issues.push(
             `Scene ${scene.scene_number}: ${a.id} and ${b.id} overlap >30% (${Math.round(overlapArea / smallerArea * 100)}%)`
           );
@@ -218,6 +219,116 @@ export function validateLayoutBounds(spec: { scenes: { scene_number: number; ele
 
   return issues.length > 0
     ? `LAYOUT ISSUES:\n${issues.join('\n')}`
+    : null;
+}
+
+// ─── Layer intent validation ──────────────────────────────────────────────
+
+function computeOverlapArea(a: { x: number; y: number; w: number; h: number }, b: { x: number; y: number; w: number; h: number }): number {
+  const overlapX = Math.max(0, Math.min(a.x + a.w, b.x + b.w) - Math.max(a.x, b.x));
+  const overlapY = Math.max(0, Math.min(a.y + a.h, b.y + b.h) - Math.max(a.y, b.y));
+  return overlapX * overlapY;
+}
+
+function bboxesTouchOrOverlap(a: { x: number; y: number; w: number; h: number }, b: { x: number; y: number; w: number; h: number }): boolean {
+  return a.x <= b.x + b.w && a.x + a.w >= b.x && a.y <= b.y + b.h && a.y + a.h >= b.y;
+}
+
+function visibleEdge(self: { x: number; y: number; w: number; h: number }, target: { x: number; y: number; w: number; h: number }): number {
+  // How much of target extends past self on each side
+  const left = Math.max(0, self.x - target.x);
+  const right = Math.max(0, (target.x + target.w) - (self.x + self.w));
+  const top = Math.max(0, self.y - target.y);
+  const bottom = Math.max(0, (target.y + target.h) - (self.y + self.h));
+  return Math.max(left, right, top, bottom);
+}
+
+function isNearCorner(el: { x: number; y: number; w: number; h: number }, target: { x: number; y: number; w: number; h: number }, threshold = 40): boolean {
+  const cx = el.x + el.w / 2;
+  const cy = el.y + el.h / 2;
+  const corners = [
+    { x: target.x, y: target.y },
+    { x: target.x + target.w, y: target.y },
+    { x: target.x, y: target.y + target.h },
+    { x: target.x + target.w, y: target.y + target.h },
+  ];
+  return corners.some(c => Math.abs(cx - c.x) <= threshold && Math.abs(cy - c.y) <= threshold);
+}
+
+function extendsPastOnSides(self: { x: number; y: number; w: number; h: number }, target: { x: number; y: number; w: number; h: number }): number {
+  let count = 0;
+  if (self.x < target.x) count++;
+  if (self.x + self.w > target.x + target.w) count++;
+  if (self.y < target.y) count++;
+  if (self.y + self.h > target.y + target.h) count++;
+  return count;
+}
+
+export function validateIntents(
+  spec: { scenes: { scene_number: number; elements: ElementWithIntent[] }[] }
+): string | null {
+  const issues: string[] = [];
+
+  for (const scene of spec.scenes) {
+    const sn = scene.scene_number;
+    const elementMap = buildElementMap(scene.elements);
+
+    for (const el of scene.elements) {
+      const intent = el.layer_intent;
+      if (!intent) continue;
+
+      const target = elementMap.get(intent.target);
+      if (!target) {
+        issues.push(`Scene ${sn}: ${el.id} declares ${intent.type} on "${intent.target}" but target does not exist`);
+        continue;
+      }
+
+      switch (intent.type) {
+        case 'stack_above':
+        case 'stack_below': {
+          const overlap = computeOverlapArea(el.bounds, target.bounds);
+          if (overlap === 0) {
+            issues.push(`Scene ${sn}: ${el.id} declares ${intent.type} on ${target.id} but they do not overlap`);
+          }
+          const visible = visibleEdge(el.bounds, target.bounds);
+          if (visible < 20) {
+            issues.push(`Scene ${sn}: ${el.id} declares ${intent.type} on ${target.id} but target has <20px visible edge (${Math.round(visible)}px)`);
+          }
+          break;
+        }
+        case 'badge': {
+          if (!isNearCorner(el.bounds, target.bounds)) {
+            issues.push(`Scene ${sn}: ${el.id} declares badge on ${target.id} but is not near any corner`);
+          }
+          break;
+        }
+        case 'behind': {
+          const sides = extendsPastOnSides(el.bounds, target.bounds);
+          if (sides < 2) {
+            issues.push(`Scene ${sn}: ${el.id} declares behind on ${target.id} but only extends past on ${sides} side(s) (need >=2)`);
+          }
+          break;
+        }
+        case 'overlay': {
+          const overlap = computeOverlapArea(el.bounds, target.bounds);
+          const targetArea = target.bounds.w * target.bounds.h;
+          if (targetArea > 0 && overlap / targetArea < 0.5) {
+            issues.push(`Scene ${sn}: ${el.id} declares overlay on ${target.id} but covers only ${Math.round(overlap / targetArea * 100)}% (<50%)`);
+          }
+          break;
+        }
+        case 'attached': {
+          if (!bboxesTouchOrOverlap(el.bounds, target.bounds)) {
+            issues.push(`Scene ${sn}: ${el.id} declares attached to ${target.id} but bounding boxes do not touch`);
+          }
+          break;
+        }
+      }
+    }
+  }
+
+  return issues.length > 0
+    ? `INTENT ISSUES:\n${issues.join('\n')}`
     : null;
 }
 
@@ -558,13 +669,14 @@ export function validateLayoutCompleteness(
 // ─── Layout validation orchestrator ────────────────────────────────────────
 
 export function validateLayout(
-  spec: { scenes: { scene_number: number; elements: { id: string; component: string; bounds: { x: number; y: number; w: number; h: number }; props: Record<string, unknown>; group?: string }[] }[] },
+  spec: { scenes: { scene_number: number; elements: { id: string; component: string; bounds: { x: number; y: number; w: number; h: number }; props: Record<string, unknown>; group?: string; layer_intent?: { type: string; target: string; reason: string } }[] }[] },
   script: Script
 ): string | null {
   const results = [
     validateLayoutBounds(spec),
     validateLayoutStructure(spec),
     validateLayoutCompleteness(spec, script),
+    validateIntents(spec),
   ].filter(Boolean);
   return results.length > 0 ? results.join('\n\n') : null;
 }

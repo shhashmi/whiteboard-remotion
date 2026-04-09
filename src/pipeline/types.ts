@@ -96,12 +96,21 @@ export interface ImageSelection {
 
 // ─── Role 4: Layout output ──────────────────────────────────────────────────
 
+export type LayerIntentType = 'stack_above' | 'stack_below' | 'overlay' | 'badge' | 'behind' | 'attached';
+
+export interface LayerIntent {
+  type: LayerIntentType;
+  target: string;
+  reason: string;
+}
+
 export interface LayoutElement {
   id: string;
   component: string;
   bounds: { x: number; y: number; w: number; h: number };
   props: Record<string, unknown>;
   group?: string;
+  layer_intent?: LayerIntent;
 }
 
 export interface SceneLayout {

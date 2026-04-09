@@ -132,12 +132,18 @@ LAYOUT (1920x1080 canvas):
 - Side margins: 60-120px
 - Hero icon: cx=960, cy=300-440, scale=2-4
 
-GROUPING — elements that intentionally overlap MUST share a "group" value so the overlap validator skips them:
-- Title + its underline → group: "s{N}-header"
-- Icon/circle + label text centered on it → group: "s{N}-{name}"
-- Container (SketchBox/SketchCircle) + all content inside it → same group
-- Any decorative element layered on top of another → same group
-Elements that are spatially separate and should NOT overlap do NOT need a group.
+GROUPING — "group" tags elements that animate together (stagger, sequence):
+- Cards in a row → group: "cards"
+- Steps in a flow → group: "steps"
+- Elements in the same group skip overlap checks automatically.
+
+LAYER INTENT — "layer_intent" declares why one element intentionally overlaps another:
+- Title + its underline → underline gets layer_intent: { type: "attached", target: "<title-id>", reason: "underline beneath title" }
+- Icon/circle + label text centered on it → text gets layer_intent: { type: "overlay", target: "<icon-id>", reason: "label on icon" }
+- Container (SketchBox) + content inside → content gets layer_intent: { type: "stack_above", target: "<box-id>", reason: "content inside container" }
+- Badge/counter on a card corner → badge gets layer_intent: { type: "badge", target: "<card-id>", reason: "notification badge" }
+- Backdrop shape behind content → backdrop gets layer_intent: { type: "behind", target: "<content-id>", reason: "background highlight" }
+Elements that are spatially separate and should NOT overlap need neither group nor layer_intent.
 `;
 
 export const REFERENCE_SCENES = `
