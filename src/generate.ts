@@ -151,16 +151,23 @@ function typecheckGenerated(): { ok: true } | { ok: false; errors: string } {
     });
     return { ok: true };
   } catch (err: any) {
-    // tsc writes errors to stdout. Filter down to errors that mention the generated files.
+    // tsc writes errors to stdout. Keep only lines that mention the generated
+    // directory — avoids leaking unrelated errors from src/cfpb-riskcheck or
+    // src/shared into the retry feedback to the model.
     const stdout = (err.stdout || '').toString();
     const stderr = (err.stderr || '').toString();
     const combined = `${stdout}\n${stderr}`;
     const relevant = combined
       .split('\n')
-      .filter((line) => line.includes('src/generated/') || line.includes('error TS'))
+      .filter((line) => line.includes('src/generated/'))
       .slice(0, 40)
       .join('\n');
-    return { ok: false, errors: relevant || combined.slice(0, 4000) };
+    // If tsc exited nonzero but no errors matched src/generated/, the failure
+    // is in unrelated code — treat the generated file as OK.
+    if (!relevant.trim()) {
+      return { ok: true };
+    }
+    return { ok: false, errors: relevant };
   }
 }
 

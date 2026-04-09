@@ -1,3 +1,5 @@
+> **⚠️ HISTORICAL — this is the README for the old 7-role pipeline.** The project now uses a single-shot Opus 4.6 generator. See `../../README.md` for current instructions.
+
 # Whiteboard Remotion
 
 Text-to-video pipeline that turns a plain text idea into an animated whiteboard explainer video. Powered by Claude and [Remotion](https://www.remotion.dev/).

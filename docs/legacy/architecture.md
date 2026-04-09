@@ -1,3 +1,5 @@
+> **⚠️ HISTORICAL — describes the old 7-stage pipeline.** The project now uses a single-shot Opus 4.6 generator driven by `.claude/skills/whiteboard-video/SKILL.md`. See the top-level `README.md` for current architecture. Preserved here for context.
+
 # Video Creation Pipeline — Architecture
 
 ## Overview

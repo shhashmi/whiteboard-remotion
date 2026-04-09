@@ -16,9 +16,9 @@ You generate **one file**: a complete `GeneratedVideo.tsx` React/Remotion compon
 
 ## Composition structure — hard rules
 
-1. **3–5 scenes**, each wrapped in `<Scene startFrame={...} endFrame={...}>`. Scenes run **sequentially** — no overlap, no concurrent scenes.
-2. **Max 5 foreground elements per scene.** Title + icon + annotation ≤ 5 total. Fewer is better.
-3. Scene duration budget: title/hook ~180 frames, explanation scenes ~300 frames each, takeaway ~180 frames.
+1. **3–6 scenes**, each wrapped in `<Scene startFrame={...} endFrame={...}>`. Scenes run **sequentially** — no overlap, no concurrent scenes. Prefer 4–5.
+2. **Max 5 primary focal concepts per scene.** A "primary focal concept" is a labeled thing the viewer is meant to track — a box+label pair, an icon+caption, a standalone title. Auxiliary connectors (arrows, dotted lines), background grid, and sub-labels on diagram nodes do NOT count. A flowchart with 4 nodes + 3 arrows + 4 node-labels = 4 primary concepts, not 11.
+3. Scene duration budget: title/hook ~180 frames, explanation scenes ~300–420 frames each, takeaway ~180 frames.
 4. Always track a single `frame` counter across the file: `frame = 0`, then `frame += sceneDuration`. Scene `endFrame = startFrame + duration - 1`.
 5. Inside a scene, element `startFrame` values are **absolute to the video**, not relative to the scene. Start elements 10–20 frames after the scene's startFrame (so the scene fade-in finishes first) and end at least 20 frames before the scene's endFrame.
 
@@ -339,7 +339,7 @@ The generator wires Root.tsx to import both, so both MUST be named exports.
 
 - ❌ Inventing hex colors outside the `COLORS` palette
 - ❌ Placing any element outside x ∈ [120, 1800] or y ∈ [120, 960]
-- ❌ More than 5 elements inside a single `<Scene>`
+- ❌ More than 5 **primary focal concepts** in a single `<Scene>` (arrows, connectors, sub-labels don't count — see the "Composition structure" section)
 - ❌ Body text larger than 48px, headlines larger than 96px
 - ❌ Overlapping text boxes (two HandWrittenText with overlapping bounding boxes at the same frame)
 - ❌ Importing from `../pipeline/*` (that directory does not exist)
