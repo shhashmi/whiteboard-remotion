@@ -27,8 +27,10 @@ const SKILL_PATH = path.join(PROJECT_ROOT, '.claude/skills/whiteboard-video/SKIL
 const GENERATED_DIR = path.join(PROJECT_ROOT, 'src/generated');
 const OUT_DIR = path.join(PROJECT_ROOT, 'out');
 const DEFAULT_INPUT = path.join(PROJECT_ROOT, 'input.txt');
+const COST_LOG_PATH = path.join(OUT_DIR, 'cost-log.jsonl');
 
 // Opus 4.6 pricing (USD per million tokens): $15 input / $75 output.
+// https://www.anthropic.com/pricing
 const COST_INPUT_PER_MTOK = 15;
 const COST_OUTPUT_PER_MTOK = 75;
 
@@ -195,11 +197,53 @@ async function callClaude(
   };
 }
 
-function formatCost(inputTokens: number, outputTokens: number): string {
+function computeCost(inputTokens: number, outputTokens: number): { inCost: number; outCost: number; total: number } {
   const inCost = (inputTokens / 1_000_000) * COST_INPUT_PER_MTOK;
   const outCost = (outputTokens / 1_000_000) * COST_OUTPUT_PER_MTOK;
-  const total = inCost + outCost;
+  return { inCost, outCost, total: inCost + outCost };
+}
+
+function formatCost(inputTokens: number, outputTokens: number): string {
+  const { inCost, outCost, total } = computeCost(inputTokens, outputTokens);
   return `$${total.toFixed(4)} (in: ${inputTokens} tok / $${inCost.toFixed(4)}, out: ${outputTokens} tok / $${outCost.toFixed(4)})`;
+}
+
+interface CostLogEntry {
+  timestamp: string;
+  model: string;
+  prompt: string;
+  inputTokens: number;
+  outputTokens: number;
+  costUsd: number;
+  elapsedSec: number;
+}
+
+function appendCostLog(entry: CostLogEntry): void {
+  if (!fs.existsSync(OUT_DIR)) fs.mkdirSync(OUT_DIR, { recursive: true });
+  fs.appendFileSync(COST_LOG_PATH, JSON.stringify(entry) + '\n');
+}
+
+function readCumulativeCost(): { runs: number; inputTokens: number; outputTokens: number; costUsd: number } {
+  if (!fs.existsSync(COST_LOG_PATH)) {
+    return { runs: 0, inputTokens: 0, outputTokens: 0, costUsd: 0 };
+  }
+  const lines = fs.readFileSync(COST_LOG_PATH, 'utf-8').split('\n').filter((l) => l.trim());
+  let runs = 0;
+  let inputTokens = 0;
+  let outputTokens = 0;
+  let costUsd = 0;
+  for (const line of lines) {
+    try {
+      const e = JSON.parse(line) as CostLogEntry;
+      runs += 1;
+      inputTokens += e.inputTokens || 0;
+      outputTokens += e.outputTokens || 0;
+      costUsd += e.costUsd || 0;
+    } catch {
+      // skip malformed lines
+    }
+  }
+  return { runs, inputTokens, outputTokens, costUsd };
 }
 
 async function main(): Promise<void> {
@@ -299,9 +343,29 @@ async function main(): Promise<void> {
     console.log(`\n▶ Skipping render (--no-render).`);
   }
 
-  const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
+  const elapsedSec = (Date.now() - startTime) / 1000;
+  const thisRun = computeCost(totalInTok, totalOutTok);
+
+  // Persist this run to the cost log so future invocations can report cumulative spend.
+  appendCostLog({
+    timestamp: new Date().toISOString(),
+    model: MODEL,
+    prompt: prompt.slice(0, 200),
+    inputTokens: totalInTok,
+    outputTokens: totalOutTok,
+    costUsd: thisRun.total,
+    elapsedSec: Number(elapsedSec.toFixed(1)),
+  });
+
+  const cumulative = readCumulativeCost();
+
   console.log(`\n═══════════════════════════════════════════════════`);
-  console.log(`  Total: ${elapsed}s | ${formatCost(totalInTok, totalOutTok)}`);
+  console.log(`  This run:   ${elapsedSec.toFixed(1)}s`);
+  console.log(`              ${formatCost(totalInTok, totalOutTok)}`);
+  console.log(`  ─────────────────────────────────────────────────`);
+  console.log(`  Cumulative: ${cumulative.runs} run${cumulative.runs === 1 ? '' : 's'}`);
+  console.log(`              $${cumulative.costUsd.toFixed(4)} total (in: ${cumulative.inputTokens} tok, out: ${cumulative.outputTokens} tok)`);
+  console.log(`              log: ${path.relative(PROJECT_ROOT, COST_LOG_PATH)}`);
   console.log(`═══════════════════════════════════════════════════\n`);
 }
 
