@@ -1,1 +1,0 @@
-- [Option B refactor context](project_option_b.md) — Single-shot generator replacing 7-role pipeline; known gap: model ignores 5-element/scene rule for complex scenes
