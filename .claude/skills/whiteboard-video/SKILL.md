@@ -44,6 +44,8 @@ Leave 120px margin on every edge. If you are tempted to place something at x=0 o
 - Cap **body text at 48px**. Cap **headlines at 96px**.
 - For titles: fontSize 72–96, textAnchor "middle", x=960.
 - For body: fontSize 36–48, maxWidth 1400, textAnchor "middle" or "start".
+- For any text with `maxWidth < 800` or text placed inside a box, use `SketchBox`'s `rows` prop — its internal layout handles wrapping and positioning automatically.
+- **Box interior text rule**: When a box contains text, use `SketchBox`'s `rows` prop — do NOT place `HandWrittenText` elements as siblings of a `SketchBox` at coordinates inside its bounds. `rows` auto-computes padding, line positions, and box height so text can never overlap or overflow. Bare `SketchBox` (no `rows`) is only for decorative containers or boxes whose interior is icons/shapes.
 
 ## Color palette — LOCKED
 
@@ -133,15 +135,46 @@ AnimatedPath: React.FC<{
 ### Sketch shapes (`../shared/components`)
 
 ```ts
-// Wobbly rounded rectangle.
+// Wobbly rounded rectangle. Supports auto-layout for interior text rows.
 SketchBox: React.FC<{
   x: number; y: number;       // top-left
-  width: number; height: number;
+  width: number;
+  height?: number;             // optional — auto-grows to fit rows if omitted
   startFrame: number; drawDuration: number;
   stroke?: string; strokeWidth?: number;
   fill?: string; fillOpacity?: number;
   rx?: number;                 // corner radius, default 6
+  // Optional: pass rows for a box with auto-laid-out text (no manual y positioning needed).
+  rows?: Array<{
+    text: string;
+    fontSize: number;
+    color?: string;            // default: same as stroke
+    fontWeight?: number;       // default 700
+    startFrame: number;
+    durationFrames: number;
+    align?: 'start' | 'middle' | 'end';  // per-row override of contentAlign
+  }>;
+  padding?: number;            // default 24 — inset from all edges
+  gap?: number;                // default 12 — vertical gap between rows
+  contentAlign?: 'start' | 'middle' | 'end';  // default 'middle'
 }>
+// When `rows` is provided, SketchBox auto-computes the box height and
+// positions each text row so they never overlap. You only specify x, y,
+// width, and the text content — the component handles the rest.
+// Example:
+//   <SketchBox
+//     x={200} y={300} width={500}
+//     startFrame={s + 20} drawDuration={18}
+//     stroke={COLORS.orange} fill={COLORS.orange} fillOpacity={0.05} rx={10}
+//     padding={24} gap={14}
+//     rows={[
+//       { text: "Step Title Here", fontSize: 36, color: COLORS.orange,
+//         startFrame: s + 40, durationFrames: 20 },
+//       { text: "Description text that may wrap to multiple lines",
+//         fontSize: 28, color: COLORS.gray1,
+//         startFrame: s + 65, durationFrames: 40 },
+//     ]}
+//   />
 
 SketchCircle: React.FC<{
   cx: number; cy: number; r: number;
@@ -323,6 +356,34 @@ export const GeneratedVideo: React.FC = () => {
         </SVG>
       </Scene>
 
+      {/* Example content scene — SketchBox with rows for labeled cards */}
+      <Scene startFrame={sceneAStart} endFrame={sceneAStart + SCENE_A_DUR - 1}>
+        <SVG>
+          <HandWrittenText
+            text="Key Concepts"
+            x={960} y={180}
+            startFrame={sceneAStart + 15}
+            durationFrames={20}
+            fontSize={72}
+            textAnchor="middle"
+          />
+          {/* Use SketchBox rows prop — never hand-position text inside a box */}
+          <SketchBox
+            x={160} y={280} width={520}
+            startFrame={sceneAStart + 40} drawDuration={18}
+            stroke={COLORS.orange} fill={COLORS.orange} fillOpacity={0.05} rx={10}
+            padding={24} gap={14}
+            rows={[
+              { text: 'Concept Title', fontSize: 36, color: COLORS.orange,
+                startFrame: sceneAStart + 60, durationFrames: 18 },
+              { text: 'Description text that may wrap to multiple lines automatically',
+                fontSize: 28, color: COLORS.gray1,
+                startFrame: sceneAStart + 85, durationFrames: 40 },
+            ]}
+          />
+        </SVG>
+      </Scene>
+
       {/* ... additional scenes ... */}
     </AbsoluteFill>
   );
@@ -342,6 +403,7 @@ The generator wires Root.tsx to import both, so both MUST be named exports.
 - ❌ More than 5 **primary focal concepts** in a single `<Scene>` (arrows, connectors, sub-labels don't count — see the "Composition structure" section)
 - ❌ Body text larger than 48px, headlines larger than 96px
 - ❌ Overlapping text boxes (two HandWrittenText with overlapping bounding boxes at the same frame)
+- ❌ Placing any `HandWrittenText` whose `x,y` falls inside a `SketchBox`'s bounding rectangle. If a box needs text inside it, pass the text through `SketchBox`'s `rows` prop instead.
 - ❌ Importing from `../pipeline/*` (that directory does not exist)
 - ❌ Importing `@remotion/bits`, `remotion-bits`, or any library not listed above
 - ❌ Using raw `<div>` layout inside a `<SVG>` (SVG children must be SVG elements or `<g>`)
@@ -359,5 +421,6 @@ The generator wires Root.tsx to import both, so both MUST be named exports.
 7. Is `durationInFrames` between 1800 and 2700?
 8. Are all imports present (no undeclared identifiers)?
 9. Is the output a single fenced ```tsx block with no surrounding prose?
+10. Are any `HandWrittenText` elements positioned inside a `SketchBox`'s bounding rectangle? If yes, convert them to `SketchBox.rows` before emitting.
 
-If all nine pass, emit the code.
+If all ten pass, emit the code.

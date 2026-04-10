@@ -110,6 +110,65 @@ function validateRequiredExports(code: string): string[] {
   return errors;
 }
 
+function validateLayout(code: string): string[] {
+  const errors: string[] = [];
+
+  // Extract SketchBox instances with their x, y, width, height props
+  const boxPattern = /<SketchBox\b([^>]*(?:>(?!<\/)|[^>])*)(?:\/>|>)/g;
+  const boxes: Array<{ x: number; y: number; width: number; height: number; hasRows: boolean }> = [];
+
+  let boxMatch;
+  while ((boxMatch = boxPattern.exec(code)) !== null) {
+    const attrs = boxMatch[1];
+    const xm = attrs.match(/\bx\s*=\s*\{?\s*(\d+)/);
+    const ym = attrs.match(/\by\s*=\s*\{?\s*(\d+)/);
+    const wm = attrs.match(/\bwidth\s*=\s*\{?\s*(\d+)/);
+    const hm = attrs.match(/\bheight\s*=\s*\{?\s*(\d+)/);
+    const hasRows = /\brows\s*=/.test(attrs);
+    if (xm && ym && wm) {
+      boxes.push({
+        x: Number(xm[1]),
+        y: Number(ym[1]),
+        width: Number(wm[1]),
+        height: hm ? Number(hm[1]) : 0,
+        hasRows,
+      });
+    }
+  }
+
+  // Extract HandWrittenText instances with their x, y props
+  const textPattern = /<HandWrittenText\b([^>]*(?:>(?!<\/)|[^>])*)(?:\/>|>)/g;
+  const texts: Array<{ x: number; y: number }> = [];
+
+  let textMatch;
+  while ((textMatch = textPattern.exec(code)) !== null) {
+    const attrs = textMatch[1];
+    const xm = attrs.match(/\bx\s*=\s*\{?\s*(\d+)/);
+    const ym = attrs.match(/\by\s*=\s*\{?\s*(\d+)/);
+    if (xm && ym) {
+      texts.push({ x: Number(xm[1]), y: Number(ym[1]) });
+    }
+  }
+
+  // Check if any HandWrittenText falls inside a SketchBox that doesn't use rows
+  for (const t of texts) {
+    for (const b of boxes) {
+      if (b.hasRows) continue;
+      if (b.height === 0) continue; // no explicit height, can't determine bounds
+      if (t.x >= b.x && t.x <= b.x + b.width &&
+          t.y >= b.y && t.y <= b.y + b.height) {
+        errors.push(
+          `Layout: HandWrittenText at (${t.x},${t.y}) is inside SketchBox ` +
+          `at (${b.x},${b.y}, ${b.width}×${b.height}) which does not use the rows prop. ` +
+          `Use SketchBox's rows prop for auto-layout instead of positioning text manually.`,
+        );
+      }
+    }
+  }
+
+  return errors;
+}
+
 function writeGeneratedFiles(tsxCode: string): void {
   if (!fs.existsSync(GENERATED_DIR)) {
     fs.mkdirSync(GENERATED_DIR, { recursive: true });
@@ -271,6 +330,7 @@ async function main(): Promise<void> {
 
   let tsxCode = extractTsx(text);
   let exportErrors = validateRequiredExports(tsxCode);
+  let layoutErrors = validateLayout(tsxCode);
 
   // Write first attempt to disk so tsc can see it.
   writeGeneratedFiles(tsxCode);
@@ -280,10 +340,13 @@ async function main(): Promise<void> {
   let totalInTok = inputTokens;
   let totalOutTok = outputTokens;
 
-  if (!tcResult.ok || exportErrors.length > 0) {
+  if (!tcResult.ok || exportErrors.length > 0 || layoutErrors.length > 0) {
     const feedback: string[] = [];
     if (exportErrors.length > 0) {
       feedback.push('Export errors:\n' + exportErrors.join('\n'));
+    }
+    if (layoutErrors.length > 0) {
+      feedback.push('Layout errors (text inside boxes must use SketchBox rows prop):\n' + layoutErrors.join('\n'));
     }
     if (!tcResult.ok) {
       feedback.push('TypeScript errors:\n' + tcResult.errors);
@@ -308,11 +371,15 @@ async function main(): Promise<void> {
 
     tsxCode = extractTsx(retry.text);
     exportErrors = validateRequiredExports(tsxCode);
+    layoutErrors = validateLayout(tsxCode);
     writeGeneratedFiles(tsxCode);
     tcResult = typecheckGenerated();
 
     if (exportErrors.length > 0) {
       console.error(`\n✗ Export errors persist after retry:\n${exportErrors.join('\n')}`);
+    }
+    if (layoutErrors.length > 0) {
+      console.error(`\n✗ Layout errors persist after retry:\n${layoutErrors.join('\n')}`);
     }
     if (!tcResult.ok) {
       console.error(`\n✗ TypeScript errors persist after retry:\n${tcResult.errors}`);
@@ -325,7 +392,7 @@ async function main(): Promise<void> {
   console.log(`\n▶ Wrote ${path.relative(PROJECT_ROOT, GENERATED_DIR)}/GeneratedVideo.tsx (${tsxCode.length} chars)`);
 
   // ── Render ──────────────────────────────────────────────────────────
-  if (!noRender && tcResult.ok && exportErrors.length === 0) {
+  if (!noRender && tcResult.ok && exportErrors.length === 0 && layoutErrors.length === 0) {
     if (!fs.existsSync(OUT_DIR)) fs.mkdirSync(OUT_DIR, { recursive: true });
     const outMp4 = path.join(OUT_DIR, 'generated.mp4');
     console.log(`\n▶ Rendering → ${path.relative(PROJECT_ROOT, outMp4)}`);

@@ -117,6 +117,8 @@ interface HandWrittenTextProps {
   textAnchor?: 'start' | 'middle' | 'end';
   letterSpacing?: number;
   maxWidth?: number;
+  /** Internal prop used by SketchBox auto-layout. 'hanging' makes y the top of text instead of the baseline. */
+  baseline?: 'auto' | 'hanging';
 }
 
 function wrapText(text: string, fontSize: number, maxWidth: number, letterSpacing: number): string[] {
@@ -152,6 +154,7 @@ export const HandWrittenText: React.FC<HandWrittenTextProps> = ({
   textAnchor = 'middle',
   letterSpacing,
   maxWidth,
+  baseline = 'auto',
 }) => {
   const frame = useCurrentFrame();
   const charCount = Math.floor(
@@ -174,7 +177,7 @@ export const HandWrittenText: React.FC<HandWrittenTextProps> = ({
         fontFamily={fontFamily}
         fontWeight={fontWeight}
         textAnchor={textAnchor}
-        dominantBaseline="auto"
+        dominantBaseline={baseline === 'hanging' ? 'hanging' : 'auto'}
         letterSpacing={letterSpacing}
       >
         {lines.map((line, i) => (
@@ -195,7 +198,7 @@ export const HandWrittenText: React.FC<HandWrittenTextProps> = ({
       fontFamily={fontFamily}
       fontWeight={fontWeight}
       textAnchor={textAnchor}
-      dominantBaseline="auto"
+      dominantBaseline={baseline === 'hanging' ? 'hanging' : 'auto'}
       letterSpacing={letterSpacing}
     >
       {visibleText}
@@ -288,12 +291,23 @@ export const FadeIn: React.FC<FadeInProps> = ({
   );
 };
 
-// ─── SketchBox (with rx, ±1.5px wobble) ──────────────────────────────────────
+// ─── SketchBox (with rx, ±1.5px wobble, optional auto-layout rows) ───────────
+
+interface TextRow {
+  text: string;
+  fontSize: number;
+  color?: string;
+  fontWeight?: number;
+  startFrame: number;
+  durationFrames: number;
+  align?: 'start' | 'middle' | 'end';
+}
+
 interface SketchBoxProps {
   x: number;
   y: number;
   width: number;
-  height: number;
+  height?: number;
   startFrame: number;
   drawDuration: number;
   stroke?: string;
@@ -301,6 +315,15 @@ interface SketchBoxProps {
   fill?: string;
   fillOpacity?: number;
   rx?: number;
+  rows?: TextRow[];
+  padding?: number;
+  gap?: number;
+  contentAlign?: 'start' | 'middle' | 'end';
+}
+
+function computeRowSlot(text: string, fontSize: number, maxWidth: number): number {
+  const lines = wrapText(text, fontSize, maxWidth, 0);
+  return lines.length * fontSize * 1.35;
 }
 
 export const SketchBox: React.FC<SketchBoxProps> = ({
@@ -315,12 +338,27 @@ export const SketchBox: React.FC<SketchBoxProps> = ({
   fill = 'none',
   fillOpacity = 0.15,
   rx = 6,
+  rows,
+  padding = 24,
+  gap = 12,
+  contentAlign = 'middle',
 }) => {
+  const hasRows = rows && rows.length > 0;
+  const maxWidthForRow = width - 2 * padding;
+
+  // Compute effective height: auto-grow to fit rows, or use provided height
+  let effectiveHeight = height ?? 0;
+  if (hasRows) {
+    const rowSlots = rows.map((r) => computeRowSlot(r.text, r.fontSize, maxWidthForRow));
+    const contentHeight = rowSlots.reduce((sum, s) => sum + s, 0) + (rows.length - 1) * gap;
+    effectiveHeight = Math.max(effectiveHeight, contentHeight + 2 * padding);
+  }
+
   const r = rx;
   const tl = { x: x + 1.5, y: y + 1 };
   const tr = { x: x + width - 1, y: y - 1.5 };
-  const br = { x: x + width + 1, y: y + height + 1.5 };
-  const bl = { x: x - 1, y: y + height - 1 };
+  const br = { x: x + width + 1, y: y + effectiveHeight + 1.5 };
+  const bl = { x: x - 1, y: y + effectiveHeight - 1 };
 
   const d =
     `M ${tl.x + r} ${tl.y} ` +
@@ -333,7 +371,7 @@ export const SketchBox: React.FC<SketchBoxProps> = ({
     `L ${tl.x} ${tl.y + r} ` +
     `Q ${tl.x} ${tl.y} ${tl.x + r} ${tl.y} Z`;
 
-  return (
+  const boxPath = (
     <AnimatedPath
       d={d}
       startFrame={startFrame}
@@ -343,6 +381,60 @@ export const SketchBox: React.FC<SketchBoxProps> = ({
       fill={fill}
       fillOpacity={fillOpacity}
     />
+  );
+
+  if (!hasRows) {
+    return boxPath;
+  }
+
+  // Compute per-row y positions and anchor x
+  const rowElements: React.ReactNode[] = [];
+  let accumulatedOffset = 0;
+
+  for (let i = 0; i < rows.length; i++) {
+    const row = rows[i];
+    const rowTopY = y + padding + accumulatedOffset;
+    const rowAlign = row.align ?? contentAlign;
+    let anchorX: number;
+    let textAnchor: 'start' | 'middle' | 'end';
+
+    if (rowAlign === 'start') {
+      anchorX = x + padding;
+      textAnchor = 'start';
+    } else if (rowAlign === 'end') {
+      anchorX = x + width - padding;
+      textAnchor = 'end';
+    } else {
+      anchorX = x + width / 2;
+      textAnchor = 'middle';
+    }
+
+    rowElements.push(
+      <HandWrittenText
+        key={i}
+        text={row.text}
+        x={anchorX}
+        y={rowTopY}
+        startFrame={row.startFrame}
+        durationFrames={row.durationFrames}
+        fontSize={row.fontSize}
+        fill={row.color ?? stroke}
+        fontWeight={row.fontWeight ?? 700}
+        textAnchor={textAnchor}
+        maxWidth={maxWidthForRow}
+        baseline="hanging"
+      />,
+    );
+
+    const slot = computeRowSlot(row.text, row.fontSize, maxWidthForRow);
+    accumulatedOffset += slot + gap;
+  }
+
+  return (
+    <g>
+      {boxPath}
+      {rowElements}
+    </g>
   );
 };
 
