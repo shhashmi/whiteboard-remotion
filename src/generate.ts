@@ -1,21 +1,24 @@
 /**
- * Single-shot Remotion video generator.
+ * Single-shot Remotion video generator (LangGraph edition).
  *
- * Pipeline:
+ * Pipeline modeled as a LangGraph StateGraph:
+ *   START → generate → validate ─[errors & attempt<2]─→ prepareRetry → generate
+ *                               └─[ok or attempt≥2]───→ END
+ *
  *   1. Read user prompt (from --prompt file or input.txt)
  *   2. Read the project skill at .claude/skills/whiteboard-video/SKILL.md
- *   3. One Anthropic API call (claude-opus-4-6) → complete TSX file
+ *   3. LangGraph invocation with ChatAnthropic (claude-opus-4-6) + prompt caching
  *   4. Write src/generated/{GeneratedVideo,Root,index}.tsx
  *   5. tsc --noEmit check; one retry with compile errors if it fails
  *   6. Render via `npx remotion render` unless --no-render
- *
- * Zero dependencies on the old src/pipeline/ directory.
  */
 
 import * as dotenv from 'dotenv';
 dotenv.config();
 
-import Anthropic from '@anthropic-ai/sdk';
+import { ChatAnthropic } from '@langchain/anthropic';
+import { StateGraph, START, END, Annotation } from '@langchain/langgraph';
+import { SystemMessage, HumanMessage, AIMessage, BaseMessage } from '@langchain/core/messages';
 import * as fs from 'fs';
 import * as path from 'path';
 import { execSync } from 'child_process';
@@ -33,6 +36,43 @@ const COST_LOG_PATH = path.join(OUT_DIR, 'cost-log.jsonl');
 // https://www.anthropic.com/pricing
 const COST_INPUT_PER_MTOK = 15;
 const COST_OUTPUT_PER_MTOK = 75;
+const COST_CACHE_READ_PER_MTOK = 1.5;    // 10% of input price
+const COST_CACHE_WRITE_PER_MTOK = 18.75; // 125% of input price
+
+// ── Model instance (reads ANTHROPIC_API_KEY from env) ────────────────
+const model = new ChatAnthropic({
+  model: MODEL,
+  maxTokens: MAX_TOKENS,
+});
+
+// ── Graph state ──────────────────────────────────────────────────────
+const GraphState = Annotation.Root({
+  prompt: Annotation<string>,
+  systemPrompt: Annotation<string>,
+  noRender: Annotation<boolean>,
+
+  messages: Annotation<BaseMessage[]>({
+    reducer: (_prev, next) => next,
+    default: () => [],
+  }),
+
+  responseText: Annotation<string>({ reducer: (_p, n) => n, default: () => '' }),
+  tsxCode: Annotation<string>({ reducer: (_p, n) => n, default: () => '' }),
+
+  exportErrors: Annotation<string[]>({ reducer: (_p, n) => n, default: () => [] }),
+  layoutErrors: Annotation<string[]>({ reducer: (_p, n) => n, default: () => [] }),
+  typecheckOk: Annotation<boolean>({ reducer: (_p, n) => n, default: () => true }),
+  typecheckErrors: Annotation<string>({ reducer: (_p, n) => n, default: () => '' }),
+
+  totalInputTokens: Annotation<number>({ reducer: (_p, n) => n, default: () => 0 }),
+  totalOutputTokens: Annotation<number>({ reducer: (_p, n) => n, default: () => 0 }),
+  cacheReadTokens: Annotation<number>({ reducer: (_p, n) => n, default: () => 0 }),
+  cacheCreationTokens: Annotation<number>({ reducer: (_p, n) => n, default: () => 0 }),
+
+  attempt: Annotation<number>({ reducer: (_p, n) => n, default: () => 0 }),
+});
+
+// ── CLI parsing ──────────────────────────────────────────────────────
 
 interface Args {
   prompt: string;
@@ -76,22 +116,23 @@ function parseArgs(): Args {
   return { prompt, noRender };
 }
 
+// ── Skill loader ─────────────────────────────────────────────────────
+
 function loadSkill(): string {
   if (!fs.existsSync(SKILL_PATH)) {
     throw new Error(`Skill file not found at ${SKILL_PATH}`);
   }
   const raw = fs.readFileSync(SKILL_PATH, 'utf-8');
-  // Strip the YAML frontmatter — the SDK doesn't need it.
   return raw.replace(/^---\n[\s\S]*?\n---\n/, '').trim();
 }
 
+// ── TSX extraction & validation ──────────────────────────────────────
+
 function extractTsx(response: string): string {
-  // The model is instructed to emit a single ```tsx fenced block.
   const fencedMatch = response.match(/```(?:tsx|typescript|ts)?\s*\n([\s\S]*?)\n```/);
   if (fencedMatch) {
     return fencedMatch[1].trim();
   }
-  // Fallback: if the model forgot the fence but emitted valid-looking TSX, return raw.
   if (response.includes('export const GeneratedVideo')) {
     return response.trim();
   }
@@ -113,7 +154,6 @@ function validateRequiredExports(code: string): string[] {
 function validateLayout(code: string): string[] {
   const errors: string[] = [];
 
-  // Extract SketchBox instances with their x, y, width, height props
   const boxPattern = /<SketchBox\b([^>]*(?:>(?!<\/)|[^>])*)(?:\/>|>)/g;
   const boxes: Array<{ x: number; y: number; width: number; height: number; hasRows: boolean }> = [];
 
@@ -136,7 +176,6 @@ function validateLayout(code: string): string[] {
     }
   }
 
-  // Extract HandWrittenText instances with their x, y props
   const textPattern = /<HandWrittenText\b([^>]*(?:>(?!<\/)|[^>])*)(?:\/>|>)/g;
   const texts: Array<{ x: number; y: number }> = [];
 
@@ -150,11 +189,10 @@ function validateLayout(code: string): string[] {
     }
   }
 
-  // Check if any HandWrittenText falls inside a SketchBox that doesn't use rows
   for (const t of texts) {
     for (const b of boxes) {
       if (b.hasRows) continue;
-      if (b.height === 0) continue; // no explicit height, can't determine bounds
+      if (b.height === 0) continue;
       if (t.x >= b.x && t.x <= b.x + b.width &&
           t.y >= b.y && t.y <= b.y + b.height) {
         errors.push(
@@ -168,6 +206,8 @@ function validateLayout(code: string): string[] {
 
   return errors;
 }
+
+// ── File writers ─────────────────────────────────────────────────────
 
 function writeGeneratedFiles(tsxCode: string): void {
   if (!fs.existsSync(GENERATED_DIR)) {
@@ -203,6 +243,8 @@ registerRoot(RemotionRoot);
   fs.writeFileSync(path.join(GENERATED_DIR, 'index.tsx'), indexTsx);
 }
 
+// ── TypeScript validation ────────────────────────────────────────────
+
 function typecheckGenerated(): { ok: true } | { ok: false; errors: string } {
   try {
     execSync('npx tsc --noEmit', {
@@ -212,9 +254,6 @@ function typecheckGenerated(): { ok: true } | { ok: false; errors: string } {
     });
     return { ok: true };
   } catch (err: any) {
-    // tsc writes errors to stdout. Keep only lines that mention the generated
-    // directory — avoids leaking unrelated errors from src/cfpb-riskcheck or
-    // src/shared into the retry feedback to the model.
     const stdout = (err.stdout || '').toString();
     const stderr = (err.stderr || '').toString();
     const combined = `${stdout}\n${stderr}`;
@@ -223,8 +262,6 @@ function typecheckGenerated(): { ok: true } | { ok: false; errors: string } {
       .filter((line) => line.includes('src/generated/'))
       .slice(0, 40)
       .join('\n');
-    // If tsc exited nonzero but no errors matched src/generated/, the failure
-    // is in unrelated code — treat the generated file as OK.
     if (!relevant.trim()) {
       return { ok: true };
     }
@@ -232,39 +269,37 @@ function typecheckGenerated(): { ok: true } | { ok: false; errors: string } {
   }
 }
 
-async function callClaude(
-  client: Anthropic,
-  systemPrompt: string,
-  userMessages: Array<{ role: 'user' | 'assistant'; content: string }>
-): Promise<{ text: string; inputTokens: number; outputTokens: number }> {
-  const response = await client.messages.create({
-    model: MODEL,
-    max_tokens: MAX_TOKENS,
-    system: systemPrompt,
-    messages: userMessages,
-  });
+// ── Cost tracking ────────────────────────────────────────────────────
 
-  const textBlock = response.content.find((b) => b.type === 'text');
-  if (!textBlock || textBlock.type !== 'text') {
-    throw new Error('Model returned no text content.');
-  }
-
-  return {
-    text: textBlock.text,
-    inputTokens: response.usage.input_tokens,
-    outputTokens: response.usage.output_tokens,
-  };
-}
-
-function computeCost(inputTokens: number, outputTokens: number): { inCost: number; outCost: number; total: number } {
-  const inCost = (inputTokens / 1_000_000) * COST_INPUT_PER_MTOK;
+function computeCost(
+  inputTokens: number,
+  outputTokens: number,
+  cacheReadTokens = 0,
+  cacheCreationTokens = 0,
+): { inCost: number; outCost: number; total: number } {
+  const plainInput = Math.max(0, inputTokens - cacheReadTokens - cacheCreationTokens);
+  const inCost = (plainInput / 1_000_000) * COST_INPUT_PER_MTOK
+    + (cacheReadTokens / 1_000_000) * COST_CACHE_READ_PER_MTOK
+    + (cacheCreationTokens / 1_000_000) * COST_CACHE_WRITE_PER_MTOK;
   const outCost = (outputTokens / 1_000_000) * COST_OUTPUT_PER_MTOK;
   return { inCost, outCost, total: inCost + outCost };
 }
 
-function formatCost(inputTokens: number, outputTokens: number): string {
-  const { inCost, outCost, total } = computeCost(inputTokens, outputTokens);
-  return `$${total.toFixed(4)} (in: ${inputTokens} tok / $${inCost.toFixed(4)}, out: ${outputTokens} tok / $${outCost.toFixed(4)})`;
+function formatCost(
+  inputTokens: number,
+  outputTokens: number,
+  cacheReadTokens = 0,
+  cacheCreationTokens = 0,
+): string {
+  const { inCost, outCost, total } = computeCost(inputTokens, outputTokens, cacheReadTokens, cacheCreationTokens);
+  let s = `$${total.toFixed(4)} (in: ${inputTokens} tok / $${inCost.toFixed(4)}, out: ${outputTokens} tok / $${outCost.toFixed(4)})`;
+  if (cacheReadTokens > 0) {
+    s += ` [cache read: ${cacheReadTokens} tok]`;
+  }
+  if (cacheCreationTokens > 0) {
+    s += ` [cache write: ${cacheCreationTokens} tok]`;
+  }
+  return s;
 }
 
 interface CostLogEntry {
@@ -273,6 +308,8 @@ interface CostLogEntry {
   prompt: string;
   inputTokens: number;
   outputTokens: number;
+  cacheReadTokens?: number;
+  cacheCreationTokens?: number;
   costUsd: number;
   elapsedSec: number;
 }
@@ -305,6 +342,148 @@ function readCumulativeCost(): { runs: number; inputTokens: number; outputTokens
   return { runs, inputTokens, outputTokens, costUsd };
 }
 
+// ── Graph nodes ──────────────────────────────────────────────────────
+
+async function generateNode(state: typeof GraphState.State) {
+  const systemMsg = new SystemMessage({
+    content: [
+      {
+        type: 'text' as const,
+        text: state.systemPrompt,
+        cache_control: { type: 'ephemeral' as const },
+      },
+    ],
+  });
+
+  const userContent = `Create a whiteboard video on this topic:\n\n${state.prompt}\n\nEmit ONLY the complete TSX file inside a single \`\`\`tsx code block. Follow the SKILL.md rules exactly.`;
+
+  let invokeMessages: BaseMessage[];
+  if (state.attempt === 0) {
+    invokeMessages = [systemMsg, new HumanMessage(userContent)];
+  } else {
+    invokeMessages = [systemMsg, ...state.messages];
+  }
+
+  const attemptLabel = state.attempt === 0 ? '1/2' : '2/2';
+  console.log(`\n▶ [${attemptLabel}] Calling ${MODEL}…`);
+  const t = Date.now();
+
+  const response = await model.invoke(invokeMessages);
+
+  const elapsed = ((Date.now() - t) / 1000).toFixed(1);
+
+  // Extract text content from response
+  const text = typeof response.content === 'string'
+    ? response.content
+    : (response.content as Array<{ type: string; text?: string }>)
+        .filter(b => b.type === 'text')
+        .map(b => b.text || '')
+        .join('');
+
+  // Extract token usage
+  const usage = response.usage_metadata;
+  const inputTokens = usage?.input_tokens ?? 0;
+  const outputTokens = usage?.output_tokens ?? 0;
+  const details = (usage as any)?.input_token_details ?? {};
+  const cacheRead = details.cache_read ?? details.cache_read_input_tokens ?? 0;
+  const cacheCreation = details.cache_creation ?? details.cache_creation_input_tokens ?? 0;
+
+  console.log(`  ✓ ${elapsed}s, ${formatCost(inputTokens, outputTokens, cacheRead, cacheCreation)}`);
+
+  // Build message history for potential retry
+  const updatedMessages: BaseMessage[] = state.attempt === 0
+    ? [new HumanMessage(userContent), new AIMessage(text)]
+    : [...state.messages, new AIMessage(text)];
+
+  return {
+    responseText: text,
+    messages: updatedMessages,
+    totalInputTokens: state.totalInputTokens + inputTokens,
+    totalOutputTokens: state.totalOutputTokens + outputTokens,
+    cacheReadTokens: state.cacheReadTokens + cacheRead,
+    cacheCreationTokens: state.cacheCreationTokens + cacheCreation,
+  };
+}
+
+async function validateNode(state: typeof GraphState.State) {
+  const tsxCode = extractTsx(state.responseText);
+  const exportErrors = validateRequiredExports(tsxCode);
+  const layoutErrors = validateLayout(tsxCode);
+
+  writeGeneratedFiles(tsxCode);
+  const tcResult = typecheckGenerated();
+
+  if (exportErrors.length === 0 && layoutErrors.length === 0 && tcResult.ok) {
+    console.log(`  ✓ TypeScript check passed${state.attempt === 0 ? ' on first attempt' : ' after retry'}.`);
+  }
+
+  return {
+    tsxCode,
+    exportErrors,
+    layoutErrors,
+    typecheckOk: tcResult.ok,
+    typecheckErrors: tcResult.ok ? '' : (tcResult as { ok: false; errors: string }).errors,
+    attempt: state.attempt + 1,
+  };
+}
+
+async function prepareRetryNode(state: typeof GraphState.State) {
+  const feedback: string[] = [];
+  if (state.exportErrors.length > 0) {
+    feedback.push('Export errors:\n' + state.exportErrors.join('\n'));
+  }
+  if (state.layoutErrors.length > 0) {
+    feedback.push('Layout errors (text inside boxes must use SketchBox rows prop):\n' + state.layoutErrors.join('\n'));
+  }
+  if (!state.typecheckOk) {
+    feedback.push('TypeScript errors:\n' + state.typecheckErrors);
+  }
+
+  console.log(`\n▶ Retrying with compile feedback…`);
+  console.log(`  Feedback:\n${feedback.join('\n').split('\n').map((l) => '    ' + l).join('\n')}`);
+
+  const retryMessage = new HumanMessage(
+    `Your previous output failed validation:\n\n${feedback.join('\n\n')}\n\nFix ALL issues and re-emit the COMPLETE TSX file in a single \`\`\`tsx block. Do not explain — just emit the fixed code.`,
+  );
+
+  return {
+    messages: [...state.messages, retryMessage],
+  };
+}
+
+// ── Graph construction ───────────────────────────────────────────────
+
+function buildGraph() {
+  const retryPolicy = {
+    maxAttempts: 3,
+    initialInterval: 1000,
+    backoffFactor: 2,
+    maxInterval: 30000,
+  };
+
+  const graph = new StateGraph(GraphState)
+    .addNode('generate', generateNode, { retryPolicy })
+    .addNode('validate', validateNode)
+    .addNode('prepareRetry', prepareRetryNode)
+    .addEdge(START, 'generate')
+    .addEdge('generate', 'validate')
+    .addConditionalEdges('validate', (state) => {
+      const hasErrors = !state.typecheckOk
+        || state.exportErrors.length > 0
+        || state.layoutErrors.length > 0;
+
+      if (hasErrors && state.attempt < 2) {
+        return 'prepareRetry';
+      }
+      return END;
+    })
+    .addEdge('prepareRetry', 'generate');
+
+  return graph.compile();
+}
+
+// ── Main ─────────────────────────────────────────────────────────────
+
 async function main(): Promise<void> {
   const startTime = Date.now();
   const { prompt, noRender } = parseArgs();
@@ -315,84 +494,37 @@ async function main(): Promise<void> {
   const skill = loadSkill();
   console.log(`▶ Skill:  ${skill.length} chars loaded from ${path.relative(PROJECT_ROOT, SKILL_PATH)}`);
 
-  const systemPrompt = skill;
-  const userPrompt = `Create a whiteboard video on this topic:\n\n${prompt}\n\nEmit ONLY the complete TSX file inside a single \`\`\`tsx code block. Follow the SKILL.md rules exactly.`;
+  const app = buildGraph();
 
-  const client = new Anthropic();
+  const finalState = await app.invoke({
+    prompt,
+    systemPrompt: skill,
+    noRender,
+  });
 
-  // ── Call 1: generation ──────────────────────────────────────────────
-  console.log(`\n▶ [1/2] Calling ${MODEL}…`);
-  const t1 = Date.now();
-  let { text, inputTokens, outputTokens } = await callClaude(client, systemPrompt, [
-    { role: 'user', content: userPrompt },
-  ]);
-  console.log(`  ✓ ${((Date.now() - t1) / 1000).toFixed(1)}s, ${formatCost(inputTokens, outputTokens)}`);
+  const {
+    tsxCode, typecheckOk, exportErrors, layoutErrors,
+    totalInputTokens, totalOutputTokens,
+    cacheReadTokens, cacheCreationTokens,
+    typecheckErrors,
+  } = finalState;
 
-  let tsxCode = extractTsx(text);
-  let exportErrors = validateRequiredExports(tsxCode);
-  let layoutErrors = validateLayout(tsxCode);
-
-  // Write first attempt to disk so tsc can see it.
-  writeGeneratedFiles(tsxCode);
-
-  // ── Typecheck + at most one retry ───────────────────────────────────
-  let tcResult = typecheckGenerated();
-  let totalInTok = inputTokens;
-  let totalOutTok = outputTokens;
-
-  if (!tcResult.ok || exportErrors.length > 0 || layoutErrors.length > 0) {
-    const feedback: string[] = [];
-    if (exportErrors.length > 0) {
-      feedback.push('Export errors:\n' + exportErrors.join('\n'));
-    }
-    if (layoutErrors.length > 0) {
-      feedback.push('Layout errors (text inside boxes must use SketchBox rows prop):\n' + layoutErrors.join('\n'));
-    }
-    if (!tcResult.ok) {
-      feedback.push('TypeScript errors:\n' + tcResult.errors);
-    }
-
-    console.log(`\n▶ [2/2] Retrying with compile feedback…`);
-    console.log(`  Feedback:\n${feedback.join('\n').split('\n').map((l) => '    ' + l).join('\n')}`);
-
-    const t2 = Date.now();
-    const retry = await callClaude(client, systemPrompt, [
-      { role: 'user', content: userPrompt },
-      { role: 'assistant', content: text },
-      {
-        role: 'user',
-        content: `Your previous output failed validation:\n\n${feedback.join('\n\n')}\n\nFix ALL issues and re-emit the COMPLETE TSX file in a single \`\`\`tsx block. Do not explain — just emit the fixed code.`,
-      },
-    ]);
-    console.log(`  ✓ ${((Date.now() - t2) / 1000).toFixed(1)}s, ${formatCost(retry.inputTokens, retry.outputTokens)}`);
-
-    totalInTok += retry.inputTokens;
-    totalOutTok += retry.outputTokens;
-
-    tsxCode = extractTsx(retry.text);
-    exportErrors = validateRequiredExports(tsxCode);
-    layoutErrors = validateLayout(tsxCode);
-    writeGeneratedFiles(tsxCode);
-    tcResult = typecheckGenerated();
-
-    if (exportErrors.length > 0) {
-      console.error(`\n✗ Export errors persist after retry:\n${exportErrors.join('\n')}`);
-    }
-    if (layoutErrors.length > 0) {
-      console.error(`\n✗ Layout errors persist after retry:\n${layoutErrors.join('\n')}`);
-    }
-    if (!tcResult.ok) {
-      console.error(`\n✗ TypeScript errors persist after retry:\n${tcResult.errors}`);
-      console.error(`\nFiles written anyway at ${path.relative(PROJECT_ROOT, GENERATED_DIR)}/ for manual fixing.`);
-    }
-  } else {
-    console.log(`  ✓ TypeScript check passed on first attempt.`);
+  // Report persistent errors
+  if (exportErrors.length > 0) {
+    console.error(`\n✗ Export errors persist after retry:\n${exportErrors.join('\n')}`);
+  }
+  if (layoutErrors.length > 0) {
+    console.error(`\n✗ Layout errors persist after retry:\n${layoutErrors.join('\n')}`);
+  }
+  if (!typecheckOk) {
+    console.error(`\n✗ TypeScript errors persist after retry:\n${typecheckErrors}`);
+    console.error(`\nFiles written anyway at ${path.relative(PROJECT_ROOT, GENERATED_DIR)}/ for manual fixing.`);
   }
 
   console.log(`\n▶ Wrote ${path.relative(PROJECT_ROOT, GENERATED_DIR)}/GeneratedVideo.tsx (${tsxCode.length} chars)`);
 
   // ── Render ──────────────────────────────────────────────────────────
-  if (!noRender && tcResult.ok && exportErrors.length === 0 && layoutErrors.length === 0) {
+  if (!noRender && typecheckOk && exportErrors.length === 0 && layoutErrors.length === 0) {
     if (!fs.existsSync(OUT_DIR)) fs.mkdirSync(OUT_DIR, { recursive: true });
     const outMp4 = path.join(OUT_DIR, 'generated.mp4');
     console.log(`\n▶ Rendering → ${path.relative(PROJECT_ROOT, outMp4)}`);
@@ -411,15 +543,16 @@ async function main(): Promise<void> {
   }
 
   const elapsedSec = (Date.now() - startTime) / 1000;
-  const thisRun = computeCost(totalInTok, totalOutTok);
+  const thisRun = computeCost(totalInputTokens, totalOutputTokens, cacheReadTokens, cacheCreationTokens);
 
-  // Persist this run to the cost log so future invocations can report cumulative spend.
   appendCostLog({
     timestamp: new Date().toISOString(),
     model: MODEL,
     prompt: prompt.slice(0, 200),
-    inputTokens: totalInTok,
-    outputTokens: totalOutTok,
+    inputTokens: totalInputTokens,
+    outputTokens: totalOutputTokens,
+    cacheReadTokens: cacheReadTokens || undefined,
+    cacheCreationTokens: cacheCreationTokens || undefined,
     costUsd: thisRun.total,
     elapsedSec: Number(elapsedSec.toFixed(1)),
   });
@@ -428,7 +561,7 @@ async function main(): Promise<void> {
 
   console.log(`\n═══════════════════════════════════════════════════`);
   console.log(`  This run:   ${elapsedSec.toFixed(1)}s`);
-  console.log(`              ${formatCost(totalInTok, totalOutTok)}`);
+  console.log(`              ${formatCost(totalInputTokens, totalOutputTokens, cacheReadTokens, cacheCreationTokens)}`);
   console.log(`  ─────────────────────────────────────────────────`);
   console.log(`  Cumulative: ${cumulative.runs} run${cumulative.runs === 1 ? '' : 's'}`);
   console.log(`              $${cumulative.costUsd.toFixed(4)} total (in: ${cumulative.inputTokens} tok, out: ${cumulative.outputTokens} tok)`);
