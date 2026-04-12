@@ -1,225 +1,159 @@
-# Whiteboard Remotion
+# whiteboard-remotion
 
-Text-to-video pipeline that turns a plain text idea into an animated whiteboard explainer video. Powered by Claude and [Remotion](https://www.remotion.dev/).
+Single-shot Remotion whiteboard video generator powered by Claude Opus 4.6.
 
-## Prerequisites
+Takes a one-line description of what you want explained, hands it to Claude Opus 4.6 along with a project-specific skill describing the component library and style rules, and gets back a complete `GeneratedVideo.tsx`. TypeScript-checked, narrated via TTS, and rendered to MP4.
 
-- Node.js >= 18
-- An [Anthropic API key](https://console.anthropic.com/)
+**One API call per video** (two if the first attempt has a compile error).
+
+## Architecture
+
+```
+input.txt ──▶ src/generate.ts
+                │
+                ▼
+       .claude/skills/whiteboard-video/SKILL.md  (system prompt)
+                │
+                ▼
+       claude-opus-4-6  (one call, max_tokens=16384)
+                │
+                ▼
+       src/generated/GeneratedVideo.tsx           (compile check + 1 retry on failure)
+                │
+                ▼
+       extract narrationScript → TTS provider → public/audio/scene-*.mp3
+                │
+                ▼
+       src/generated/NarratedVideo.tsx            (wraps video + audio)
+                │
+                ▼
+       npx remotion render → out/generated.mp4
+```
+
+The component library lives in `src/shared/components.tsx`, `src/shared/motions.tsx`, and `src/shared/icons/` (~90 hand-drawn icons). The skill documents everything Claude needs to know about it.
 
 ## Setup
 
-```bash
+```sh
 npm install
+cp .env.example .env   # add your API keys
 ```
 
-Add your API key to `.env`:
+Required keys in `.env`:
 
-```
-ANTHROPIC_API_KEY=sk-ant-...
-```
+| Key | Required | Used for |
+|-----|----------|----------|
+| `ANTHROPIC_API_KEY` | Yes | Claude Opus 4.6 video generation |
+| `OPENAI_API_KEY` | For OpenAI TTS | Narration via OpenAI TTS (`tts-1`) |
+| `ELEVENLABS_API_KEY` | For ElevenLabs TTS | Narration via ElevenLabs (`eleven_turbo_v2_5`) |
 
-## Generate a Video
+## Usage
 
-Write your idea in `input.txt`:
-
-```
-Explain how DNS works
-```
-
-Then run:
-
-```bash
+```sh
+# Generate from input.txt (default) — with narration
 npm run generate
-```
 
-Or pass a prompt inline:
+# Or with an inline prompt
+npm run generate -- "three paradigms of AI agent design"
 
-```bash
-npm run generate -- "Explain how DNS works"
-```
-
-Or read from a custom file:
-
-```bash
+# Or from a different prompt file
 npm run generate -- --prompt=my-idea.txt
+
+# Skip the render step (useful for iterating on the TSX)
+npm run generate -- --no-render
+
+# Skip narration (silent video, like before)
+npm run generate -- --no-narration
 ```
 
-This runs 7 roles sequentially:
+Output lands at `out/generated.mp4` and the source at `src/generated/GeneratedVideo.tsx`.
 
-1. **Author** — creates a narrative arc with story beats
-2. **Scriptwriter** — writes scene-by-scene on-screen text
-3. **Art Director** — decides colors, icons, composition (searches the asset library)
-4. **Layout** — positions every element on the 1920x1080 canvas (JSON)
-5. **Animate** — assigns timing, stagger, and pacing to each element (JSON)
-6. **Polish** — writes the final Remotion/React code (`.tsx`) from the timed layout
-7. **Renderer** — writes files to `src/generated/` and renders to MP4
+### Narration options
 
-Output lands in `out/generated.mp4`.
+```sh
+# Choose TTS provider (default: openai)
+npm run generate -- --tts-provider=openai
+npm run generate -- --tts-provider=elevenlabs
 
-### Generate Without Rendering
-
-```bash
-npm run generate -- "Compare Kafka vs RabbitMQ" --no-render
+# Choose voice
+npm run generate -- --tts-voice=shimmer              # OpenAI voices: alloy, echo, fable, onyx, nova (default), shimmer
+npm run generate -- --tts-voice=21m00Tcm4TlvDq8ikWAM # ElevenLabs takes a voice ID
 ```
 
-Then preview interactively in Remotion Studio:
+You can also set defaults via environment variables: `TTS_PROVIDER`, `TTS_VOICE`.
 
-```bash
-npm run studio:generated
-```
+### Adding a new TTS provider
 
-### Re-run From a Specific Role
+1. Create `src/tts/provider-yourname.ts` implementing the `TTSProvider` interface
+2. Register it in `src/tts/provider-registry.ts`:
+   ```ts
+   registerTTSProvider('yourname', () => {
+     const { YourProvider } = require('./provider-yourname');
+     return new YourProvider();
+   });
+   ```
+3. Use it: `npm run generate -- --tts-provider=yourname`
 
-Every role saves its output to `out/`. Edit any artifact and re-run from that point:
+## Iterating
 
-```bash
-# Edit out/2-script.json, then re-run from Art Director onward
-npm run generate -- --from=art-director --input=out/2-script.json
+Two workflows:
 
-# Edit the timed layout, then re-run from Polish onward
-npm run generate -- --from=polish --input=out/5-timed-layout.json
+1. **Regenerate**: tweak `input.txt`, `npm run generate` again.
+2. **Hand-edit**: open `src/generated/GeneratedVideo.tsx` directly, then `npm run render:generated`. You can preview live with `npm run studio:generated`.
 
-# Edit the generated React code directly, then just re-render
-npm run generate -- --from=renderer --input=out/6-generated-video.tsx
-```
+To refine the style rules globally, edit `.claude/skills/whiteboard-video/SKILL.md`. That's the single source of truth for how the model builds videos.
 
-### Pipeline Artifacts
-
-```
-out/
-├── 1-story-outline.json       # Author output — narrative arc and beats
-├── 2-script.json              # Scriptwriter output — scene text and structure
-├── 3-visual-direction.json    # Art Director output — colors, icons, composition
-├── 4-layout.json              # Layout output — element positions on canvas
-├── 5-timed-layout.json        # Animate output — timing and stagger per element
-├── 6-generated-video.tsx      # Polish output — real React/Remotion code
-├── asset-gaps.jsonl           # Icons the Art Director couldn't find
-├── lessons.jsonl              # Visual mistakes learned from past runs
-└── generated.mp4              # Final video
-```
-
----
-
-## Existing Demo Videos
-
-The repo includes hand-authored example videos that the pipeline's animation style is based on:
-
-```bash
-# Preview the Agentic AI explainer in Remotion Studio
-npm run studio
-
-# Render it to MP4
-npm run render
-
-# High quality render
-npm run render:hq
-```
-
-## How to Create a Video Manually
-
-Each video lives in its own folder under `src/`. Follow these steps:
-
-### 1. Create a folder
+## Project layout
 
 ```
-src/your-video/
-├── index.tsx          # registerRoot entry point
-├── Root.tsx           # Composition definition (resolution, fps, duration)
-├── YourVideo.tsx      # Main component — assembles scenes
-├── scenes.tsx         # Individual scene components
-└── components.tsx     # Custom components (optional)
-```
-
-### 2. Build scenes using the component library
-
-Use primitives from `src/shared/components.tsx`:
-
-```tsx
-import { Scene, SVG, HandWrittenText, SketchBox, COLORS } from '../shared/components';
-
-export const Scene1: React.FC = () => (
-  <Scene startFrame={0} endFrame={300}>
-    <AbsoluteFill style={{ backgroundColor: '#fefefe' }}>
-      <SVG>
-        <HandWrittenText text="Hello World" x={960} y={540}
-          startFrame={15} durationFrames={30} fontSize={64} />
-      </SVG>
-    </AbsoluteFill>
-  </Scene>
-);
-```
-
-### 3. Preview and render
-
-```bash
-npx remotion studio src/your-video/index.tsx
-npx remotion render src/your-video/index.tsx YourVideo out/your-video.mp4
-```
-
----
-
-## Project Structure
-
-```
+.claude/skills/whiteboard-video/SKILL.md   # the skill (system prompt base)
 src/
-├── pipeline/                    # Text-to-video generation pipeline
-│   ├── generate.ts              # CLI entry point
-│   ├── types.ts                 # Shared TypeScript types
-│   ├── validation.ts            # Zod schemas for inter-role validation
-│   ├── tsx-analyzer.ts          # AST-based analysis of generated .tsx code
-│   ├── logger.ts                # Structured pipeline logging
-│   ├── cost-tracker.ts          # Token usage and cost tracking
-│   ├── lesson-memory.ts         # Learns from visual mistakes across runs
-│   ├── roles/
-│   │   ├── author.ts            # Role 1: idea → story outline
-│   │   ├── scriptwriter.ts      # Role 2: story → scene scripts
-│   │   ├── art-director.ts      # Role 3: script → visual direction (uses asset search)
-│   │   ├── layout.ts            # Role 4: script + visuals → element positions (JSON)
-│   │   ├── animate.ts           # Role 5: layout → timed layout with stagger (JSON)
-│   │   ├── polish.ts            # Role 6: timed layout → final React/Remotion .tsx code
-│   │   ├── renderer.ts          # Role 7: code → files + MP4
-│   │   ├── visual-validator.ts  # Vision-based frame critique (screenshots → LLM)
-│   │   └── shared-prompts.ts    # Component API and reference scenes shared across roles
-│   └── tools/
-│       ├── asset-registry.ts    # Icon/image search for Art Director
-│       ├── bits-registry.ts     # remotion-bits component search for Polish
-│       └── skill-registry.ts    # Animation skill/pattern search for Animate & Polish
-├── assets/images/
-│   └── registry.jsonl           # 48 registered icons with metadata
-├── shared/
-│   ├── components.tsx           # Animation primitives (SketchBox, HandWrittenText, icons, etc.)
-│   ├── motions.tsx              # Motion pattern components (FlowChain, TreeDiagram, etc.)
-│   └── icons/                   # SVG icon components
-├── generated/                   # Pipeline output (gitignored)
-│   ├── GeneratedVideo.tsx
-│   ├── Root.tsx
-│   └── index.tsx
-├── cfpb-riskcheck/              # Corporate video example
-└── studymaterial/               # Hand-authored Agentic AI explainer (reference)
+  generate.ts                              # LangGraph pipeline: generate → validate → narrate → render
+  tts/                                     # extensible TTS narration system
+    types.ts                               # TTSProvider interface, NarrationSegment, TTSResult
+    provider-registry.ts                   # map-based provider registry (lazy-loaded)
+    provider-openai.ts                     # OpenAI TTS (tts-1, voices: alloy/echo/fable/onyx/nova/shimmer)
+    provider-elevenlabs.ts                 # ElevenLabs TTS (eleven_turbo_v2_5)
+    generate-audio.ts                      # orchestrator: calls provider per scene
+    timing.ts                              # playback rate calculator for audio-scene sync
+    audio-duration.ts                      # ffprobe-based duration measurement
+  shared/
+    components.tsx                         # structural primitives, COLORS, sketch shapes
+    motions.tsx                            # SpringReveal, StaggerMap, FlowPulse, CountUp, CameraPan
+    icons/                                 # ~90 hand-drawn SVG icons, categorised
+  generated/                               # model output (gitignored)
+  cfpb-riskcheck/                          # hand-crafted reference video (unrelated to generator)
+  Root.tsx, index.tsx                      # default Remotion entry (shows the CFPB video)
+public/audio/                              # generated narration audio files (gitignored)
+docs/legacy/                               # old 7-role pipeline design docs, kept for history
 ```
 
-## Adding Icons to the Asset Library
+## Scripts
 
-The Art Director searches `src/assets/images/registry.jsonl` for icons when composing scenes. To add a new one:
+| Script | What it does |
+|---|---|
+| `npm run generate` | Single-shot generate + typecheck + narrate + render |
+| `npm run studio` | Preview the default Remotion composition (CFPB explainer) |
+| `npm run studio:generated` | Preview the most recently generated video |
+| `npm run render:generated` | Re-render the current `src/generated/` without regenerating |
+| `npm run typecheck` | `tsc --noEmit` across the project |
 
-1. Create the SVG component in `src/shared/components.tsx` or `src/shared/icons/`
-2. Add a metadata line to `registry.jsonl`:
+## Cost tracking
 
-```json
-{"id":"my-icon","name":"My Icon","description":"What it looks like and conveys","type":"svg-component","category":"technology","depicts":["keyword1","keyword2"],"style":"hand-drawn","component_name":"MyIcon","props_interface":"cx, cy, scale, startFrame, drawDuration"}
+Every run logs token usage and TTS costs to `out/cost-log.jsonl`. The summary prints after each run:
+
+```
+═══════════════════════════════════════════════════
+  This run:   135.2s
+              $1.1600 (in: 19738 tok, out: 12263 tok)
+              TTS: 482 chars / $0.0072 (openai)
+              Total: $1.1672
+  ─────────────────────────────────────────────────
+  Cumulative: 3 runs
+              $3.4944 total
+═══════════════════════════════════════════════════
 ```
 
-The pipeline picks it up automatically on the next run.
+## History
 
-## npm Scripts
-
-| Script | Description |
-|--------|-------------|
-| `npm run generate -- "idea"` | Generate a video from a text idea |
-| `npm run studio:generated` | Preview generated video in Remotion Studio |
-| `npm run render:generated` | Render generated video to MP4 |
-| `npm run studio` | Preview the Agentic AI demo in Studio |
-| `npm run render` | Render the Agentic AI demo |
-| `npm run render:preview` | Quick preview render (CRF 28) |
-| `npm run render:hq` | High quality render (CRF 15) |
+This project previously ran a 7-role pipeline (author → scriptwriter → art director → layout → animate → polish → renderer) with vision validation and lesson memory. It was 10–59 API calls per video and produced worse output than Claude.ai chat does in one shot. The pipeline has been archived to the `legacy` branch and its design docs live in `docs/legacy/`. See `docs/legacy/SYSTEM_DESIGN.md` for the original rationale.

@@ -3,3 +3,5 @@ out/
 dist/
 .env
 src/generated/
+.claude/agent-memory/
+public/audio/

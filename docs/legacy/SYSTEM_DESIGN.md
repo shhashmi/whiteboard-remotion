@@ -1,3 +1,5 @@
+> **⚠️ HISTORICAL — describes the old 7-role pipeline.** The project now uses a single-shot Opus 4.6 generator driven by `.claude/skills/whiteboard-video/SKILL.md`. See the top-level `README.md` for current architecture. Preserved here for context.
+
 # System Design: Text-to-Video Production Pipeline
 
 Turn a plain text idea into a complete animated whiteboard video. A pipeline modeled on film production — distinct creative roles, each with clear responsibility, composing from a shared toolkit of animation primitives.
