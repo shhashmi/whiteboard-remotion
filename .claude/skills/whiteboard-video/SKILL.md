@@ -410,9 +410,40 @@ The generator wires Root.tsx to import both, so both MUST be named exports.
 - ❌ Starting an element before its scene's startFrame
 - ❌ Emitting anything outside the single fenced ```tsx code block (no commentary, no headings, no trailing text)
 
+## Narration script — required export
+
+In addition to `durationInFrames` and `GeneratedVideo`, export a `narrationScript` array that provides voiceover text for each scene. This is synthesised to audio by a TTS engine downstream.
+
+```ts
+export const narrationScript: Array<{
+  sceneIndex: number;
+  text: string;
+  startFrame: number;
+  endFrame: number;
+}> = [
+  { sceneIndex: 0, text: "Welcome to our deep dive into…", startFrame: 0, endFrame: 209 },
+  { sceneIndex: 1, text: "Let's start by exploring…", startFrame: 210, endFrame: 629 },
+  // … one entry per scene, in order
+];
+```
+
+**Rules:**
+- Exactly **one entry per scene**, in order, with `startFrame`/`endFrame` matching the scene's boundaries.
+- Narration should **complement** the visual text — expand on it, don't read it verbatim.
+- Target roughly **2.5 words per second** of scene duration (~150 wpm). A 420-frame (14s) scene ≈ 30-40 words of narration.
+- Keep the tone **conversational and clear** — this becomes spoken audio.
+- The title/hook scene can have a short teaser; the closing scene a brief recap.
+- Use only plain text — no markdown, no special characters, no SSML tags.
+
+| Scene duration (frames) | ≈ seconds | Target narration words |
+|------------------------:|----------:|-----------------------:|
+|                     180 |         6 |                  15-20 |
+|                     300 |        10 |                  25-30 |
+|                     420 |        14 |                  30-40 |
+
 ## One-pass quality checklist (run this in your head before emitting)
 
-1. Did you export both `durationInFrames` (number) AND `GeneratedVideo` (component)?
+1. Did you export `durationInFrames` (number), `GeneratedVideo` (component), AND `narrationScript` (array)?
 2. Do all scenes have startFrame/endFrame computed from the scene duration constants?
 3. Is every element's `x` in [120, 1800] and `y` in [120, 960]?
 4. Is every scene ≤ 5 elements?
@@ -422,5 +453,6 @@ The generator wires Root.tsx to import both, so both MUST be named exports.
 8. Are all imports present (no undeclared identifiers)?
 9. Is the output a single fenced ```tsx block with no surrounding prose?
 10. Are any `HandWrittenText` elements positioned inside a `SketchBox`'s bounding rectangle? If yes, convert them to `SketchBox.rows` before emitting.
+11. Does `narrationScript` have exactly one entry per scene with matching `startFrame`/`endFrame`, and is each entry's word count reasonable for the scene duration (~2.5 words/sec)?
 
-If all ten pass, emit the code.
+If all eleven pass, emit the code.
