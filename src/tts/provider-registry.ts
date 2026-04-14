@@ -1,35 +1,26 @@
-import { TTSProvider } from './types';
+import { TimedTTSProvider, TTSProviderId } from './types';
 
-type ProviderFactory = () => TTSProvider;
+type Factory = () => TimedTTSProvider;
 
-const providers: Record<string, ProviderFactory> = {};
+const factories: Record<TTSProviderId, Factory> = {
+  elevenlabs: () => {
+    const { ElevenLabsTimedProvider } = require('./provider-elevenlabs');
+    return new ElevenLabsTimedProvider();
+  },
+  polly: () => {
+    const { PollyTimedProvider } = require('./provider-polly');
+    return new PollyTimedProvider();
+  },
+};
 
-export function registerTTSProvider(name: string, factory: ProviderFactory): void {
-  providers[name] = factory;
-}
-
-export function getTTSProvider(name: string): TTSProvider {
-  const factory = providers[name];
+export function getTimedTTSProvider(id: TTSProviderId): TimedTTSProvider {
+  const factory = factories[id];
   if (!factory) {
-    const available = Object.keys(providers).join(', ') || '(none)';
-    throw new Error(`Unknown TTS provider: "${name}". Available: ${available}`);
+    throw new Error(`Unknown TTS provider: "${id}". Available: elevenlabs, polly`);
   }
   return factory();
 }
 
-export function listTTSProviders(): string[] {
-  return Object.keys(providers);
+export function listTimedTTSProviders(): TTSProviderId[] {
+  return Object.keys(factories) as TTSProviderId[];
 }
-
-// ── Built-in registrations ───────────────────────────────────────────
-// Lazy-import so the openai dependency is only loaded when actually used.
-
-registerTTSProvider('openai', () => {
-  const { OpenAITTSProvider } = require('./provider-openai');
-  return new OpenAITTSProvider();
-});
-
-registerTTSProvider('elevenlabs', () => {
-  const { ElevenLabsTTSProvider } = require('./provider-elevenlabs');
-  return new ElevenLabsTTSProvider();
-});

@@ -1,39 +1,49 @@
-/** A single narration segment aligned to a video scene. */
-export interface NarrationSegment {
+export type TTSProviderId = 'elevenlabs' | 'polly';
+
+export interface Cue {
+  id: string;
   sceneIndex: number;
   text: string;
-  startFrame: number;
-  endFrame: number;
+  order: number;
 }
 
-/** Result of a single TTS synthesis call. */
-export interface TTSResult {
-  audioFilePath: string;
+export interface CueTiming {
+  id: string;
+  timeMs: number;
+}
+
+export interface SceneCueGroup {
+  sceneIndex: number;
+  cues: Array<{ id: string; text: string }>;
+}
+
+export interface SceneSynthesisResult {
+  sceneIndex: number;
+  audioPath: string;
   durationMs: number;
   characters: number;
+  cueTimings: CueTiming[];
 }
 
-/** Configuration passed to the audio generation orchestrator. */
 export interface TTSConfig {
-  provider: string;
+  provider: TTSProviderId;
   voice?: string;
-  speed?: number;
   outputDir: string;
 }
 
-/** The interface every TTS provider must implement. */
-export interface TTSProvider {
-  readonly name: string;
+export interface SynthesizeSceneArgs {
+  sceneIndex: number;
+  cues: Array<{ id: string; text: string }>;
+  voice?: string;
+  outPath: string;
+}
 
-  /**
-   * Synthesize a single text segment to an audio file.
-   * @param text      The narration text to speak.
-   * @param outputPath Absolute path for the output audio file.
-   * @param options   Provider-specific voice/speed overrides.
-   */
-  synthesize(
-    text: string,
-    outputPath: string,
-    options?: { voice?: string; speed?: number },
-  ): Promise<TTSResult>;
+export interface TimedTTSProvider {
+  readonly id: TTSProviderId;
+  synthesizeScene(args: SynthesizeSceneArgs): Promise<SceneSynthesisResult>;
+}
+
+/** Retained for CueMap wire format written alongside generated TSX. */
+export interface CueMap {
+  [cueId: string]: number;
 }

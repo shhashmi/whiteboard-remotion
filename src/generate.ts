@@ -22,7 +22,14 @@ import { SystemMessage, HumanMessage, AIMessage, BaseMessage } from '@langchain/
 import * as fs from 'fs';
 import * as path from 'path';
 import { execSync } from 'child_process';
-import { NarrationSegment, TTSResult, generateAllAudio, computePlaybackRate, computeRequiredFrames, framesToMs } from './tts';
+import {
+  TTSProviderId,
+  SceneCueGroup,
+  SceneSynthesisResult,
+  CueMap,
+  generateCuedAudio,
+  buildCueTiming,
+} from './tts';
 
 const MODEL = 'claude-opus-4-6';
 const MAX_TOKENS = 16384;
@@ -41,11 +48,13 @@ const COST_OUTPUT_PER_MTOK = 75;
 const COST_CACHE_READ_PER_MTOK = 1.5;    // 10% of input price
 const COST_CACHE_WRITE_PER_MTOK = 18.75; // 125% of input price
 
-// TTS pricing (USD per 1M characters)
-const TTS_COST_PER_MCHAR: Record<string, number> = {
-  openai: 15.00,        // $15.00 / 1M chars (tts-1)
+// TTS pricing (USD per 1M characters) — both providers expose word/char timings.
+const TTS_COST_PER_MCHAR: Record<TTSProviderId, number> = {
   elevenlabs: 30.00,    // ~$30 / 1M chars (varies by plan)
+  polly: 16.00,         // Polly neural ~$16 / 1M chars
 };
+
+const VALID_TTS_PROVIDERS: TTSProviderId[] = ['elevenlabs', 'polly'];
 
 // ── Model instance (reads ANTHROPIC_API_KEY from env) ────────────────
 const model = new ChatAnthropic({
@@ -59,10 +68,12 @@ const GraphState = Annotation.Root({
   systemPrompt: Annotation<string>,
   noRender: Annotation<boolean>,
   noNarration: Annotation<boolean>,
-  ttsProvider: Annotation<string>({ reducer: (_p, n) => n, default: () => 'openai' }),
+  ttsProvider: Annotation<TTSProviderId>({ reducer: (_p, n) => n, default: () => 'elevenlabs' }),
   ttsVoice: Annotation<string>({ reducer: (_p, n) => n, default: () => '' }),
-  narrationSegments: Annotation<NarrationSegment[]>({ reducer: (_p, n) => n, default: () => [] }),
-  audioResults: Annotation<TTSResult[]>({ reducer: (_p, n) => n, default: () => [] }),
+  sceneCueGroups: Annotation<SceneCueGroup[]>({ reducer: (_p, n) => n, default: () => [] }),
+  sceneAudioResults: Annotation<SceneSynthesisResult[]>({ reducer: (_p, n) => n, default: () => [] }),
+  cueMap: Annotation<CueMap>({ reducer: (_p, n) => n, default: () => ({}) }),
+  totalFramesOverride: Annotation<number>({ reducer: (_p, n) => n, default: () => 0 }),
 
   messages: Annotation<BaseMessage[]>({
     reducer: (_prev, next) => next,
@@ -91,8 +102,15 @@ interface Args {
   prompt: string;
   noRender: boolean;
   noNarration: boolean;
-  ttsProvider: string;
+  ttsProvider: TTSProviderId;
   ttsVoice: string;
+}
+
+function parseTtsProvider(raw: string): TTSProviderId {
+  if (VALID_TTS_PROVIDERS.includes(raw as TTSProviderId)) return raw as TTSProviderId;
+  throw new Error(
+    `Invalid TTS provider "${raw}". Supported: ${VALID_TTS_PROVIDERS.join(', ')}.`,
+  );
 }
 
 function parseArgs(): Args {
@@ -101,7 +119,7 @@ function parseArgs(): Args {
   let inlinePrompt: string | undefined;
   let noRender = false;
   let noNarration = false;
-  let ttsProvider = process.env.TTS_PROVIDER || 'openai';
+  let ttsProvider: TTSProviderId = parseTtsProvider(process.env.TTS_PROVIDER || 'elevenlabs');
   let ttsVoice = process.env.TTS_VOICE || '';
 
   for (let i = 0; i < argv.length; i++) {
@@ -115,7 +133,7 @@ function parseArgs(): Args {
     } else if (a === '--no-narration') {
       noNarration = true;
     } else if (a.startsWith('--tts-provider=')) {
-      ttsProvider = a.slice('--tts-provider='.length);
+      ttsProvider = parseTtsProvider(a.slice('--tts-provider='.length));
     } else if (a.startsWith('--tts-voice=')) {
       ttsVoice = a.slice('--tts-voice='.length);
     } else if (!a.startsWith('--')) {
@@ -172,6 +190,11 @@ function validateRequiredExports(code: string): string[] {
   if (!/export\s+const\s+GeneratedVideo\s*:\s*React\.FC/.test(code) &&
       !/export\s+const\s+GeneratedVideo\s*=/.test(code)) {
     errors.push('Missing required `export const GeneratedVideo: React.FC = ...`');
+  }
+  if (!/export\s+const\s+narrationCues\s*(?::|=)/.test(code)) {
+    errors.push(
+      'Missing required `export const narrationCues = [...];` — every cue="..." used in the tree must be declared here.',
+    );
   }
   return errors;
 }
@@ -485,19 +508,23 @@ async function prepareRetryNode(state: typeof GraphState.State) {
   };
 }
 
-// ── Narration extraction ─────────────────────────────────────────────
+// ── Narration cue extraction ─────────────────────────────────────────
 
-function extractNarrationScript(code: string): NarrationSegment[] {
-  // Match the narrationScript export — an array of JSON-compatible objects
+interface ParsedCue {
+  id: string;
+  sceneIndex: number;
+  text: string;
+  order: number;
+}
+
+function parseNarrationCues(code: string): ParsedCue[] {
   const match = code.match(
-    /export\s+const\s+narrationScript\s*(?::\s*[^=]+)?\s*=\s*(\[[\s\S]*?\];)/,
+    /export\s+const\s+narrationCues\s*(?::\s*[^=]+)?\s*=\s*(\[[\s\S]*?\]);/,
   );
   if (!match) return [];
 
   try {
-    const raw = match[1].replace(/;$/, '').trim();
-    // Try JSON.parse first (works when LLM uses double-quoted strings).
-    // Fall back to safe JS eval for single-quoted strings or mixed quoting.
+    const raw = match[1].trim();
     let parsed: any;
     try {
       parsed = JSON.parse(raw);
@@ -505,103 +532,156 @@ function extractNarrationScript(code: string): NarrationSegment[] {
       parsed = new Function('"use strict"; return ' + raw)();
     }
     if (!Array.isArray(parsed)) return [];
-    return parsed.map((entry: any, i: number) => ({
-      sceneIndex: entry.sceneIndex ?? i,
-      text: String(entry.text ?? ''),
-      startFrame: Number(entry.startFrame ?? 0),
-      endFrame: Number(entry.endFrame ?? 0),
-    }));
+    return parsed
+      .map((entry: any, i: number): ParsedCue => ({
+        id: String(entry.id ?? ''),
+        sceneIndex: Number(entry.sceneIndex ?? 0),
+        text: String(entry.text ?? ''),
+        order: Number(entry.order ?? i),
+      }))
+      .filter((c: ParsedCue) => c.id && c.text);
   } catch {
-    console.warn('  ⚠ Could not parse narrationScript export — skipping narration.');
+    console.warn('  ⚠ Could not parse narrationCues export — skipping TTS.');
     return [];
   }
 }
 
-async function extractNarrationNode(state: typeof GraphState.State) {
-  if (state.noNarration) {
-    return { narrationSegments: [] };
+function groupCuesByScene(cues: ParsedCue[]): SceneCueGroup[] {
+  const ordered = [...cues].sort((a, b) => a.order - b.order);
+  const map = new Map<number, Array<{ id: string; text: string }>>();
+  for (const c of ordered) {
+    if (!map.has(c.sceneIndex)) map.set(c.sceneIndex, []);
+    map.get(c.sceneIndex)!.push({ id: c.id, text: c.text });
   }
-
-  const segments = extractNarrationScript(state.tsxCode);
-  if (segments.length === 0) {
-    console.log('\n▶ No narration script found in generated code — skipping TTS.');
-  } else {
-    console.log(`\n▶ Extracted narration script: ${segments.length} segment(s).`);
-  }
-  return { narrationSegments: segments };
+  return Array.from(map.entries())
+    .sort((a, b) => a[0] - b[0])
+    .map(([sceneIndex, cuesInScene]) => ({ sceneIndex, cues: cuesInScene }));
 }
 
-// ── Audio generation ─────────────────────────────────────────────────
+async function extractNarrationNode(state: typeof GraphState.State) {
+  if (state.noNarration) return { sceneCueGroups: [] };
 
-const FADE_FRAMES = 30;
-const BREATHING_FRAMES = 15;
-
-function writeNarratedFiles(
-  audioResults: TTSResult[],
-  narrationSegments: NarrationSegment[],
-): void {
-  if (narrationSegments.length === 0) return;
-
-  // ── First pass: compute per-segment timing adjustments ────────────
-  const segmentData = narrationSegments.map((seg, i) => {
-    const result = audioResults[i];
-    const hasAudio = result && result.audioFilePath;
-    const originalDuration = seg.endFrame - seg.startFrame + 1;
-
-    if (!hasAudio) {
-      return { seg, hasAudio: false as const, originalDuration, newDuration: originalDuration, playbackRate: 1.0, extra: 0 };
-    }
-
-    // Content window = scene duration minus fade-out and breathing room.
-    // Audio should finish within this window so the fade plays over silence.
-    const contentFrames = Math.max(1, originalDuration - FADE_FRAMES - BREATHING_FRAMES);
-    const contentMs = framesToMs(contentFrames);
-    const { playbackRate, clipped } = computePlaybackRate(result.durationMs, contentMs);
-
-    if (!clipped) {
-      // Audio fits in content window at the computed rate — no extension needed
-      return { seg, hasAudio: true as const, originalDuration, newDuration: originalDuration, playbackRate, extra: 0 };
-    }
-
-    // Audio overflows even at MAX_RATE — extend the scene
-    const requiredFrames = computeRequiredFrames(result.durationMs, FADE_FRAMES, BREATHING_FRAMES);
-    const newDuration = Math.max(originalDuration, requiredFrames);
-    const extra = newDuration - originalDuration;
-
-    // Recompute rate against the new content window
-    const newContentMs = framesToMs(newDuration - FADE_FRAMES - BREATHING_FRAMES);
-    const { playbackRate: adjustedRate } = computePlaybackRate(result.durationMs, newContentMs);
-
-    return { seg, hasAudio: true as const, originalDuration, newDuration, playbackRate: adjustedRate, extra };
-  });
-
-  // ── Build per-scene shift map keyed by sceneIndex ──────────────────
-  // narrationScript may not cover every visual scene, so we key by
-  // sceneIndex rather than positional array index.
-  let shiftAccum = 0;
-  const shiftByScene = new Map<number, { shift: number; extra: number }>();
-  for (const d of segmentData) {
-    shiftByScene.set(d.seg.sceneIndex, { shift: shiftAccum, extra: d.extra });
-    shiftAccum += d.extra;
+  const cues = parseNarrationCues(state.tsxCode);
+  const groups = groupCuesByScene(cues);
+  if (groups.length === 0) {
+    console.log('\n▶ No narrationCues export found — skipping TTS.');
+  } else {
+    const totalCues = groups.reduce((n, g) => n + g.cues.length, 0);
+    console.log(`\n▶ Extracted ${totalCues} cue(s) across ${groups.length} scene(s).`);
   }
-  const totalExtension = shiftAccum;
+  return { sceneCueGroups: groups };
+}
 
-  // ── Second pass: generate Sequence JSX with adjusted timing ───────
-  const audioJsx = segmentData
-    .map((d) => {
-      if (!d.hasAudio) return '';
-      const { shift } = shiftByScene.get(d.seg.sceneIndex)!;
-      const from = d.seg.startFrame + shift;
-      const rateAttr = d.playbackRate !== 1.0 ? ` playbackRate={${d.playbackRate.toFixed(3)}}` : '';
+// ── Patching the generated TSX with real frames + CueProvider ────────
 
-      return `      <Sequence from={${from}} durationInFrames={${d.newDuration}}>
-        <Audio src={staticFile('audio/scene-${d.seg.sceneIndex}.mp3')}${rateAttr} />
+function ensureCueProviderImport(code: string): string {
+  if (/\bCueProvider\b/.test(code)) return code;
+
+  const importRe = /import\s*\{\s*([^}]*)\}\s*from\s*'(\.\.\/)?shared\/components'\s*;?/;
+  const m = code.match(importRe);
+  if (m) {
+    const current = m[1].trim().replace(/,\s*$/, '');
+    const replacement = `import { ${current}, CueProvider } from '${m[2] || ''}shared/components';`;
+    return code.replace(importRe, replacement);
+  }
+  return `import { CueProvider } from '../shared/components';\n${code}`;
+}
+
+function renderCueMapConst(cueMap: CueMap): string {
+  const entries = Object.entries(cueMap)
+    .sort(([, a], [, b]) => a - b)
+    .map(([id, frame]) => `  ${JSON.stringify(id)}: ${frame},`)
+    .join('\n');
+  return `\nconst CUE_MAP: Record<string, number> = {\n${entries}\n};\n\n`;
+}
+
+function wrapReturnWithCueProvider(code: string): string {
+  // Insert <CueProvider> opening right after `return (` + whitespace + first `<`.
+  // The matching close is anchored on `</AbsoluteFill>\s*\)\s*;`. If the open
+  // matches but no close does (e.g. an inner nested AbsoluteFill threw our
+  // regex off), revert to avoid leaving an unclosed <CueProvider>.
+  const opened = code.replace(
+    /return\s*\(\s*<AbsoluteFill/,
+    `return (\n    <CueProvider cueMap={CUE_MAP}>\n      <AbsoluteFill`,
+  );
+  if (opened === code) return code;
+  const closed = opened.replace(
+    /<\/AbsoluteFill>\s*\)\s*;/,
+    `</AbsoluteFill>\n    </CueProvider>\n  );`,
+  );
+  if (closed === opened) {
+    console.warn('  ⚠ Could not find `</AbsoluteFill>);` to close CueProvider — reverting wrap. Narration cue sync will be disabled.');
+    return code;
+  }
+  return closed;
+}
+
+function patchGeneratedVideoTsx(
+  cueMap: CueMap,
+  sceneStartFrame: number[],
+  sceneEndFrame: number[],
+  totalFrames: number,
+): void {
+  const genPath = path.join(GENERATED_DIR, 'GeneratedVideo.tsx');
+  let code = fs.readFileSync(genPath, 'utf-8');
+
+  // 1. Replace durationInFrames export with the real total.
+  code = code.replace(
+    /export\s+const\s+durationInFrames\s*=\s*[^;]+;/,
+    `export const durationInFrames = ${totalFrames};`,
+  );
+
+  // 2. Replace each <Scene …> opening tag in file order. Matches any attribute
+  //    ordering so long as both startFrame and endFrame appear as props.
+  let sceneIdx = 0;
+  code = code.replace(/<Scene\b([^>]*)>/g, (full, attrs) => {
+    if (!/\bstartFrame=/.test(attrs) || !/\bendFrame=/.test(attrs)) return full;
+    const start = sceneStartFrame[sceneIdx] ?? 0;
+    const end = sceneEndFrame[sceneIdx] ?? 0;
+    sceneIdx++;
+    return `<Scene startFrame={${start}} endFrame={${end}}>`;
+  });
+  if (sceneIdx !== sceneStartFrame.length) {
+    console.warn(
+      `  ⚠ Patched ${sceneIdx} <Scene> tags but computed bounds for ${sceneStartFrame.length} scenes. Check the generated TSX.`,
+    );
+  }
+
+  // 3. Import CueProvider.
+  code = ensureCueProviderImport(code);
+
+  // 4. Inject the CUE_MAP constant immediately before GeneratedVideo.
+  if (!/\bCUE_MAP\b/.test(code)) {
+    code = code.replace(
+      /(export\s+const\s+GeneratedVideo\s*[:=])/,
+      `${renderCueMapConst(cueMap)}$1`,
+    );
+  }
+
+  // 5. Wrap the returned JSX with <CueProvider cueMap={CUE_MAP}>.
+  code = wrapReturnWithCueProvider(code);
+
+  fs.writeFileSync(genPath, code);
+}
+
+function writeNarratedVideoTsx(
+  results: SceneSynthesisResult[],
+  sceneContentStart: number[],
+  sceneIndexList: number[],
+): void {
+  const sequences = results
+    .map((r, i) => {
+      if (!r.audioPath) return '';
+      const from = sceneContentStart[i] ?? 0;
+      const durationInFrames = Math.max(1, Math.round((r.durationMs / 1000) * 30));
+      return `      <Sequence from={${from}} durationInFrames={${durationInFrames}}>
+        <Audio src={staticFile('audio/scene-${sceneIndexList[i]}.mp3')} />
       </Sequence>`;
     })
     .filter(Boolean)
     .join('\n');
 
-  if (!audioJsx) return;
+  if (!sequences) return;
 
   const narratedTsx = `import React from 'react';
 import { Audio, Sequence, staticFile } from 'remotion';
@@ -610,80 +690,56 @@ import { GeneratedVideo } from './GeneratedVideo';
 export const NarratedVideo: React.FC = () => (
   <>
     <GeneratedVideo />
-${audioJsx}
+${sequences}
   </>
 );
 `;
-
   fs.writeFileSync(path.join(GENERATED_DIR, 'NarratedVideo.tsx'), narratedTsx);
-
-  // ── Patch GeneratedVideo.tsx if any scenes were extended ──────────
-  if (totalExtension > 0) {
-    const genPath = path.join(GENERATED_DIR, 'GeneratedVideo.tsx');
-    let code = fs.readFileSync(genPath, 'utf-8');
-
-    // Update durationInFrames export — handles both literal numbers and expressions
-    const durationPatched = code.replace(
-      /export\s+const\s+durationInFrames\s*=\s*([^;\n]+)/,
-      (_m, val) => {
-        const asNum = Number(val.trim());
-        if (!isNaN(asNum)) {
-          return `export const durationInFrames = ${asNum + totalExtension}`;
-        }
-        return `export const durationInFrames = (${val.trim()}) + ${totalExtension}`;
-      },
-    );
-    if (durationPatched === code) {
-      console.warn('  ⚠ Could not patch durationInFrames — total video length may be too short.');
-    }
-    code = durationPatched;
-
-    // Update Scene startFrame/endFrame props with per-scene shifts.
-    // The visual scene order (0, 1, 2…) matches the narrationScript sceneIndex.
-    let visualSceneIdx = 0;
-    code = code.replace(
-      /<Scene\s+startFrame=\{([^}]+)\}\s+endFrame=\{([^}]+)\}>/g,
-      (full, startExpr, endExpr) => {
-        const idx = visualSceneIdx++;
-        const entry = shiftByScene.get(idx);
-        if (!entry || (entry.shift === 0 && entry.extra === 0)) return full;
-
-        const newStart = entry.shift > 0 ? `${startExpr} + ${entry.shift}` : startExpr;
-        const totalAdd = entry.shift + entry.extra;
-        const newEnd = totalAdd > 0 ? `${endExpr} + ${totalAdd}` : endExpr;
-        return `<Scene startFrame={${newStart}} endFrame={${newEnd}}>`;
-      },
-    );
-
-    fs.writeFileSync(genPath, code);
-    console.log(`  ℹ Extended ${segmentData.filter(d => d.extra > 0).length} scene(s) by ${totalExtension} total frames to fit audio.`);
-  }
 }
 
 async function generateAudioNode(state: typeof GraphState.State) {
-  if (state.noNarration || state.narrationSegments.length === 0) {
-    return { audioResults: [] };
+  if (state.noNarration || state.sceneCueGroups.length === 0) {
+    return { sceneAudioResults: [], cueMap: {}, totalFramesOverride: 0 };
   }
 
-  console.log(`\n▶ Generating narration audio (${state.narrationSegments.length} segments, provider: ${state.ttsProvider})…`);
+  const totalCues = state.sceneCueGroups.reduce((n, g) => n + g.cues.length, 0);
+  console.log(`\n▶ Generating narration audio (${totalCues} cues across ${state.sceneCueGroups.length} scenes, provider: ${state.ttsProvider})…`);
 
   try {
-    const results = await generateAllAudio(state.narrationSegments, {
+    const results = await generateCuedAudio(state.sceneCueGroups, {
       provider: state.ttsProvider,
       voice: state.ttsVoice || undefined,
       outputDir: AUDIO_DIR,
     });
 
-    const successCount = results.filter((r) => r.audioFilePath).length;
-    console.log(`  ✓ Generated ${successCount}/${results.length} audio files.`);
+    const successful = results.filter((r) => r.audioPath);
+    console.log(`  ✓ Generated ${successful.length}/${results.length} scene audio files.`);
 
-    // Write NarratedVideo.tsx wrapper
-    writeNarratedFiles(results, state.narrationSegments);
+    if (successful.length === 0) {
+      return { sceneAudioResults: results, cueMap: {}, totalFramesOverride: 0 };
+    }
 
-    return { audioResults: results };
+    const timing = buildCueTiming(successful);
+
+    const sceneIndexList = successful.map((r) => r.sceneIndex);
+    patchGeneratedVideoTsx(
+      timing.cueMap,
+      timing.sceneStartFrame,
+      timing.sceneEndFrame,
+      timing.totalFrames,
+    );
+    writeNarratedVideoTsx(successful, timing.sceneContentStart, sceneIndexList);
+
+    console.log(`  ℹ Video duration: ${timing.totalFrames} frames (${(timing.totalFrames / 30).toFixed(1)}s), ${Object.keys(timing.cueMap).length} cue timings applied.`);
+
+    return {
+      sceneAudioResults: results,
+      cueMap: timing.cueMap,
+      totalFramesOverride: timing.totalFrames,
+    };
   } catch (err: any) {
     console.warn(`\n⚠ TTS generation failed: ${err.message} — rendering without narration.`);
-    return { audioResults: [] };
+    return { sceneAudioResults: [], cueMap: {}, totalFramesOverride: 0 };
   }
 }
 
@@ -752,7 +808,7 @@ async function main(): Promise<void> {
     tsxCode, typecheckOk, exportErrors, layoutErrors,
     totalInputTokens, totalOutputTokens,
     cacheReadTokens, cacheCreationTokens,
-    typecheckErrors, audioResults,
+    typecheckErrors, sceneAudioResults,
   } = finalState;
 
   // Report persistent errors
@@ -770,7 +826,7 @@ async function main(): Promise<void> {
   console.log(`\n▶ Wrote ${path.relative(PROJECT_ROOT, GENERATED_DIR)}/GeneratedVideo.tsx (${tsxCode.length} chars)`);
 
   // ── Render ──────────────────────────────────────────────────────────
-  const hasAudio = audioResults && audioResults.some((r: TTSResult) => r.audioFilePath);
+  const hasAudio = sceneAudioResults && sceneAudioResults.some((r: SceneSynthesisResult) => r.audioPath);
 
   if (!noRender && typecheckOk && exportErrors.length === 0 && layoutErrors.length === 0) {
     // If we have narrated audio, rewrite Root.tsx to include NarratedVideo composition
@@ -828,8 +884,8 @@ export const RemotionRoot: React.FC = () => {
   const thisRun = computeCost(totalInputTokens, totalOutputTokens, cacheReadTokens, cacheCreationTokens);
 
   // TTS cost calculation
-  const ttsCharacters = (audioResults || []).reduce((sum: number, r: TTSResult) => sum + (r.characters || 0), 0);
-  const ttsCostPerMChar = TTS_COST_PER_MCHAR[ttsProvider] ?? 15.0;
+  const ttsCharacters = (sceneAudioResults || []).reduce((sum: number, r: SceneSynthesisResult) => sum + (r.characters || 0), 0);
+  const ttsCostPerMChar = TTS_COST_PER_MCHAR[ttsProvider] ?? 20.0;
   const ttsCostUsd = (ttsCharacters / 1_000_000) * ttsCostPerMChar;
   const totalCostUsd = thisRun.total + ttsCostUsd;
 

@@ -16,11 +16,11 @@ You generate **one file**: a complete `GeneratedVideo.tsx` React/Remotion compon
 
 ## Composition structure — hard rules
 
-1. **3–6 scenes**, each wrapped in `<Scene startFrame={...} endFrame={...}>`. Scenes run **sequentially** — no overlap, no concurrent scenes. Prefer 4–5.
+1. **3–6 scenes**, each wrapped in `<Scene startFrame={0} endFrame={0}>` — pass literal `{0}` placeholders; the post-pass fills in real bounds from TTS timings. Scenes run **sequentially** — no overlap.
 2. **Max 5 primary focal concepts per scene.** A "primary focal concept" is a labeled thing the viewer is meant to track — a box+label pair, an icon+caption, a standalone title. Auxiliary connectors (arrows, dotted lines), background grid, and sub-labels on diagram nodes do NOT count. A flowchart with 4 nodes + 3 arrows + 4 node-labels = 4 primary concepts, not 11.
-3. Scene duration budget: title/hook ~180 frames, explanation scenes ~300–420 frames each, takeaway ~180 frames.
-4. Always track a single `frame` counter across the file: `frame = 0`, then `frame += sceneDuration`. Scene `endFrame = startFrame + duration - 1`.
-5. Inside a scene, element `startFrame` values are **absolute to the video**, not relative to the scene. Start elements 10–20 frames after the scene's startFrame (so the scene fade-in finishes first) and end at least 20 frames before the scene's endFrame.
+3. Total narration budget: 60–90 seconds spoken (~150–225 words total). Scene count × cues-per-scene × cue length should land you there.
+4. Every narratable element (title, bullet, equation, labeled icon) MUST either be wrapped in `<Timed cue="..."/>` or use a `cue` field in a `SketchBox` row. See the "Cue-based narration sync" section.
+5. Element `startFrame` props are **placeholders**. Write `{0}` — the post-pass reads `cue` and overrides from the TTS cueMap.
 
 ## Safe zone — hard constraint
 
@@ -150,9 +150,10 @@ SketchBox: React.FC<{
     fontSize: number;
     color?: string;            // default: same as stroke
     fontWeight?: number;       // default 700
-    startFrame: number;
+    startFrame?: number;       // placeholder — may omit if cue is set
     durationFrames: number;
     align?: 'start' | 'middle' | 'end';  // per-row override of contentAlign
+    cue?: string;              // narration cue id — overrides startFrame at runtime
   }>;
   padding?: number;            // default 24 — inset from all edges
   gap?: number;                // default 12 — vertical gap between rows
@@ -206,6 +207,15 @@ CrossMark: React.FC<{
   cx: number; cy: number; scale?: number;
   startFrame: number; drawDuration: number;
   color?: string;              // default COLORS.red
+}>
+
+// Wrap any component that takes startFrame to drive it from the narration cueMap.
+// When `cue` is present and registered, the runtime injects the resolved
+// startFrame into the child and ignores the child's literal startFrame.
+Timed: React.FC<{
+  cue?: string;
+  startFrame?: number;        // fallback if cue is missing from the map
+  children: React.ReactElement;
 }>
 ```
 
@@ -286,11 +296,79 @@ CameraPan: React.FC<{
 
 ## Timing conventions
 
+Drawing must feel like a tutor sketching **as they speak**. Timing is driven by narration, not guessed by you. Follow these rules:
+
 - Scene fades are handled automatically by `<Scene>` (30 frames in, 30 out). Do not manually fade the first/last elements of a scene.
-- Stagger child entrances **15–25 frames** apart.
 - `drawDuration` for icons: **20–30 frames**. For sketch shapes: **15–25 frames**. For arrows: **12–18 frames**.
 - `HandWrittenText.durationFrames` ≈ `text.length * 1.1` (so a 20-char title types over ~22 frames).
-- NEVER start an element before its scene's `startFrame + 10` or after `endFrame - 20`.
+- **Scene `startFrame` / `endFrame` on `<Scene>` must be written as `{0}` / `{0}` placeholders. The generator post-pass fills in real values from the TTS output.**
+- **Do NOT manually stagger `startFrame`s.** Instead, tag each narratable element with a `cue` (see next section). The post-pass injects real frame numbers from the narration timestamps, so every element draws exactly as its narration line is spoken.
+- For elements that carry an explicit `startFrame` (decorative shapes not tied to narration), still give a sensible value relative to the scene start — it will be used as a fallback only.
+
+## Cue-based narration sync — REQUIRED
+
+Every visual element that represents a point the narrator talks about gets a **cue id** — a short string like `"s1-title"`, `"s1-principle"`, `"s1-cond-1"`. The cueMap produced by the TTS layer maps each id to an absolute frame; the runtime injects that frame into the element's `startFrame` so the drawing begins at the exact word in the voiceover.
+
+**Cue id format:** `s{sceneIndex}-{slug}`, lowercase, hyphen-separated. Scene index is 0-based, matching the `<Scene>` order. Keep slugs short: `title`, `hook`, `principle`, `cond-1`, `eq`, `recap`.
+
+### How to tag elements
+
+**For `HandWrittenText`, `SketchBox`, icons, arrows, any component taking `startFrame`** — wrap it in `<Timed cue="...">`:
+
+```tsx
+<Timed cue="s1-principle">
+  <HandWrittenText
+    text="Faster flow means lower pressure"
+    x={960} y={340}
+    startFrame={0}   // placeholder — Timed overrides it
+    durationFrames={40}
+    fontSize={48}
+    textAnchor="middle"
+  />
+</Timed>
+
+<Timed cue="s1-bulb">
+  <Lightbulb cx={1450} cy={520} scale={1.8} startFrame={0} drawDuration={25} />
+</Timed>
+```
+
+**For `SketchBox` rows** — put the cue on the row object itself (do NOT wrap the SketchBox in `<Timed>` if you want per-row sync):
+
+```tsx
+<SketchBox
+  x={160} y={420} width={520}
+  startFrame={0} drawDuration={18}
+  stroke={COLORS.blue} padding={24} gap={12}
+  rows={[
+    { cue: 's1-cond-title', text: 'Conditions', fontSize: 34,
+      durationFrames: 22 },
+    { cue: 's1-cond-1', text: '• Incompressible fluid', fontSize: 28,
+      durationFrames: 25 },
+    { cue: 's1-cond-2', text: '• Non-viscous', fontSize: 28,
+      durationFrames: 28 },
+  ]}
+/>
+```
+
+If you want the SketchBox's outline to draw at its own cue (e.g. right before the rows are discussed), wrap the SketchBox in `<Timed cue="s1-cond-box">` AND put per-row cues for each row.
+
+### What gets a cue, what doesn't
+
+- ✅ Titles, bullet points, equations, labels — each is its own cue.
+- ✅ Icons or diagrams the narrator explicitly mentions.
+- ✅ Each row of a SketchBox `rows` prop — each gets its own cue.
+- ❌ Decorative background shapes that are never spoken about.
+- ❌ Static layout frames (plain SketchBox with no rows used purely as a container).
+
+Keep cues **small** — one sentence or one bullet each (≤ 15 words). The narrator should be able to say a cue's text in 1–4 seconds. Over-large cues cause drawings to trail the voice.
+
+### Import `Timed`
+
+Add `Timed` to your import from `../shared/components`:
+
+```ts
+import { SVG, Scene, HandWrittenText, SketchBox, Timed, COLORS } from '../shared/components';
+```
 
 ## Complete file template — START FROM THIS
 
@@ -319,68 +397,67 @@ const SCENE_B_DUR = 300;
 const SCENE_C_DUR = 300;
 const END_DUR = 180;
 
-export const durationInFrames =
-  TITLE_DUR + SCENE_A_DUR + SCENE_B_DUR + SCENE_C_DUR + END_DUR; // 1260 frames = 42s
+// Placeholder — the post-pass overrides this with the real total after TTS.
+export const durationInFrames = 2400;
 
 export const GeneratedVideo: React.FC = () => {
-  // Sequential scene start frames (computed from the constants above).
-  const sceneTitleStart = 0;
-  const sceneAStart     = sceneTitleStart + TITLE_DUR;
-  const sceneBStart     = sceneAStart + SCENE_A_DUR;
-  const sceneCStart     = sceneBStart + SCENE_B_DUR;
-  const sceneEndStart   = sceneCStart + SCENE_C_DUR;
-
   return (
     <AbsoluteFill style={{ backgroundColor: '#fafaf5' }}>
-      {/* Title scene */}
-      <Scene startFrame={sceneTitleStart} endFrame={sceneTitleStart + TITLE_DUR - 1}>
+      {/* Scene 0 — title. startFrame/endFrame are {0} placeholders. */}
+      <Scene startFrame={0} endFrame={0}>
         <SVG>
-          <HandWrittenText
-            text="Your Title Here"
-            x={960} y={440}
-            startFrame={sceneTitleStart + 15}
-            durationFrames={40}
-            fontSize={88}
-            textAnchor="middle"
-          />
-          <HandWrittenText
-            text="A crisp one-line subtitle"
-            x={960} y={560}
-            startFrame={sceneTitleStart + 60}
-            durationFrames={35}
-            fontSize={44}
-            fill={COLORS.orange}
-            textAnchor="middle"
-            maxWidth={1400}
-          />
+          <Timed cue="s0-title">
+            <HandWrittenText
+              text="Your Title Here"
+              x={960} y={440}
+              startFrame={0}
+              durationFrames={40}
+              fontSize={88}
+              textAnchor="middle"
+            />
+          </Timed>
+          <Timed cue="s0-hook">
+            <HandWrittenText
+              text="A crisp one-line subtitle"
+              x={960} y={560}
+              startFrame={0}
+              durationFrames={35}
+              fontSize={44}
+              fill={COLORS.orange}
+              textAnchor="middle"
+              maxWidth={1400}
+            />
+          </Timed>
         </SVG>
       </Scene>
 
-      {/* Example content scene — SketchBox with rows for labeled cards */}
-      <Scene startFrame={sceneAStart} endFrame={sceneAStart + SCENE_A_DUR - 1}>
+      {/* Scene 1 — labeled card using cue-per-row */}
+      <Scene startFrame={0} endFrame={0}>
         <SVG>
-          <HandWrittenText
-            text="Key Concepts"
-            x={960} y={180}
-            startFrame={sceneAStart + 15}
-            durationFrames={20}
-            fontSize={72}
-            textAnchor="middle"
-          />
-          {/* Use SketchBox rows prop — never hand-position text inside a box */}
-          <SketchBox
-            x={160} y={280} width={520}
-            startFrame={sceneAStart + 40} drawDuration={18}
-            stroke={COLORS.orange} fill={COLORS.orange} fillOpacity={0.05} rx={10}
-            padding={24} gap={14}
-            rows={[
-              { text: 'Concept Title', fontSize: 36, color: COLORS.orange,
-                startFrame: sceneAStart + 60, durationFrames: 18 },
-              { text: 'Description text that may wrap to multiple lines automatically',
-                fontSize: 28, color: COLORS.gray1,
-                startFrame: sceneAStart + 85, durationFrames: 40 },
-            ]}
-          />
+          <Timed cue="s1-title">
+            <HandWrittenText
+              text="Key Concepts"
+              x={960} y={180}
+              startFrame={0}
+              durationFrames={20}
+              fontSize={72}
+              textAnchor="middle"
+            />
+          </Timed>
+          <Timed cue="s1-card-box">
+            <SketchBox
+              x={160} y={280} width={520}
+              startFrame={0} drawDuration={18}
+              stroke={COLORS.orange} fill={COLORS.orange} fillOpacity={0.05} rx={10}
+              padding={24} gap={14}
+              rows={[
+                { cue: 's1-card-title', text: 'Concept Title',
+                  fontSize: 36, color: COLORS.orange, durationFrames: 18 },
+                { cue: 's1-card-desc',  text: 'Description text that may wrap.',
+                  fontSize: 28, color: COLORS.gray1, durationFrames: 40 },
+              ]}
+            />
+          </Timed>
         </SVG>
       </Scene>
 
@@ -388,13 +465,23 @@ export const GeneratedVideo: React.FC = () => {
     </AbsoluteFill>
   );
 };
+
+export const narrationCues = [
+  { id: 's0-title',      sceneIndex: 0, text: 'Here is your title.',                         order: 0 },
+  { id: 's0-hook',       sceneIndex: 0, text: 'And a single-line subtitle to frame it.',     order: 1 },
+  { id: 's1-title',      sceneIndex: 1, text: 'Now the key concepts.',                       order: 2 },
+  { id: 's1-card-box',   sceneIndex: 1, text: 'First, a concept we want to highlight.',      order: 3 },
+  { id: 's1-card-title', sceneIndex: 1, text: 'Call it the concept title,',                  order: 4 },
+  { id: 's1-card-desc',  sceneIndex: 1, text: 'with a short explanation underneath.',        order: 5 },
+];
 ```
 
 **Required exports from GeneratedVideo.tsx:**
-1. `export const durationInFrames = <number>;` — total frame count, must be 1800–2700
+1. `export const durationInFrames = <number>;` — placeholder, post-pass overwrites with real total
 2. `export const GeneratedVideo: React.FC` — the component
+3. `export const narrationCues` — array of `{ id, sceneIndex, text, order }`, one entry per `cue` used in the tree
 
-The generator wires Root.tsx to import both, so both MUST be named exports.
+The generator wires Root.tsx to import these, so all MUST be named exports.
 
 ## Avoid list — HARD FAILS
 
@@ -407,52 +494,55 @@ The generator wires Root.tsx to import both, so both MUST be named exports.
 - ❌ Importing from `../pipeline/*` (that directory does not exist)
 - ❌ Importing `@remotion/bits`, `remotion-bits`, or any library not listed above
 - ❌ Using raw `<div>` layout inside a `<SVG>` (SVG children must be SVG elements or `<g>`)
-- ❌ Starting an element before its scene's startFrame
+- ❌ Writing non-zero values for `<Scene startFrame endFrame>` (must be `{0}`)
+- ❌ Narratable elements without a `cue` prop (inside `<Timed>` or on a SketchBox row)
+- ❌ A `cue` id used in the tree that is not declared in `narrationCues` (and vice versa)
 - ❌ Emitting anything outside the single fenced ```tsx code block (no commentary, no headings, no trailing text)
 
-## Narration script — required export
+## Narration cues — required export
 
-In addition to `durationInFrames` and `GeneratedVideo`, export a `narrationScript` array that provides voiceover text for each scene. This is synthesised to audio by a TTS engine downstream.
+In addition to `durationInFrames` and `GeneratedVideo`, export a `narrationCues` array. Each entry pairs a cue id with the exact narration line the voice actor will speak for that cue. The TTS layer reads this array, synthesises one MP3 per scene with speech marks at each cue, and produces a cueMap that the runtime uses to drive every `<Timed cue="…">` element.
 
 ```ts
-export const narrationScript: Array<{
-  sceneIndex: number;
-  text: string;
-  startFrame: number;
-  endFrame: number;
+export const narrationCues: Array<{
+  id: string;          // matches the cue="..." on a visual element
+  sceneIndex: number;  // 0-based scene index
+  text: string;        // one sentence / one bullet — what the narrator says
+  order: number;       // cumulative order across the whole video (0, 1, 2, …)
 }> = [
-  { sceneIndex: 0, text: "Welcome to our deep dive into…", startFrame: 0, endFrame: 209 },
-  { sceneIndex: 1, text: "Let's start by exploring…", startFrame: 210, endFrame: 629 },
-  // … one entry per scene, in order
+  { id: 's0-title',   sceneIndex: 0, text: "Welcome to Bernoulli's theorem.", order: 0 },
+  { id: 's0-hook',    sceneIndex: 0, text: "We'll see why fast-moving fluids drop in pressure.", order: 1 },
+  { id: 's1-title',   sceneIndex: 1, text: "First, the core idea.", order: 2 },
+  { id: 's1-cond-1',  sceneIndex: 1, text: "It assumes the fluid is incompressible,", order: 3 },
+  { id: 's1-cond-2',  sceneIndex: 1, text: "and that it flows without friction.", order: 4 },
+  // … one entry per cue, in the order they are spoken
 ];
 ```
 
 **Rules:**
-- Exactly **one entry per scene**, in order, with `startFrame`/`endFrame` matching the scene's boundaries.
+- Every `cue="..."` string used in the TSX MUST appear exactly once in `narrationCues`.
+- Every `narrationCues` entry MUST correspond to at least one `cue` reference in the TSX (dead cues waste audio).
+- Cues within a scene MUST appear in `narrationCues` in the order they are spoken.
+- Each cue's `text` is **one short sentence or one bullet** — ideally 4–15 words, speakable in 1–4 seconds. Break longer thoughts across multiple cues.
 - Narration should **complement** the visual text — expand on it, don't read it verbatim.
-- Target roughly **2.5 words per second** of scene duration (~150 wpm). A 420-frame (14s) scene ≈ 30-40 words of narration.
 - Keep the tone **conversational and clear** — this becomes spoken audio.
-- The title/hook scene can have a short teaser; the closing scene a brief recap.
 - Use only plain text — no markdown, no special characters, no SSML tags.
-
-| Scene duration (frames) | ≈ seconds | Target narration words |
-|------------------------:|----------:|-----------------------:|
-|                     180 |         6 |                  15-20 |
-|                     300 |        10 |                  25-30 |
-|                     420 |        14 |                  30-40 |
+- Roughly **2.5 words per second** of speech. Budget ~60–90s of narration total.
 
 ## One-pass quality checklist (run this in your head before emitting)
 
-1. Did you export `durationInFrames` (number), `GeneratedVideo` (component), AND `narrationScript` (array)?
-2. Do all scenes have startFrame/endFrame computed from the scene duration constants?
-3. Is every element's `x` in [120, 1800] and `y` in [120, 960]?
-4. Is every scene ≤ 5 elements?
-5. Is every color either `COLORS.xxx` or the paper background `#fafaf5`?
-6. Does `durationFrames` for each HandWrittenText match `text.length * 1.1`?
-7. Is `durationInFrames` between 1800 and 2700?
-8. Are all imports present (no undeclared identifiers)?
-9. Is the output a single fenced ```tsx block with no surrounding prose?
-10. Are any `HandWrittenText` elements positioned inside a `SketchBox`'s bounding rectangle? If yes, convert them to `SketchBox.rows` before emitting.
-11. Does `narrationScript` have exactly one entry per scene with matching `startFrame`/`endFrame`, and is each entry's word count reasonable for the scene duration (~2.5 words/sec)?
+1. Did you export `durationInFrames` (placeholder number), `GeneratedVideo`, AND `narrationCues`?
+2. Is every `<Scene startFrame={0} endFrame={0}>` using literal `{0}` placeholders?
+3. Does every narratable element have a `cue` (via `<Timed>`) or a `cue` field on its `SketchBox` row?
+4. Does every `cue` id used in the tree appear exactly once in `narrationCues`, and vice versa?
+5. Are cues within a scene listed in `narrationCues` in the order they are spoken?
+6. Is each cue's `text` 4–15 words, plain prose, no SSML / markdown / special chars?
+7. Is every element's `x` in [120, 1800] and `y` in [120, 960]?
+8. Is every scene ≤ 5 primary focal concepts?
+9. Is every color either `COLORS.xxx` or the paper background `#fafaf5`?
+10. Does `durationFrames` for each HandWrittenText match `text.length * 1.1`?
+11. Are all imports present (including `Timed` from `../shared/components`)?
+12. Is the output a single fenced ```tsx block with no surrounding prose?
+13. Any `HandWrittenText` positioned inside a `SketchBox`'s bounding rectangle? Convert to `SketchBox.rows`.
 
-If all eleven pass, emit the code.
+If all thirteen pass, emit the code.

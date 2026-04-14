@@ -1,44 +1,47 @@
 import * as fs from 'fs';
 import * as path from 'path';
-import { NarrationSegment, TTSConfig, TTSResult } from './types';
-import { getTTSProvider } from './provider-registry';
+import { SceneCueGroup, SceneSynthesisResult, TTSConfig } from './types';
+import { getTimedTTSProvider } from './provider-registry';
 
-/**
- * Generate audio files for all narration segments.
- *
- * Each segment produces `scene-{N}.mp3` in `config.outputDir`.
- * Failures on individual segments are logged and skipped — partial
- * narration is better than no video.
- */
-export async function generateAllAudio(
-  segments: NarrationSegment[],
+/** Synthesize one MP3 per scene, with cue timings for every cue inside.
+ *  Scenes with no cues are skipped.  Failures on a single scene produce
+ *  an empty result (audioPath: '') — partial narration is better than none. */
+export async function generateCuedAudio(
+  scenes: SceneCueGroup[],
   config: TTSConfig,
-): Promise<TTSResult[]> {
-  const provider = getTTSProvider(config.provider);
+): Promise<SceneSynthesisResult[]> {
+  const provider = getTimedTTSProvider(config.provider);
 
-  // Clean and recreate output directory
   if (fs.existsSync(config.outputDir)) {
     fs.rmSync(config.outputDir, { recursive: true });
   }
   fs.mkdirSync(config.outputDir, { recursive: true });
 
-  const results: TTSResult[] = [];
+  const results: SceneSynthesisResult[] = [];
 
-  for (const segment of segments) {
-    const filename = `scene-${segment.sceneIndex}.mp3`;
-    const outputPath = path.join(config.outputDir, filename);
-
+  for (const scene of scenes) {
+    if (scene.cues.length === 0) continue;
+    const outPath = path.join(config.outputDir, `scene-${scene.sceneIndex}.mp3`);
     try {
-      console.log(`    Scene ${segment.sceneIndex}: "${segment.text.slice(0, 60)}…"`);
-      const result = await provider.synthesize(segment.text, outputPath, {
+      const firstSnippet = scene.cues[0].text.slice(0, 60);
+      console.log(`    Scene ${scene.sceneIndex} (${scene.cues.length} cues): "${firstSnippet}…"`);
+      const result = await provider.synthesizeScene({
+        sceneIndex: scene.sceneIndex,
+        cues: scene.cues,
         voice: config.voice,
-        speed: config.speed,
+        outPath,
       });
-      console.log(`      ✓ ${(result.durationMs / 1000).toFixed(1)}s`);
+      console.log(`      ✓ ${(result.durationMs / 1000).toFixed(1)}s, ${result.cueTimings.length} cue timings`);
       results.push(result);
     } catch (err: any) {
-      console.warn(`      ✗ TTS failed for scene ${segment.sceneIndex}: ${err.message}`);
-      results.push({ audioFilePath: '', durationMs: 0, characters: 0 });
+      console.warn(`      ✗ TTS failed for scene ${scene.sceneIndex}: ${err.message}`);
+      results.push({
+        sceneIndex: scene.sceneIndex,
+        audioPath: '',
+        durationMs: 0,
+        characters: 0,
+        cueTimings: [],
+      });
     }
   }
 

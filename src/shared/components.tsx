@@ -1,24 +1,52 @@
 import React from 'react';
 import { useCurrentFrame, interpolate, AbsoluteFill } from 'remotion';
 
-// ─── Color Palette ────────────────────────────────────────────────────────────
-export const COLORS = {
-  outline: '#1e293b',
-  orange: '#f97316',
-  blue: '#3b82f6',
-  purple: '#8b5cf6',
-  green: '#22c55e',
-  yellow: '#fbbf24',
-  skin: '#fde2c4',
-  hairBrown: '#5a3825',
-  hair: '#5a3825',
-  gray1: '#64748b',
-  gray2: '#94a3b8',
-  gray3: '#cbd5e1',
-  white: '#ffffff',
-  red: '#ef4444',
-  gold: '#d4a017',
+// ─── CueContext (narration-driven frame resolution) ──────────────────────────
+// Maps cueId → absolute startFrame. Populated by the post-generation step
+// after TTS reports per-cue timestamps. Components consult this map when a
+// `cue` prop is provided instead of (or in addition to) a numeric startFrame.
+
+export type CueMap = Readonly<Record<string, number>>;
+
+export const CueContext = React.createContext<CueMap>({});
+
+export const CueProvider: React.FC<{
+  cueMap: CueMap;
+  children: React.ReactNode;
+}> = ({ cueMap, children }) => (
+  <CueContext.Provider value={cueMap}>{children}</CueContext.Provider>
+);
+
+/** Resolve a cueId (if given) to its absolute startFrame.
+ *  Falls back to `defaultFrame` when cueId is absent OR missing from the map. */
+export function useCueFrame(cueId?: string, defaultFrame = 0): number {
+  const map = React.useContext(CueContext);
+  if (cueId && map[cueId] !== undefined) return map[cueId];
+  return defaultFrame;
+}
+
+/** Wrapper that resolves a cueId and injects `startFrame` into its single
+ *  child element. Lets existing components stay unchanged — the child only
+ *  needs to accept `startFrame` as a prop (virtually all of ours do).
+ *
+ *  Usage:
+ *    <Timed cue="s1-bulb"><Lightbulb cx={1450} cy={520} drawDuration={25} /></Timed>
+ */
+export const Timed: React.FC<{
+  cue?: string;
+  startFrame?: number;
+  children: React.ReactElement;
+}> = ({ cue, startFrame, children }) => {
+  const resolved = useCueFrame(cue, startFrame ?? 0);
+  return React.cloneElement(children as React.ReactElement<{ startFrame?: number }>, {
+    startFrame: resolved,
+  });
 };
+
+// ─── Color Palette ────────────────────────────────────────────────────────────
+// Re-exported from the theme module (single source of truth).
+export { COLORS } from './theme';
+import { COLORS } from './theme';
 
 // ─── SVG Wrapper ──────────────────────────────────────────────────────────────
 export const SVG: React.FC<{ children: React.ReactNode }> = ({ children }) => (
@@ -298,9 +326,12 @@ interface TextRow {
   fontSize: number;
   color?: string;
   fontWeight?: number;
-  startFrame: number;
+  /** Explicit startFrame. Optional when `cue` is provided. */
+  startFrame?: number;
   durationFrames: number;
   align?: 'start' | 'middle' | 'end';
+  /** Narration-cue id. When set and present in CueContext, overrides startFrame. */
+  cue?: string;
 }
 
 interface SketchBoxProps {
@@ -325,6 +356,33 @@ function computeRowSlot(text: string, fontSize: number, maxWidth: number): numbe
   const lines = wrapText(text, fontSize, maxWidth, 0);
   return lines.length * fontSize * 1.35;
 }
+
+/** Row renderer that pulls startFrame from CueContext when `row.cue` is set. */
+const CuedRow: React.FC<{
+  row: TextRow;
+  anchorX: number;
+  rowTopY: number;
+  textAnchor: 'start' | 'middle' | 'end';
+  defaultColor: string;
+  maxWidth: number;
+}> = ({ row, anchorX, rowTopY, textAnchor, defaultColor, maxWidth }) => {
+  const startFrame = useCueFrame(row.cue, row.startFrame ?? 0);
+  return (
+    <HandWrittenText
+      text={row.text}
+      x={anchorX}
+      y={rowTopY}
+      startFrame={startFrame}
+      durationFrames={row.durationFrames}
+      fontSize={row.fontSize}
+      fill={row.color ?? defaultColor}
+      fontWeight={row.fontWeight ?? 700}
+      textAnchor={textAnchor}
+      maxWidth={maxWidth}
+      baseline="hanging"
+    />
+  );
+};
 
 export const SketchBox: React.FC<SketchBoxProps> = ({
   x,
@@ -410,19 +468,14 @@ export const SketchBox: React.FC<SketchBoxProps> = ({
     }
 
     rowElements.push(
-      <HandWrittenText
+      <CuedRow
         key={i}
-        text={row.text}
-        x={anchorX}
-        y={rowTopY}
-        startFrame={row.startFrame}
-        durationFrames={row.durationFrames}
-        fontSize={row.fontSize}
-        fill={row.color ?? stroke}
-        fontWeight={row.fontWeight ?? 700}
+        row={row}
+        anchorX={anchorX}
+        rowTopY={rowTopY}
         textAnchor={textAnchor}
+        defaultColor={stroke}
         maxWidth={maxWidthForRow}
-        baseline="hanging"
       />,
     );
 

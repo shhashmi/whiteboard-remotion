@@ -1,4 +1,15 @@
-export type { TTSProvider, TTSConfig, TTSResult, NarrationSegment } from './types';
-export { getTTSProvider, registerTTSProvider, listTTSProviders } from './provider-registry';
-export { generateAllAudio } from './generate-audio';
-export { computePlaybackRate, computeRequiredFrames, framesToMs } from './timing';
+export type {
+  TTSConfig,
+  TTSProviderId,
+  TimedTTSProvider,
+  SceneCueGroup,
+  SceneSynthesisResult,
+  Cue,
+  CueTiming,
+  CueMap,
+} from './types';
+export { getTimedTTSProvider, listTimedTTSProviders } from './provider-registry';
+export { generateCuedAudio } from './generate-audio';
+export { framesToMs, msToFrames } from './timing';
+export { buildCueTiming } from './cue-timing';
+export type { CueTimingOptions, CueTimingResult } from './cue-timing';
