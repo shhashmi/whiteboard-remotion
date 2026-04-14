@@ -219,7 +219,16 @@ Timed: React.FC<{
 }>
 ```
 
-### Icons (`../shared/icons`)
+### Icons and diagrams (discovered via tools)
+
+**Do NOT guess icon or diagram names.** Call the `findAsset` tool to discover what exists, then import what it returns from the path in `entry.importPath` (e.g. `../shared/icons` for icons, `../shared/diagrams/<Name>` for diagrams).
+
+**Discovery policy:**
+
+1. Before emitting JSX for any diagram or icon, call `findAsset({ concept, kind: 'icon' })` or `findAsset({ concept, kind: 'diagram' })`.
+2. **Batch calls in one turn.** If a scene needs 3 focal concepts, emit 3 `findAsset` calls in the same assistant turn — not sequentially.
+3. Each match's `entry` contains the full `importPath` and `propsSchema`. Treat that as authoritative; do NOT follow up with `getAsset`.
+4. If `gap: true`, compose from primitives (`SketchBox`, `SketchCircle`, `HandWrittenText`, `SketchArrow`) instead of inventing a component name.
 
 **Common icon signature** — almost all icons take this shape:
 
@@ -228,24 +237,6 @@ Timed: React.FC<{
 ```
 
 Some icons additionally take `shirtColor`/`hairColor` (people), `fill`/`stroke` (shapes), or no color. Icons default to sensible colors — you rarely need to pass `color`.
-
-**Available icon names, grouped by category** (all importable from `../shared/icons`):
-
-- **Technology**: `RobotHead`, `ToolIcon`, `DatabaseIcon`, `CodeIcon`, `CloudIcon`, `MonitorIcon`, `GearIcon`, `KeyboardIcon`, `MobilePhone`, `ServerRack`, `EnvelopeIcon`, `WiFiSignal`, `GridIcon`, `RadarSensorIcon`, `SensorEyeIcon`
-- **Abstract concepts**: `BrainIcon`, `TargetIcon`, `BookIcon`, `Lightbulb`, `ClockIcon`, `SpeechBubble`, `LockIcon`, `ShieldIcon`, `MagnifyingGlass`, `WarningTriangle`, `PuzzlePiece`, `StarIcon`, `FlagIcon`, `MirrorIcon`, `NumberBadge`, `EyeIcon`, `LightningBoltIcon`
-- **People**: `PersonIcon`, `PersonSitting`, `PersonPresenting`, `TwoPersons`, `TeamGroup`
-- **Business/data**: `BarChart`, `DocStack`, `PieChart`, `LineGraph`, `ProgressBar`, `ProjectPlannerIcon`
-- **Flow/diagrams**: `CycleArrow`, `FlowChain`, `FunnelIcon`, `DecisionDiamond`, `DottedConnector`
-- **Structure**: `ScaleIcon`, `TreeDiagram`, `StackedLayers`, `NetworkGraph`, `BlueprintIcon`
-- **Status**: `SmileyIcon`, `ThumbsUpIcon`, `HeartIcon`, `CheckCircleIcon`, `InfoCircleIcon`, `NotificationBellIcon`
-- **Science**: `DNAEvolutionIcon`, `AtomIcon`, `MicroscopeIcon`, `BeakerIcon`, `MagnetIcon`, `GlobeIcon`
-- **Finance**: `CoinIcon`, `WalletIcon`, `BankIcon`, `CreditCardIcon`, `DollarSignIcon`
-- **Transport**: `CarIcon`, `AutonomousCarIcon`, `AirplaneIcon`, `ShipIcon`, `BicycleIcon`
-- **Places/objects**: `FactoryIcon`, `ShoppingCartIcon`, `HandshakeIcon`, `SatelliteIcon`, `WindmillIcon`, `RecycleIcon`, `BridgeIcon`, `CircuitBoardIcon`
-- **Nature**: `GrowthTransformIcon`, `MountainPeakIcon`, `WaveIcon`, `FlameIcon`, `SunIcon`, `MoonIcon`
-- **Communication**: `ChatbotIcon`, `VideoCallIcon`, `BroadcastIcon`, `AntennaIcon`
-- **Actions**: `UploadIcon`, `DownloadIcon`, `SyncIcon`, `PlayIcon`, `PauseIcon`, `ExpandIcon`, `ShareIcon`
-- **Objects**: `FlowerIcon`, `CompassIcon`, `RocketIcon`, `TrophyIcon`, `CalendarIcon`, `CameraIcon`, `MegaphoneIcon`, `HourglassIcon`, `AnchorIcon`, `CrownIcon`, `ScissorsIcon`, `GiftIcon`, `MusicNoteIcon`, `PaintBrushIcon`, `PencilIcon`, `FolderIcon`, `TrashIcon`, `TagIcon`, `MicrophoneIcon`, `SpeakerIcon`, `HeadphonesIcon`, `USBPlugIcon`
 
 **When in doubt about an icon:** prefer `SketchCircle` + `HandWrittenText` label. A clean circle with a label beats a broken custom icon.
 

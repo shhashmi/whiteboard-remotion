@@ -19,6 +19,7 @@ dotenv.config();
 import { ChatAnthropic } from '@langchain/anthropic';
 import { StateGraph, START, END, Annotation } from '@langchain/langgraph';
 import { SystemMessage, HumanMessage, AIMessage, BaseMessage } from '@langchain/core/messages';
+import { runAgent } from './agent/loop/runAgent';
 import * as fs from 'fs';
 import * as path from 'path';
 import { execSync } from 'child_process';
@@ -402,63 +403,39 @@ function readCumulativeCost(): { runs: number; inputTokens: number; outputTokens
 // ── Graph nodes ──────────────────────────────────────────────────────
 
 async function generateNode(state: typeof GraphState.State) {
-  const systemMsg = new SystemMessage({
-    content: [
-      {
-        type: 'text' as const,
-        text: state.systemPrompt,
-        cache_control: { type: 'ephemeral' as const },
-      },
-    ],
-  });
+  const userContent = `Create a whiteboard video on this topic:\n\n${state.prompt}\n\nUse findAsset to discover diagrams/icons, then emit the complete TSX file inside a single \`\`\`tsx code block. Follow the SKILL.md rules exactly.`;
 
-  const userContent = `Create a whiteboard video on this topic:\n\n${state.prompt}\n\nEmit ONLY the complete TSX file inside a single \`\`\`tsx code block. Follow the SKILL.md rules exactly.`;
-
-  let invokeMessages: BaseMessage[];
-  if (state.attempt === 0) {
-    invokeMessages = [systemMsg, new HumanMessage(userContent)];
-  } else {
-    invokeMessages = [systemMsg, ...state.messages];
-  }
+  const priorMessages: BaseMessage[] | undefined =
+    state.attempt === 0 ? undefined : state.messages;
 
   const attemptLabel = state.attempt === 0 ? '1/2' : '2/2';
-  console.log(`\n▶ [${attemptLabel}] Calling ${MODEL}…`);
+  console.log(`\n▶ [${attemptLabel}] Calling ${MODEL} agent loop…`);
   const t = Date.now();
 
-  const response = await model.invoke(invokeMessages);
+  const result = await runAgent({
+    model,
+    systemPrompt: state.systemPrompt,
+    userPrompt: userContent,
+    priorMessages,
+    onIteration: ({ iteration, toolCalls, elapsedMs }) => {
+      const tag = toolCalls > 0 ? `→ ${toolCalls} tool call${toolCalls === 1 ? '' : 's'}` : '→ final';
+      console.log(`  · iter ${iteration} ${tag} (${(elapsedMs / 1000).toFixed(1)}s)`);
+    },
+  });
 
   const elapsed = ((Date.now() - t) / 1000).toFixed(1);
-
-  // Extract text content from response
-  const text = typeof response.content === 'string'
-    ? response.content
-    : (response.content as Array<{ type: string; text?: string }>)
-        .filter(b => b.type === 'text')
-        .map(b => b.text || '')
-        .join('');
-
-  // Extract token usage
-  const usage = response.usage_metadata;
-  const inputTokens = usage?.input_tokens ?? 0;
-  const outputTokens = usage?.output_tokens ?? 0;
-  const details = (usage as any)?.input_token_details ?? {};
-  const cacheRead = details.cache_read ?? details.cache_read_input_tokens ?? 0;
-  const cacheCreation = details.cache_creation ?? details.cache_creation_input_tokens ?? 0;
-
-  console.log(`  ✓ ${elapsed}s, ${formatCost(inputTokens, outputTokens, cacheRead, cacheCreation)}`);
-
-  // Build message history for potential retry
-  const updatedMessages: BaseMessage[] = state.attempt === 0
-    ? [new HumanMessage(userContent), new AIMessage(text)]
-    : [...state.messages, new AIMessage(text)];
+  console.log(
+    `  ✓ ${elapsed}s, ${result.iterations} iter, ${result.toolCallCount} tool calls, ` +
+      `${formatCost(result.usage.input, result.usage.output, result.usage.cacheRead, result.usage.cacheCreation)}`,
+  );
 
   return {
-    responseText: text,
-    messages: updatedMessages,
-    totalInputTokens: state.totalInputTokens + inputTokens,
-    totalOutputTokens: state.totalOutputTokens + outputTokens,
-    cacheReadTokens: state.cacheReadTokens + cacheRead,
-    cacheCreationTokens: state.cacheCreationTokens + cacheCreation,
+    responseText: result.finalText,
+    messages: result.messages,
+    totalInputTokens: state.totalInputTokens + result.usage.input,
+    totalOutputTokens: state.totalOutputTokens + result.usage.output,
+    cacheReadTokens: state.cacheReadTokens + result.usage.cacheRead,
+    cacheCreationTokens: state.cacheCreationTokens + result.usage.cacheCreation,
   };
 }
 

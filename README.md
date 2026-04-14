@@ -1,10 +1,10 @@
 # whiteboard-remotion
 
-Single-shot Remotion whiteboard video generator powered by Claude Opus 4.6.
+Remotion whiteboard video generator powered by a Claude Opus 4.6 tool-calling agent.
 
-Takes a one-line description of what you want explained, hands it to Claude Opus 4.6 along with a project-specific skill describing the component library and style rules, and gets back a complete `GeneratedVideo.tsx`. TypeScript-checked, narrated via TTS, and rendered to MP4.
+Takes a one-line description of what you want explained, runs a tool-calling agent that queries the asset catalog via `findAsset` to pick the right diagrams and icons, and emits a complete `GeneratedVideo.tsx`. TypeScript-checked, narrated via TTS, and rendered to MP4.
 
-**One API call per video** (two if the first attempt has a compile error).
+**Typical run: 1–2 agent iterations** (the model batches `findAsset` calls in parallel), plus one retry if validation fails.
 
 ## Architecture
 
@@ -12,10 +12,11 @@ Takes a one-line description of what you want explained, hands it to Claude Opus
 input.txt ──▶ src/generate.ts
                 │
                 ▼
-       .claude/skills/whiteboard-video/SKILL.md  (system prompt)
+       .claude/skills/whiteboard-video/SKILL.md  (cached system prompt — rules only)
                 │
                 ▼
-       claude-opus-4-6  (one call, max_tokens=16384)
+       claude-opus-4-6 + bound tools             (agent loop; max_tokens=16384)
+       findAsset / getAsset / listAssets         (catalog discovery, schemas via API)
                 │
                 ▼
        src/generated/GeneratedVideo.tsx           (compile check + 1 retry on failure)
@@ -34,7 +35,7 @@ input.txt ──▶ src/generate.ts
        npx remotion render → out/generated.mp4
 ```
 
-The component library lives in `src/shared/components.tsx` (primitives), `src/shared/motions.tsx` (reveal/stagger/flow), `src/shared/icons/` (~90 hand-drawn icons), `src/shared/diagrams/` (20 prebuilt diagrams like `ReActLoop`, `AutonomySpectrum`, `MemoryArchitecture`, `Flowchart`, `EntityRelationshipGraph`…), and `src/shared/theme.ts` (design tokens: `COLORS`, `SEMANTIC_COLORS`, `TYPOGRAPHY`, `MOTION`, `CANVAS`). Assets are discoverable through `src/asset-index/` (`findAsset()`, `getAsset()`, `listAssets()`). The skill documents everything Claude needs to know about them.
+The component library lives in `src/shared/components.tsx` (primitives), `src/shared/motions.tsx` (reveal/stagger/flow), `src/shared/icons/` (~90 hand-drawn icons), `src/shared/diagrams/` (20 prebuilt diagrams like `ReActLoop`, `AutonomySpectrum`, `MemoryArchitecture`, `Flowchart`, `EntityRelationshipGraph`…), and `src/shared/theme.ts` (design tokens: `COLORS`, `SEMANTIC_COLORS`, `TYPOGRAPHY`, `MOTION`, `CANVAS`). The catalog is indexed in `src/asset-index/registry.ts` and exposed to the agent as LangChain tools via `src/agent/tools/` — the SKILL.md carries discovery **policy** ("batch `findAsset` calls; treat returns as authoritative; compose from primitives on gap"), not schema, so the model queries rather than memorises.
 
 ## Setup
 
@@ -116,7 +117,7 @@ To refine the style rules globally, edit `.claude/skills/whiteboard-video/SKILL.
 
 | # | Node | Runs | Produces | Key code |
 |---|---|---|---|---|
-| 1 | `generate` | Always (once, or twice on validation failure) | `responseText` — raw TSX emitted by Claude Opus 4.6 with the SKILL.md as a cached system prompt | `generateNode` (src/generate.ts:404) |
+| 1 | `generate` | Always (once, or twice on validation failure) | `responseText` — raw TSX emitted by a Claude Opus 4.6 tool-calling agent (`runAgent`) with SKILL.md as a cached system prompt and `findAsset`/`getAsset`/`listAssets` bound as tools | `generateNode` (src/generate.ts:404), `runAgent` (src/agent/loop/runAgent.ts) |
 | 2 | `validate` | After every `generate` attempt | `exportErrors`, `layoutErrors`, `typecheckOk` — runs `validateRequiredExports`, `validateLayout`, and `tsc --noEmit` on the written `src/generated/GeneratedVideo.tsx` | `validateNode` (src/generate.ts:465) |
 | 3 | `prepareRetry` | Only if `validate` found errors and `attempt < 2` | A feedback `HumanMessage` appended to the conversation; loops back to `generate` | `prepareRetryNode` (src/generate.ts:487) |
 | 4 | `extractNarration` | After a clean validate (skipped with `--no-narration`) | `sceneCueGroups` — parses the `export const narrationCues = [...]` array from the TSX and groups cues by `sceneIndex` | `extractNarrationNode` (src/generate.ts:561) |
@@ -126,22 +127,29 @@ Post-graph, `main()` invokes `npx remotion render` unless `--no-render` is set, 
 
 Flow: `START → generate → validate → (prepareRetry → generate)? → extractNarration → generateAudio → END`.
 
-## Asset index CLI
+## Asset discovery
 
-Every reusable asset (component, diagram, icon, image, photo, audio) is indexed in `src/asset-index/registry.ts` with concepts, tags, and descriptions. The index is *not* dumped into SKILL.md — it's queried through a small CLI, so the skill stays lean and assets are discoverable by semantic search.
+Every reusable asset (component, diagram, icon, image, photo, audio) is indexed in `src/asset-index/registry.ts` with concepts, tags, and descriptions. The index is **not** dumped into SKILL.md. It reaches the model through two channels:
 
-```sh
-# Search by concept
-ts-node src/asset-index/cli.ts find-asset "retry loop" --kind diagram --limit 5
+1. **The agent, at generation time** — `src/agent/tools/` wraps `findAsset`, `getAsset`, and `listAssets` as LangChain tools. `generateNode` binds them via `model.bindTools(...)` inside `runAgent` (`src/agent/loop/runAgent.ts`), so tool schemas ship via the Anthropic API rather than the system prompt. The model calls `findAsset` mid-generation to discover what exists and reads `importPath` + `propsSchema` straight from the match.
+2. **The CLI, for humans** —
 
-# Fetch full metadata by id
-ts-node src/asset-index/cli.ts get-asset ReActLoop
+   ```sh
+   ts-node src/asset-index/cli.ts find-asset "retry loop" --kind diagram --limit 5
+   ts-node src/asset-index/cli.ts get-asset ReActLoop
+   ts-node src/asset-index/cli.ts list-assets --kind icon --tags technology
+   ```
 
-# List everything (optionally filtered)
-ts-node src/asset-index/cli.ts list-assets --kind icon --tags technology
-```
+### Adding a new agent tool
 
-Programmatic equivalents: `findAsset()`, `getAsset()`, `listAssets()` from `src/asset-index/tool.ts`.
+Same shape as adding an asset or TTS provider — self-contained modules, one registry entry:
+
+1. Create `src/agent/tools/yourTool.tool.ts` using `defineTool({ name, description, schema, handler })` from `./types`. Keep the handler a thin adapter over your domain function.
+2. Add one import + one array entry in `src/agent/tools/index.ts`.
+
+No edits to `runAgent`, the graph, or `generateNode`.
+
+Programmatic equivalents of the catalog functions: `findAsset()`, `getAsset()`, `listAssets()` from `src/asset-index/tool.ts`.
 
 ## Project layout
 
@@ -149,6 +157,15 @@ Programmatic equivalents: `findAsset()`, `getAsset()`, `listAssets()` from `src/
 .claude/skills/whiteboard-video/SKILL.md   # the skill (system prompt base)
 src/
   generate.ts                              # LangGraph pipeline: generate → validate → narrate → render
+  agent/                                   # extensible tool-calling layer for the model
+    tools/                                 # one file per tool; registry in index.ts
+      types.ts                             # defineTool() helper + AgentTool interface
+      findAsset.tool.ts                    # wraps asset-index findAsset (search by concept)
+      getAsset.tool.ts                     # wraps asset-index getAsset (fetch by id)
+      listAssets.tool.ts                   # wraps asset-index listAssets (browse by kind/tags)
+      index.ts                             # AGENT_TOOLS + AGENT_TOOLS_LC registry
+    loop/
+      runAgent.ts                          # bindTools + tool_call resolution loop (MAX_TOOL_ITERATIONS=8)
   tts/                                     # extensible TTS narration system
     types.ts                               # TimedTTSProvider, CueTiming, SynthesizeSceneArgs
     provider-registry.ts                   # map-based provider registry (lazy-loaded)
