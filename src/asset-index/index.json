@@ -1,6 +1,6 @@
 {
-  "generatedAt": "2026-04-13T03:09:29.069Z",
-  "count": 20,
+  "generatedAt": "2026-04-15T01:20:30.550Z",
+  "count": 32,
   "assets": [
     {
       "id": "A1",
@@ -1357,6 +1357,246 @@
           }
         }
       }
+    },
+    {
+      "id": "C1",
+      "kind": "image",
+      "name": "SAEAutonomyLevels",
+      "filePath": "public/generated/C1.png",
+      "concepts": [
+        "SAE autonomy levels",
+        "self driving levels",
+        "autonomy spectrum cars",
+        "levels of automation",
+        "driverless progression"
+      ],
+      "tags": [
+        "image",
+        "autonomy",
+        "metaphor"
+      ],
+      "description": "Editorial illustration: row of five cars showing progression from full driver control to fully driverless, with hand-inked level markers.",
+      "previewPath": "public/generated/C1.png"
+    },
+    {
+      "id": "C2",
+      "kind": "image",
+      "name": "StreamingRecommendationUI",
+      "filePath": "public/generated/C2.png",
+      "concepts": [
+        "recommendation UI",
+        "streaming app mockup",
+        "personalized recommendations",
+        "tile grid interface",
+        "recommender system"
+      ],
+      "tags": [
+        "image",
+        "ui-mock",
+        "recommendation"
+      ],
+      "description": "Editorial illustration of a tablet-style streaming UI with a tile grid and a highlighted \"Recommended for you\" row.",
+      "previewPath": "public/generated/C2.png"
+    },
+    {
+      "id": "C3",
+      "kind": "image",
+      "name": "MultiAgentCallCenter",
+      "filePath": "public/generated/C3.png",
+      "concepts": [
+        "multi agent call center",
+        "agent orchestration scene",
+        "support agents hub",
+        "distributed agents",
+        "orchestrator agent"
+      ],
+      "tags": [
+        "image",
+        "multi-agent",
+        "metaphor"
+      ],
+      "description": "Overhead view of a small call-center floor with four headset-wearing figures connected to a glowing central orchestrator orb.",
+      "previewPath": "public/generated/C3.png"
+    },
+    {
+      "id": "C4",
+      "kind": "image",
+      "name": "PhonebookMagnifier",
+      "filePath": "public/generated/C4.png",
+      "concepts": [
+        "phonebook lookup",
+        "rolodex search",
+        "directory lookup",
+        "magnifying glass search",
+        "retrieval metaphor"
+      ],
+      "tags": [
+        "image",
+        "retrieval",
+        "metaphor"
+      ],
+      "description": "Open paper phonebook with a rolodex and a hand-inked magnifying glass hovering over a highlighted entry.",
+      "previewPath": "public/generated/C4.png"
+    },
+    {
+      "id": "C5",
+      "kind": "image",
+      "name": "GovernanceBoardroom",
+      "filePath": "public/generated/C5.png",
+      "concepts": [
+        "boardroom governance",
+        "executive oversight",
+        "policy decision scene",
+        "governance committee",
+        "AI oversight"
+      ],
+      "tags": [
+        "image",
+        "governance",
+        "metaphor"
+      ],
+      "description": "Editorial illustration of a boardroom with figures around an oval table and a stamped document at the head.",
+      "previewPath": "public/generated/C5.png"
+    },
+    {
+      "id": "C6",
+      "kind": "image",
+      "name": "IsometricCodeCity",
+      "filePath": "public/generated/C6.png",
+      "concepts": [
+        "code city",
+        "repository metaphor",
+        "isometric code blocks",
+        "codebase visualization",
+        "module dependencies"
+      ],
+      "tags": [
+        "image",
+        "codebase",
+        "metaphor"
+      ],
+      "description": "Isometric miniature city of stacked code blocks and folders connected by bridges, representing a codebase or repo.",
+      "previewPath": "public/generated/C6.png"
+    },
+    {
+      "id": "C7",
+      "kind": "image",
+      "name": "ServerRackHero",
+      "filePath": "public/generated/C7.png",
+      "concepts": [
+        "server rack",
+        "data center",
+        "infrastructure hero",
+        "compute backend",
+        "data center aisle"
+      ],
+      "tags": [
+        "image",
+        "infra",
+        "metaphor"
+      ],
+      "description": "Three-quarter view of two server racks in a quiet data-center aisle with subtle indicator-light accents.",
+      "previewPath": "public/generated/C7.png"
+    },
+    {
+      "id": "C8",
+      "kind": "image",
+      "name": "KnowledgeGraph3D",
+      "filePath": "public/generated/C8.png",
+      "concepts": [
+        "knowledge graph",
+        "node link constellation",
+        "concept graph",
+        "graph visualization",
+        "semantic graph"
+      ],
+      "tags": [
+        "image",
+        "graph",
+        "knowledge"
+      ],
+      "description": "Floating 3D constellation of nodes connected by curved lines, loosely clustered into regions.",
+      "previewPath": "public/generated/C8.png"
+    },
+    {
+      "id": "C9",
+      "kind": "image",
+      "name": "OrgChartBackdrop",
+      "filePath": "public/generated/C9.png",
+      "concepts": [
+        "org chart",
+        "organizational hierarchy",
+        "team structure backdrop",
+        "reporting structure",
+        "hierarchy diagram"
+      ],
+      "tags": [
+        "image",
+        "org",
+        "backdrop"
+      ],
+      "description": "Hand-inked hierarchical org-chart backdrop with empty boxes connected by wobbly lines.",
+      "previewPath": "public/generated/C9.png"
+    },
+    {
+      "id": "C10",
+      "kind": "image",
+      "name": "VectorEmbeddingSpace",
+      "filePath": "public/generated/C10.png",
+      "concepts": [
+        "vector database",
+        "embedding space",
+        "nearest neighbors",
+        "vector similarity",
+        "embeddings visualization"
+      ],
+      "tags": [
+        "image",
+        "vector-db",
+        "metaphor"
+      ],
+      "description": "Abstract scatter of dots in a vector space with clusters circled and a query-dot connected to its nearest neighbors.",
+      "previewPath": "public/generated/C10.png"
+    },
+    {
+      "id": "C11",
+      "kind": "image",
+      "name": "CircuitBreakerPanel",
+      "filePath": "public/generated/C11.png",
+      "concepts": [
+        "circuit breaker",
+        "retry metaphor",
+        "electrical panel",
+        "breaker tripped",
+        "resilience metaphor"
+      ],
+      "tags": [
+        "image",
+        "resilience",
+        "metaphor"
+      ],
+      "description": "Wall-mounted electrical breaker panel with one switch flipped off, used as a circuit-breaker / retry metaphor.",
+      "previewPath": "public/generated/C11.png"
+    },
+    {
+      "id": "C12",
+      "kind": "image",
+      "name": "MaturityStagesCollage",
+      "filePath": "public/generated/C12.png",
+      "concepts": [
+        "maturity stages",
+        "growth stages",
+        "seedling to tree",
+        "progression metaphor",
+        "adoption maturity"
+      ],
+      "tags": [
+        "image",
+        "maturity",
+        "metaphor"
+      ],
+      "description": "Four-vignette horizontal strip showing seedling → sapling → young tree → mature tree as a maturity-stages metaphor.",
+      "previewPath": "public/generated/C12.png"
     }
   ]
 }
