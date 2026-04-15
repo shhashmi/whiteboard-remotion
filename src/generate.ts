@@ -20,6 +20,7 @@ import { ChatAnthropic } from '@langchain/anthropic';
 import { StateGraph, START, END, Annotation } from '@langchain/langgraph';
 import { SystemMessage, HumanMessage, AIMessage, BaseMessage } from '@langchain/core/messages';
 import { runAgent } from './agent/loop/runAgent';
+import { log, time } from './agent/logger';
 import * as fs from 'fs';
 import * as path from 'path';
 import { execSync } from 'child_process';
@@ -69,6 +70,7 @@ const GraphState = Annotation.Root({
   systemPrompt: Annotation<string>,
   noRender: Annotation<boolean>,
   noNarration: Annotation<boolean>,
+  visualFit: Annotation<boolean>({ reducer: (_p, n) => n, default: () => false }),
   ttsProvider: Annotation<TTSProviderId>({ reducer: (_p, n) => n, default: () => 'elevenlabs' }),
   ttsVoice: Annotation<string>({ reducer: (_p, n) => n, default: () => '' }),
   sceneCueGroups: Annotation<SceneCueGroup[]>({ reducer: (_p, n) => n, default: () => [] }),
@@ -105,6 +107,7 @@ interface Args {
   noNarration: boolean;
   ttsProvider: TTSProviderId;
   ttsVoice: string;
+  visualFit: boolean;
 }
 
 function parseTtsProvider(raw: string): TTSProviderId {
@@ -120,6 +123,7 @@ function parseArgs(): Args {
   let inlinePrompt: string | undefined;
   let noRender = false;
   let noNarration = false;
+  let visualFit = false;
   let ttsProvider: TTSProviderId = parseTtsProvider(process.env.TTS_PROVIDER || 'elevenlabs');
   let ttsVoice = process.env.TTS_VOICE || '';
 
@@ -133,6 +137,8 @@ function parseArgs(): Args {
       noRender = true;
     } else if (a === '--no-narration') {
       noNarration = true;
+    } else if (a === '--visual-fit') {
+      visualFit = true;
     } else if (a.startsWith('--tts-provider=')) {
       ttsProvider = parseTtsProvider(a.slice('--tts-provider='.length));
     } else if (a.startsWith('--tts-voice=')) {
@@ -157,7 +163,7 @@ function parseArgs(): Args {
     throw new Error('Empty prompt. Provide an inline argument, --prompt=<file>, or populate input.txt.');
   }
 
-  return { prompt, noRender, noNarration, ttsProvider, ttsVoice };
+  return { prompt, noRender, noNarration, ttsProvider, ttsVoice, visualFit };
 }
 
 // ── Skill loader ─────────────────────────────────────────────────────
@@ -409,25 +415,37 @@ async function generateNode(state: typeof GraphState.State) {
     state.attempt === 0 ? undefined : state.messages;
 
   const attemptLabel = state.attempt === 0 ? '1/2' : '2/2';
-  console.log(`\n▶ [${attemptLabel}] Calling ${MODEL} agent loop…`);
-  const t = Date.now();
+  const endNode = time('node.generate', attemptLabel, {
+    attempt: state.attempt,
+    model: MODEL,
+  });
+  if (state.attempt === 0) {
+    log('llm.systemPrompt', 'loaded', { systemPrompt: state.systemPrompt });
+  }
+  log('llm.userPrompt', attemptLabel, { userPrompt: userContent, replayingPriorMessages: !!priorMessages });
 
   const result = await runAgent({
     model,
     systemPrompt: state.systemPrompt,
     userPrompt: userContent,
     priorMessages,
+    visualFit: state.visualFit,
     onIteration: ({ iteration, toolCalls, elapsedMs }) => {
       const tag = toolCalls > 0 ? `→ ${toolCalls} tool call${toolCalls === 1 ? '' : 's'}` : '→ final';
       console.log(`  · iter ${iteration} ${tag} (${(elapsedMs / 1000).toFixed(1)}s)`);
     },
   });
 
-  const elapsed = ((Date.now() - t) / 1000).toFixed(1);
-  console.log(
-    `  ✓ ${elapsed}s, ${result.iterations} iter, ${result.toolCallCount} tool calls, ` +
-      `${formatCost(result.usage.input, result.usage.output, result.usage.cacheRead, result.usage.cacheCreation)}`,
-  );
+  endNode({
+    iterations: result.iterations,
+    toolCallCount: result.toolCallCount,
+    cost: formatCost(
+      result.usage.input,
+      result.usage.output,
+      result.usage.cacheRead,
+      result.usage.cacheCreation,
+    ),
+  });
 
   return {
     responseText: result.finalText,
@@ -440,6 +458,7 @@ async function generateNode(state: typeof GraphState.State) {
 }
 
 async function validateNode(state: typeof GraphState.State) {
+  const endNode = time('node.validate', `attempt ${state.attempt}`);
   const tsxCode = extractTsx(state.responseText);
   const exportErrors = validateRequiredExports(tsxCode);
   const layoutErrors = validateLayout(tsxCode);
@@ -447,8 +466,17 @@ async function validateNode(state: typeof GraphState.State) {
   writeGeneratedFiles(tsxCode);
   const tcResult = typecheckGenerated();
 
-  if (exportErrors.length === 0 && layoutErrors.length === 0 && tcResult.ok) {
+  const ok = exportErrors.length === 0 && layoutErrors.length === 0 && tcResult.ok;
+  if (ok) {
     console.log(`  ✓ TypeScript check passed${state.attempt === 0 ? ' on first attempt' : ' after retry'}.`);
+    endNode({ ok: true });
+  } else {
+    endNode({ ok: false });
+    log('validate.fail', `attempt ${state.attempt}`, {
+      exportErrors,
+      layoutErrors,
+      typecheckErrors: tcResult.ok ? '' : (tcResult as { ok: false; errors: string }).errors,
+    });
   }
 
   return {
@@ -462,6 +490,9 @@ async function validateNode(state: typeof GraphState.State) {
 }
 
 async function prepareRetryNode(state: typeof GraphState.State) {
+  const endNode = time('node.prepareRetry', `attempt ${state.attempt}`, {
+    attempt: state.attempt,
+  });
   const feedback: string[] = [];
   if (state.exportErrors.length > 0) {
     feedback.push('Export errors:\n' + state.exportErrors.join('\n'));
@@ -473,13 +504,17 @@ async function prepareRetryNode(state: typeof GraphState.State) {
     feedback.push('TypeScript errors:\n' + state.typecheckErrors);
   }
 
-  console.log(`\n▶ Retrying with compile feedback…`);
-  console.log(`  Feedback:\n${feedback.join('\n').split('\n').map((l) => '    ' + l).join('\n')}`);
-
   const retryMessage = new HumanMessage(
     `Your previous output failed validation:\n\n${feedback.join('\n\n')}\n\nFix ALL issues and re-emit the COMPLETE TSX file in a single \`\`\`tsx block. Do not explain — just emit the fixed code.`,
   );
 
+  log('retry.prepare', `retrying with feedback`, {
+    attempt: state.attempt,
+    feedback: feedback.join('\n\n'),
+    retryMessage: retryMessage.content as string,
+  });
+
+  endNode();
   return {
     messages: [...state.messages, retryMessage],
   };
@@ -759,10 +794,11 @@ function buildGraph() {
 
 async function main(): Promise<void> {
   const startTime = Date.now();
-  const { prompt, noRender, noNarration, ttsProvider, ttsVoice } = parseArgs();
+  const { prompt, noRender, noNarration, ttsProvider, ttsVoice, visualFit } = parseArgs();
 
   console.log(`\n▶ Prompt: "${prompt}"`);
   console.log(`▶ Model:  ${MODEL}`);
+  if (visualFit) console.log('▶ Visual-fit: ON (preview PNGs attached to findAsset results)');
   if (!noNarration) {
     console.log(`▶ TTS:    ${ttsProvider}${ttsVoice ? ` (voice: ${ttsVoice})` : ''}`);
   }
@@ -772,14 +808,21 @@ async function main(): Promise<void> {
 
   const app = buildGraph();
 
-  const finalState = await app.invoke({
-    prompt,
-    systemPrompt: skill,
-    noRender,
-    noNarration,
-    ttsProvider,
-    ttsVoice,
-  });
+  const endPipeline = time('pipeline', 'run', { topic: prompt });
+  let finalState;
+  try {
+    finalState = await app.invoke({
+      prompt,
+      systemPrompt: skill,
+      noRender,
+      noNarration,
+      visualFit,
+      ttsProvider,
+      ttsVoice,
+    });
+  } finally {
+    endPipeline();
+  }
 
   const {
     tsxCode, typecheckOk, exportErrors, layoutErrors,

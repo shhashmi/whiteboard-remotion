@@ -28,6 +28,8 @@ import {
   B7Test,
   B8Test,
 } from './test-compositions/AllBDiagrams';
+import { MotionsTest } from './test-compositions/AllMotions';
+import { IconsTest } from './test-compositions/AllIcons';
 
 const preview = (id: string, component: React.FC) => (
   <Composition
@@ -74,6 +76,8 @@ export const Root: React.FC = () => {
       {preview('Test-GovernanceEvolution', B6Test)}
       {preview('Test-EntityRelationshipGraph', B7Test)}
       {preview('Test-ComparisonTable', B8Test)}
+      {preview('Test-Motions', MotionsTest)}
+      {preview('Test-Icons', IconsTest)}
     </>
   );
 };
