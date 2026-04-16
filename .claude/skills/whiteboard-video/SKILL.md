@@ -118,6 +118,24 @@ FadeIn: React.FC<{
   style?: React.CSSProperties;
 }>
 
+// Static image with whiteboard-style border and fade-in. HTML layer — place OUTSIDE <SVG>,
+// inside <Scene>, BEFORE the <SVG> block so SVG annotations draw on top.
+// Requires `staticFile` from 'remotion'.
+SketchImage: React.FC<{
+  src: string;              // staticFile('generated/C3.png') — no 'public/' prefix
+  x: number; y: number;     // top-left position (safe zone applies)
+  width: number;
+  height: number;
+  startFrame: number;        // placeholder {0}, overridden by <Timed>
+  durationFrames?: number;   // default 20
+  direction?: 'up'|'down'|'left'|'right'|'scale'|'none'; // default 'scale'
+  borderColor?: string;      // default COLORS.outline
+  borderWidth?: number;      // default 3
+  shadow?: boolean;          // default true
+  rotation?: number;         // slight tilt in degrees, default 0
+  objectFit?: 'contain'|'cover'; // default 'contain'
+}>
+
 // Low-level path with animated stroke-draw and optional fill fade-in.
 AnimatedPath: React.FC<{
   d: string;
@@ -239,6 +257,31 @@ Timed: React.FC<{
 Some icons additionally take `shirtColor`/`hairColor` (people), `fill`/`stroke` (shapes), or no color. Icons default to sensible colors — you rarely need to pass `color`.
 
 **When in doubt about an icon:** prefer `SketchCircle` + `HandWrittenText` label. A clean circle with a label beats a broken custom icon.
+
+### Image assets (discovered via `findAsset`)
+
+For realistic/editorial illustrations (environments, metaphors, UI mocks), use **image assets** instead of SVG primitives. These are pre-generated PNGs in `public/generated/`.
+
+**Discovery:** call `findAsset({ concept: '...', kind: 'image' })`. Image entries have `filePath` (not `importPath`) and no `propsSchema`.
+
+**Rendering:** convert `filePath` to a `staticFile` call by stripping the `public/` prefix, then use `SketchImage`:
+
+```tsx
+// findAsset returned: { filePath: 'public/generated/C3.png', ... }
+<Timed cue="s2-scene">
+  <SketchImage
+    src={staticFile('generated/C3.png')}
+    x={300} y={200} width={600} height={450}
+    startFrame={0}
+  />
+</Timed>
+```
+
+**Placement rules:**
+- `SketchImage` is an HTML element — place it **outside** `<SVG>`, inside `<Scene>`.
+- Place it **before** the `<SVG>` block so SVG annotations (arrows, labels, text) draw on top.
+- Safe zone still applies: `x`, `y`, `x+width`, `y+height` must all be within bounds.
+- Use images for scenes, environments, metaphors. Use SVG primitives for diagrams, flowcharts, abstract concepts.
 
 ### Motion wrappers (`../shared/motions`)
 
@@ -365,7 +408,7 @@ import { SVG, Scene, HandWrittenText, SketchBox, Timed, COLORS } from '../shared
 
 ```tsx
 import React from 'react';
-import { AbsoluteFill } from 'remotion';
+import { AbsoluteFill, staticFile } from 'remotion';
 import {
   SVG,
   Scene,
@@ -374,6 +417,7 @@ import {
   SketchCircle,
   SketchArrow,
   SketchLine,
+  SketchImage,
   CheckMark,
   COLORS,
 } from '../shared/components';
@@ -488,6 +532,8 @@ The generator wires Root.tsx to import these, so all MUST be named exports.
 - ❌ Writing non-zero values for `<Scene startFrame endFrame>` (must be `{0}`)
 - ❌ Narratable elements without a `cue` prop (inside `<Timed>` or on a SketchBox row)
 - ❌ A `cue` id used in the tree that is not declared in `narrationCues` (and vice versa)
+- ❌ Placing `SketchImage` inside `<SVG>` (it is an HTML element — place it outside `<SVG>`, inside `<Scene>`)
+- ❌ Including `public/` prefix in `staticFile` paths (`staticFile('generated/C3.png')` not `staticFile('public/generated/C3.png')`)
 - ❌ Emitting anything outside the single fenced ```tsx code block (no commentary, no headings, no trailing text)
 
 ## Narration cues — required export
@@ -535,5 +581,6 @@ export const narrationCues: Array<{
 11. Are all imports present (including `Timed` from `../shared/components`)?
 12. Is the output a single fenced ```tsx block with no surrounding prose?
 13. Any `HandWrittenText` positioned inside a `SketchBox`'s bounding rectangle? Convert to `SketchBox.rows`.
+14. Is every `SketchImage` placed outside `<SVG>`, inside `<Scene>`, before the `<SVG>` block, and wrapped in `<Timed>`?
 
-If all thirteen pass, emit the code.
+If all fourteen pass, emit the code.

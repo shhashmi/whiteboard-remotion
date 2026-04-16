@@ -1,10 +1,10 @@
 {
-  "generatedAt": "2026-04-15T01:20:30.550Z",
-  "count": 32,
+  "generatedAt": "2026-04-16T13:37:07.597Z",
+  "count": 154,
   "assets": [
     {
       "id": "A1",
-      "kind": "component",
+      "kind": "diagram",
       "name": "ReActLoop",
       "importPath": "@/shared/diagrams/ReActLoop",
       "filePath": "src/shared/diagrams/ReActLoop.tsx",
@@ -80,7 +80,7 @@
     },
     {
       "id": "A2",
-      "kind": "component",
+      "kind": "diagram",
       "name": "AutonomySpectrum",
       "importPath": "@/shared/diagrams/AutonomySpectrum",
       "filePath": "src/shared/diagrams/AutonomySpectrum.tsx",
@@ -144,7 +144,7 @@
     },
     {
       "id": "A3",
-      "kind": "component",
+      "kind": "diagram",
       "name": "MemoryArchitecture",
       "importPath": "@/shared/diagrams/MemoryArchitecture",
       "filePath": "src/shared/diagrams/MemoryArchitecture.tsx",
@@ -222,7 +222,7 @@
     },
     {
       "id": "A4",
-      "kind": "component",
+      "kind": "diagram",
       "name": "AgentCoordination",
       "importPath": "@/shared/diagrams/AgentCoordination",
       "filePath": "src/shared/diagrams/AgentCoordination.tsx",
@@ -231,7 +231,11 @@
         "supervisor pattern",
         "hierarchical agents",
         "peer to peer agents",
-        "agent orchestration"
+        "agent orchestration",
+        "supervisor",
+        "orchestrator",
+        "multi-agent system",
+        "agent supervisor pattern"
       ],
       "tags": [
         "agents",
@@ -287,7 +291,7 @@
     },
     {
       "id": "A5",
-      "kind": "component",
+      "kind": "diagram",
       "name": "TradeoffTriangle",
       "importPath": "@/shared/diagrams/TradeoffTriangle",
       "filePath": "src/shared/diagrams/TradeoffTriangle.tsx",
@@ -295,7 +299,10 @@
         "trade-off triangle",
         "cost latency accuracy",
         "pick two",
-        "three-axis tradeoff"
+        "three-axis tradeoff",
+        "three way tradeoff",
+        "pick two of three",
+        "CAP-style triangle"
       ],
       "tags": [
         "tradeoff",
@@ -360,7 +367,7 @@
     },
     {
       "id": "A6",
-      "kind": "component",
+      "kind": "diagram",
       "name": "TradeoffMatrix",
       "importPath": "@/shared/diagrams/TradeoffMatrix",
       "filePath": "src/shared/diagrams/TradeoffMatrix.tsx",
@@ -368,7 +375,10 @@
         "2x2 matrix",
         "quadrant chart",
         "positioning matrix",
-        "comparison quadrants"
+        "comparison quadrants",
+        "2x2 quadrant",
+        "pros cons grid",
+        "option comparison matrix"
       ],
       "tags": [
         "tradeoff",
@@ -454,7 +464,7 @@
     },
     {
       "id": "A7",
-      "kind": "component",
+      "kind": "diagram",
       "name": "MaturityProgression",
       "importPath": "@/shared/diagrams/MaturityProgression",
       "filePath": "src/shared/diagrams/MaturityProgression.tsx",
@@ -462,7 +472,10 @@
         "maturity model",
         "adoption stages",
         "progression stages",
-        "experimentation to embedded"
+        "experimentation to embedded",
+        "capability stages",
+        "progress ladder",
+        "roadmap stages"
       ],
       "tags": [
         "progression",
@@ -516,7 +529,7 @@
     },
     {
       "id": "A8",
-      "kind": "component",
+      "kind": "diagram",
       "name": "FlowchartBuilder",
       "importPath": "@/shared/diagrams/FlowchartBuilder",
       "filePath": "src/shared/diagrams/FlowchartBuilder.tsx",
@@ -524,7 +537,10 @@
         "flowchart",
         "decision flow",
         "process diagram",
-        "if then else diagram"
+        "if then else diagram",
+        "decision tree boxes",
+        "workflow diagram",
+        "process flow"
       ],
       "tags": [
         "flowchart",
@@ -626,7 +642,7 @@
     },
     {
       "id": "A9",
-      "kind": "component",
+      "kind": "diagram",
       "name": "GraphNodeEdge",
       "importPath": "@/shared/diagrams/GraphNodeEdge",
       "filePath": "src/shared/diagrams/GraphNodeEdge.tsx",
@@ -634,7 +650,10 @@
         "graph node",
         "graph edge",
         "network diagram",
-        "node link diagram"
+        "node link diagram",
+        "node edge graph",
+        "directed graph",
+        "connected nodes"
       ],
       "tags": [
         "graph",
@@ -649,7 +668,7 @@
     },
     {
       "id": "A10",
-      "kind": "component",
+      "kind": "diagram",
       "name": "CodeBlock",
       "importPath": "@/shared/diagrams/CodeBlock",
       "filePath": "src/shared/diagrams/CodeBlock.tsx",
@@ -710,7 +729,7 @@
     },
     {
       "id": "A11",
-      "kind": "component",
+      "kind": "diagram",
       "name": "AnnotationHighlight",
       "importPath": "@/shared/diagrams/AnnotationHighlight",
       "filePath": "src/shared/diagrams/AnnotationHighlight.tsx",
@@ -793,7 +812,7 @@
     },
     {
       "id": "A12",
-      "kind": "component",
+      "kind": "diagram",
       "name": "LineChart",
       "importPath": "@/shared/diagrams/LineChart",
       "filePath": "src/shared/diagrams/LineChart.tsx",
@@ -801,7 +820,10 @@
         "line chart",
         "growth curve",
         "performance curve",
-        "time series chart"
+        "time series chart",
+        "trend line",
+        "metric over time",
+        "plot over time"
       ],
       "tags": [
         "chart",
@@ -907,7 +929,10 @@
         "function calling",
         "tool calling lifecycle",
         "define select execute inject",
-        "LLM function contract"
+        "LLM function contract",
+        "tool use lifecycle",
+        "function call flow",
+        "tool invocation steps"
       ],
       "tags": [
         "agents",
@@ -966,7 +991,10 @@
         "retry logic",
         "exponential backoff",
         "circuit breaker",
-        "error handling flow"
+        "error handling flow",
+        "retry with backoff",
+        "exponential retry",
+        "failure recovery"
       ],
       "tags": [
         "resilience",
@@ -1013,7 +1041,10 @@
         "chain of thought",
         "reasoning trace",
         "structured reasoning",
-        "step by step reasoning"
+        "step by step reasoning",
+        "reasoning chain",
+        "step by step thinking",
+        "CoT"
       ],
       "tags": [
         "agents",
@@ -1060,7 +1091,10 @@
         "memory consolidation",
         "memory lifecycle",
         "memory decay",
-        "memory retrieval"
+        "memory retrieval",
+        "short to long term memory",
+        "memory transfer",
+        "memory stages"
       ],
       "tags": [
         "agents",
@@ -1106,7 +1140,10 @@
         "generator critic",
         "self critique loop",
         "actor critic agents",
-        "refinement loop"
+        "refinement loop",
+        "critique loop",
+        "self-refine",
+        "generator-critic pattern"
       ],
       "tags": [
         "agents",
@@ -1149,7 +1186,10 @@
       "concepts": [
         "governance evolution",
         "centralized hub-and-spoke advisory",
-        "org governance stages"
+        "org governance stages",
+        "governance maturity",
+        "oversight evolution",
+        "policy progression"
       ],
       "tags": [
         "governance",
@@ -1206,7 +1246,10 @@
         "knowledge graph",
         "entity relationship",
         "ER diagram",
-        "entity graph"
+        "entity graph",
+        "data model",
+        "schema graph",
+        "relationship diagram"
       ],
       "tags": [
         "graph",
@@ -1307,7 +1350,10 @@
       "concepts": [
         "comparison table",
         "feature matrix",
-        "side by side table"
+        "side by side table",
+        "side-by-side comparison",
+        "feature parity table",
+        "vendor comparison"
       ],
       "tags": [
         "table",
@@ -1597,6 +1643,5908 @@
       ],
       "description": "Four-vignette horizontal strip showing seedling → sapling → young tree → mature tree as a maturity-stages metaphor.",
       "previewPath": "public/generated/C12.png"
+    },
+    {
+      "id": "I1",
+      "kind": "icon",
+      "name": "BrainIcon",
+      "importPath": "@/shared/icons",
+      "filePath": "src/shared/icons/abstract.tsx",
+      "concepts": [
+        "brain",
+        "thinking",
+        "intelligence",
+        "cognition",
+        "mind",
+        "reasoning"
+      ],
+      "tags": [
+        "icon",
+        "abstract"
+      ],
+      "description": "Hand-drawn brain — use for thinking, intelligence, cognition.",
+      "propsSchema": {
+        "type": "object",
+        "required": [
+          "cx",
+          "cy",
+          "startFrame",
+          "drawDuration"
+        ],
+        "properties": {
+          "cx": {
+            "type": "number"
+          },
+          "cy": {
+            "type": "number"
+          },
+          "scale": {
+            "type": "number"
+          },
+          "startFrame": {
+            "type": "number"
+          },
+          "drawDuration": {
+            "type": "number"
+          }
+        }
+      }
+    },
+    {
+      "id": "I2",
+      "kind": "icon",
+      "name": "TargetIcon",
+      "importPath": "@/shared/icons",
+      "filePath": "src/shared/icons/abstract.tsx",
+      "concepts": [
+        "target",
+        "target icon",
+        "concept",
+        "idea",
+        "symbol"
+      ],
+      "tags": [
+        "icon",
+        "abstract"
+      ],
+      "description": "Hand-drawn target icon.",
+      "propsSchema": {
+        "type": "object",
+        "required": [
+          "cx",
+          "cy",
+          "startFrame",
+          "drawDuration"
+        ],
+        "properties": {
+          "cx": {
+            "type": "number"
+          },
+          "cy": {
+            "type": "number"
+          },
+          "scale": {
+            "type": "number"
+          },
+          "startFrame": {
+            "type": "number"
+          },
+          "drawDuration": {
+            "type": "number"
+          }
+        }
+      }
+    },
+    {
+      "id": "I3",
+      "kind": "icon",
+      "name": "BookIcon",
+      "importPath": "@/shared/icons",
+      "filePath": "src/shared/icons/abstract.tsx",
+      "concepts": [
+        "book",
+        "book icon",
+        "concept",
+        "idea",
+        "symbol"
+      ],
+      "tags": [
+        "icon",
+        "abstract"
+      ],
+      "description": "Hand-drawn book icon.",
+      "propsSchema": {
+        "type": "object",
+        "required": [
+          "cx",
+          "cy",
+          "startFrame",
+          "drawDuration"
+        ],
+        "properties": {
+          "cx": {
+            "type": "number"
+          },
+          "cy": {
+            "type": "number"
+          },
+          "scale": {
+            "type": "number"
+          },
+          "startFrame": {
+            "type": "number"
+          },
+          "drawDuration": {
+            "type": "number"
+          },
+          "color": {
+            "type": "string"
+          },
+          "label": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    {
+      "id": "I4",
+      "kind": "icon",
+      "name": "Lightbulb",
+      "importPath": "@/shared/icons",
+      "filePath": "src/shared/icons/abstract.tsx",
+      "concepts": [
+        "lightbulb",
+        "idea",
+        "insight",
+        "eureka",
+        "innovation",
+        "inspiration"
+      ],
+      "tags": [
+        "icon",
+        "abstract"
+      ],
+      "description": "Hand-drawn lightbulb — use for ideas, insights, innovation.",
+      "propsSchema": {
+        "type": "object",
+        "required": [
+          "cx",
+          "cy",
+          "startFrame",
+          "drawDuration"
+        ],
+        "properties": {
+          "cx": {
+            "type": "number"
+          },
+          "cy": {
+            "type": "number"
+          },
+          "scale": {
+            "type": "number"
+          },
+          "startFrame": {
+            "type": "number"
+          },
+          "drawDuration": {
+            "type": "number"
+          }
+        }
+      }
+    },
+    {
+      "id": "I5",
+      "kind": "icon",
+      "name": "ClockIcon",
+      "importPath": "@/shared/icons",
+      "filePath": "src/shared/icons/abstract.tsx",
+      "concepts": [
+        "clock",
+        "clock icon",
+        "concept",
+        "idea",
+        "symbol"
+      ],
+      "tags": [
+        "icon",
+        "abstract"
+      ],
+      "description": "Hand-drawn clock icon.",
+      "propsSchema": {
+        "type": "object",
+        "required": [
+          "cx",
+          "cy",
+          "startFrame",
+          "drawDuration"
+        ],
+        "properties": {
+          "cx": {
+            "type": "number"
+          },
+          "cy": {
+            "type": "number"
+          },
+          "scale": {
+            "type": "number"
+          },
+          "startFrame": {
+            "type": "number"
+          },
+          "drawDuration": {
+            "type": "number"
+          }
+        }
+      }
+    },
+    {
+      "id": "I6",
+      "kind": "icon",
+      "name": "SpeechBubble",
+      "importPath": "@/shared/icons",
+      "filePath": "src/shared/icons/abstract.tsx",
+      "concepts": [
+        "speech",
+        "message",
+        "dialog",
+        "communication",
+        "quote",
+        "comment"
+      ],
+      "tags": [
+        "icon",
+        "abstract"
+      ],
+      "description": "Hand-drawn speech bubble — use for dialog, comments, quotes.",
+      "propsSchema": {
+        "type": "object",
+        "required": [
+          "cx",
+          "cy",
+          "width",
+          "height",
+          "startFrame",
+          "drawDuration"
+        ],
+        "properties": {
+          "cx": {
+            "type": "number"
+          },
+          "cy": {
+            "type": "number"
+          },
+          "width": {
+            "type": "number"
+          },
+          "height": {
+            "type": "number"
+          },
+          "startFrame": {
+            "type": "number"
+          },
+          "drawDuration": {
+            "type": "number"
+          },
+          "fill": {
+            "type": "string"
+          },
+          "text": {
+            "type": "string"
+          },
+          "text2": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    {
+      "id": "I7",
+      "kind": "icon",
+      "name": "LockIcon",
+      "importPath": "@/shared/icons",
+      "filePath": "src/shared/icons/abstract.tsx",
+      "concepts": [
+        "lock",
+        "lock icon",
+        "concept",
+        "idea",
+        "symbol"
+      ],
+      "tags": [
+        "icon",
+        "abstract"
+      ],
+      "description": "Hand-drawn lock icon.",
+      "propsSchema": {
+        "type": "object",
+        "required": [
+          "cx",
+          "cy",
+          "startFrame",
+          "drawDuration"
+        ],
+        "properties": {
+          "cx": {
+            "type": "number"
+          },
+          "cy": {
+            "type": "number"
+          },
+          "scale": {
+            "type": "number"
+          },
+          "startFrame": {
+            "type": "number"
+          },
+          "drawDuration": {
+            "type": "number"
+          },
+          "color": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    {
+      "id": "I8",
+      "kind": "icon",
+      "name": "ShieldIcon",
+      "importPath": "@/shared/icons",
+      "filePath": "src/shared/icons/abstract.tsx",
+      "concepts": [
+        "shield",
+        "shield icon",
+        "concept",
+        "idea",
+        "symbol"
+      ],
+      "tags": [
+        "icon",
+        "abstract"
+      ],
+      "description": "Hand-drawn shield icon.",
+      "propsSchema": {
+        "type": "object",
+        "required": [
+          "cx",
+          "cy",
+          "startFrame",
+          "drawDuration"
+        ],
+        "properties": {
+          "cx": {
+            "type": "number"
+          },
+          "cy": {
+            "type": "number"
+          },
+          "scale": {
+            "type": "number"
+          },
+          "startFrame": {
+            "type": "number"
+          },
+          "drawDuration": {
+            "type": "number"
+          },
+          "color": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    {
+      "id": "I9",
+      "kind": "icon",
+      "name": "MagnifyingGlass",
+      "importPath": "@/shared/icons",
+      "filePath": "src/shared/icons/abstract.tsx",
+      "concepts": [
+        "magnifying glass",
+        "concept",
+        "idea",
+        "symbol"
+      ],
+      "tags": [
+        "icon",
+        "abstract"
+      ],
+      "description": "Hand-drawn magnifying glass icon.",
+      "propsSchema": {
+        "type": "object",
+        "required": [
+          "cx",
+          "cy",
+          "startFrame",
+          "drawDuration"
+        ],
+        "properties": {
+          "cx": {
+            "type": "number"
+          },
+          "cy": {
+            "type": "number"
+          },
+          "scale": {
+            "type": "number"
+          },
+          "startFrame": {
+            "type": "number"
+          },
+          "drawDuration": {
+            "type": "number"
+          },
+          "color": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    {
+      "id": "I10",
+      "kind": "icon",
+      "name": "WarningTriangle",
+      "importPath": "@/shared/icons",
+      "filePath": "src/shared/icons/abstract.tsx",
+      "concepts": [
+        "warning",
+        "alert",
+        "caution",
+        "limitation",
+        "danger",
+        "risk"
+      ],
+      "tags": [
+        "icon",
+        "abstract"
+      ],
+      "description": "Hand-drawn warning triangle — use for alerts, cautions, limitations.",
+      "propsSchema": {
+        "type": "object",
+        "required": [
+          "cx",
+          "cy",
+          "startFrame",
+          "drawDuration"
+        ],
+        "properties": {
+          "cx": {
+            "type": "number"
+          },
+          "cy": {
+            "type": "number"
+          },
+          "scale": {
+            "type": "number"
+          },
+          "startFrame": {
+            "type": "number"
+          },
+          "drawDuration": {
+            "type": "number"
+          },
+          "color": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    {
+      "id": "I11",
+      "kind": "icon",
+      "name": "PuzzlePiece",
+      "importPath": "@/shared/icons",
+      "filePath": "src/shared/icons/abstract.tsx",
+      "concepts": [
+        "puzzle piece",
+        "concept",
+        "idea",
+        "symbol"
+      ],
+      "tags": [
+        "icon",
+        "abstract"
+      ],
+      "description": "Hand-drawn puzzle piece icon.",
+      "propsSchema": {
+        "type": "object",
+        "required": [
+          "cx",
+          "cy",
+          "startFrame",
+          "drawDuration"
+        ],
+        "properties": {
+          "cx": {
+            "type": "number"
+          },
+          "cy": {
+            "type": "number"
+          },
+          "scale": {
+            "type": "number"
+          },
+          "startFrame": {
+            "type": "number"
+          },
+          "drawDuration": {
+            "type": "number"
+          },
+          "color": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    {
+      "id": "I12",
+      "kind": "icon",
+      "name": "StarIcon",
+      "importPath": "@/shared/icons",
+      "filePath": "src/shared/icons/abstract.tsx",
+      "concepts": [
+        "star",
+        "star icon",
+        "concept",
+        "idea",
+        "symbol"
+      ],
+      "tags": [
+        "icon",
+        "abstract"
+      ],
+      "description": "Hand-drawn star icon.",
+      "propsSchema": {
+        "type": "object",
+        "required": [
+          "cx",
+          "cy",
+          "startFrame",
+          "drawDuration"
+        ],
+        "properties": {
+          "cx": {
+            "type": "number"
+          },
+          "cy": {
+            "type": "number"
+          },
+          "scale": {
+            "type": "number"
+          },
+          "startFrame": {
+            "type": "number"
+          },
+          "drawDuration": {
+            "type": "number"
+          },
+          "color": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    {
+      "id": "I13",
+      "kind": "icon",
+      "name": "FlagIcon",
+      "importPath": "@/shared/icons",
+      "filePath": "src/shared/icons/abstract.tsx",
+      "concepts": [
+        "flag",
+        "flag icon",
+        "concept",
+        "idea",
+        "symbol"
+      ],
+      "tags": [
+        "icon",
+        "abstract"
+      ],
+      "description": "Hand-drawn flag icon.",
+      "propsSchema": {
+        "type": "object",
+        "required": [
+          "cx",
+          "cy",
+          "startFrame",
+          "drawDuration"
+        ],
+        "properties": {
+          "cx": {
+            "type": "number"
+          },
+          "cy": {
+            "type": "number"
+          },
+          "scale": {
+            "type": "number"
+          },
+          "startFrame": {
+            "type": "number"
+          },
+          "drawDuration": {
+            "type": "number"
+          },
+          "color": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    {
+      "id": "I14",
+      "kind": "icon",
+      "name": "MirrorIcon",
+      "importPath": "@/shared/icons",
+      "filePath": "src/shared/icons/abstract.tsx",
+      "concepts": [
+        "mirror",
+        "mirror icon",
+        "concept",
+        "idea",
+        "symbol"
+      ],
+      "tags": [
+        "icon",
+        "abstract"
+      ],
+      "description": "Hand-drawn mirror icon.",
+      "propsSchema": {
+        "type": "object",
+        "required": [
+          "cx",
+          "cy",
+          "startFrame",
+          "drawDuration"
+        ],
+        "properties": {
+          "cx": {
+            "type": "number"
+          },
+          "cy": {
+            "type": "number"
+          },
+          "scale": {
+            "type": "number"
+          },
+          "startFrame": {
+            "type": "number"
+          },
+          "drawDuration": {
+            "type": "number"
+          },
+          "color": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    {
+      "id": "I15",
+      "kind": "icon",
+      "name": "NumberBadge",
+      "importPath": "@/shared/icons",
+      "filePath": "src/shared/icons/abstract.tsx",
+      "concepts": [
+        "number badge",
+        "concept",
+        "idea",
+        "symbol"
+      ],
+      "tags": [
+        "icon",
+        "abstract"
+      ],
+      "description": "Hand-drawn number badge icon.",
+      "propsSchema": {
+        "type": "object",
+        "required": [
+          "cx",
+          "cy",
+          "startFrame",
+          "drawDuration",
+          "number"
+        ],
+        "properties": {
+          "cx": {
+            "type": "number"
+          },
+          "cy": {
+            "type": "number"
+          },
+          "scale": {
+            "type": "number"
+          },
+          "startFrame": {
+            "type": "number"
+          },
+          "drawDuration": {
+            "type": "number"
+          },
+          "number": {
+            "type": "number"
+          },
+          "color": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    {
+      "id": "I16",
+      "kind": "icon",
+      "name": "EyeIcon",
+      "importPath": "@/shared/icons",
+      "filePath": "src/shared/icons/abstract.tsx",
+      "concepts": [
+        "eye",
+        "eye icon",
+        "concept",
+        "idea",
+        "symbol"
+      ],
+      "tags": [
+        "icon",
+        "abstract"
+      ],
+      "description": "Hand-drawn eye icon.",
+      "propsSchema": {
+        "type": "object",
+        "required": [
+          "cx",
+          "cy",
+          "startFrame",
+          "drawDuration"
+        ],
+        "properties": {
+          "cx": {
+            "type": "number"
+          },
+          "cy": {
+            "type": "number"
+          },
+          "scale": {
+            "type": "number"
+          },
+          "startFrame": {
+            "type": "number"
+          },
+          "drawDuration": {
+            "type": "number"
+          },
+          "color": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    {
+      "id": "I17",
+      "kind": "icon",
+      "name": "LightningBoltIcon",
+      "importPath": "@/shared/icons",
+      "filePath": "src/shared/icons/abstract.tsx",
+      "concepts": [
+        "lightning bolt",
+        "lightning bolt icon",
+        "concept",
+        "idea",
+        "symbol"
+      ],
+      "tags": [
+        "icon",
+        "abstract"
+      ],
+      "description": "Hand-drawn lightning bolt icon.",
+      "propsSchema": {
+        "type": "object",
+        "required": [
+          "cx",
+          "cy",
+          "startFrame",
+          "drawDuration"
+        ],
+        "properties": {
+          "cx": {
+            "type": "number"
+          },
+          "cy": {
+            "type": "number"
+          },
+          "scale": {
+            "type": "number"
+          },
+          "startFrame": {
+            "type": "number"
+          },
+          "drawDuration": {
+            "type": "number"
+          },
+          "color": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    {
+      "id": "I18",
+      "kind": "icon",
+      "name": "UploadIcon",
+      "importPath": "@/shared/icons",
+      "filePath": "src/shared/icons/actions.tsx",
+      "concepts": [
+        "upload",
+        "upload icon",
+        "action",
+        "interaction",
+        "verb"
+      ],
+      "tags": [
+        "icon",
+        "actions"
+      ],
+      "description": "Hand-drawn upload icon.",
+      "propsSchema": {
+        "type": "object",
+        "required": [
+          "cx",
+          "cy",
+          "startFrame",
+          "drawDuration"
+        ],
+        "properties": {
+          "cx": {
+            "type": "number"
+          },
+          "cy": {
+            "type": "number"
+          },
+          "scale": {
+            "type": "number"
+          },
+          "startFrame": {
+            "type": "number"
+          },
+          "drawDuration": {
+            "type": "number"
+          },
+          "color": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    {
+      "id": "I19",
+      "kind": "icon",
+      "name": "DownloadIcon",
+      "importPath": "@/shared/icons",
+      "filePath": "src/shared/icons/actions.tsx",
+      "concepts": [
+        "download",
+        "download icon",
+        "action",
+        "interaction",
+        "verb"
+      ],
+      "tags": [
+        "icon",
+        "actions"
+      ],
+      "description": "Hand-drawn download icon.",
+      "propsSchema": {
+        "type": "object",
+        "required": [
+          "cx",
+          "cy",
+          "startFrame",
+          "drawDuration"
+        ],
+        "properties": {
+          "cx": {
+            "type": "number"
+          },
+          "cy": {
+            "type": "number"
+          },
+          "scale": {
+            "type": "number"
+          },
+          "startFrame": {
+            "type": "number"
+          },
+          "drawDuration": {
+            "type": "number"
+          },
+          "color": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    {
+      "id": "I20",
+      "kind": "icon",
+      "name": "SyncIcon",
+      "importPath": "@/shared/icons",
+      "filePath": "src/shared/icons/actions.tsx",
+      "concepts": [
+        "sync",
+        "sync icon",
+        "action",
+        "interaction",
+        "verb"
+      ],
+      "tags": [
+        "icon",
+        "actions"
+      ],
+      "description": "Hand-drawn sync icon.",
+      "propsSchema": {
+        "type": "object",
+        "required": [
+          "cx",
+          "cy",
+          "startFrame",
+          "drawDuration"
+        ],
+        "properties": {
+          "cx": {
+            "type": "number"
+          },
+          "cy": {
+            "type": "number"
+          },
+          "scale": {
+            "type": "number"
+          },
+          "startFrame": {
+            "type": "number"
+          },
+          "drawDuration": {
+            "type": "number"
+          },
+          "color": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    {
+      "id": "I21",
+      "kind": "icon",
+      "name": "PlayIcon",
+      "importPath": "@/shared/icons",
+      "filePath": "src/shared/icons/actions.tsx",
+      "concepts": [
+        "play",
+        "play icon",
+        "action",
+        "interaction",
+        "verb"
+      ],
+      "tags": [
+        "icon",
+        "actions"
+      ],
+      "description": "Hand-drawn play icon.",
+      "propsSchema": {
+        "type": "object",
+        "required": [
+          "cx",
+          "cy",
+          "startFrame",
+          "drawDuration"
+        ],
+        "properties": {
+          "cx": {
+            "type": "number"
+          },
+          "cy": {
+            "type": "number"
+          },
+          "scale": {
+            "type": "number"
+          },
+          "startFrame": {
+            "type": "number"
+          },
+          "drawDuration": {
+            "type": "number"
+          },
+          "color": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    {
+      "id": "I22",
+      "kind": "icon",
+      "name": "PauseIcon",
+      "importPath": "@/shared/icons",
+      "filePath": "src/shared/icons/actions.tsx",
+      "concepts": [
+        "pause",
+        "pause icon",
+        "action",
+        "interaction",
+        "verb"
+      ],
+      "tags": [
+        "icon",
+        "actions"
+      ],
+      "description": "Hand-drawn pause icon.",
+      "propsSchema": {
+        "type": "object",
+        "required": [
+          "cx",
+          "cy",
+          "startFrame",
+          "drawDuration"
+        ],
+        "properties": {
+          "cx": {
+            "type": "number"
+          },
+          "cy": {
+            "type": "number"
+          },
+          "scale": {
+            "type": "number"
+          },
+          "startFrame": {
+            "type": "number"
+          },
+          "drawDuration": {
+            "type": "number"
+          },
+          "color": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    {
+      "id": "I23",
+      "kind": "icon",
+      "name": "ExpandIcon",
+      "importPath": "@/shared/icons",
+      "filePath": "src/shared/icons/actions.tsx",
+      "concepts": [
+        "expand",
+        "expand icon",
+        "action",
+        "interaction",
+        "verb"
+      ],
+      "tags": [
+        "icon",
+        "actions"
+      ],
+      "description": "Hand-drawn expand icon.",
+      "propsSchema": {
+        "type": "object",
+        "required": [
+          "cx",
+          "cy",
+          "startFrame",
+          "drawDuration"
+        ],
+        "properties": {
+          "cx": {
+            "type": "number"
+          },
+          "cy": {
+            "type": "number"
+          },
+          "scale": {
+            "type": "number"
+          },
+          "startFrame": {
+            "type": "number"
+          },
+          "drawDuration": {
+            "type": "number"
+          },
+          "color": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    {
+      "id": "I24",
+      "kind": "icon",
+      "name": "ShareIcon",
+      "importPath": "@/shared/icons",
+      "filePath": "src/shared/icons/actions.tsx",
+      "concepts": [
+        "share",
+        "share icon",
+        "action",
+        "interaction",
+        "verb"
+      ],
+      "tags": [
+        "icon",
+        "actions"
+      ],
+      "description": "Hand-drawn share icon.",
+      "propsSchema": {
+        "type": "object",
+        "required": [
+          "cx",
+          "cy",
+          "startFrame",
+          "drawDuration"
+        ],
+        "properties": {
+          "cx": {
+            "type": "number"
+          },
+          "cy": {
+            "type": "number"
+          },
+          "scale": {
+            "type": "number"
+          },
+          "startFrame": {
+            "type": "number"
+          },
+          "drawDuration": {
+            "type": "number"
+          },
+          "color": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    {
+      "id": "I25",
+      "kind": "icon",
+      "name": "BarChart",
+      "importPath": "@/shared/icons",
+      "filePath": "src/shared/icons/business.tsx",
+      "concepts": [
+        "bar chart",
+        "business",
+        "metric",
+        "report"
+      ],
+      "tags": [
+        "icon",
+        "business"
+      ],
+      "description": "Hand-drawn bar chart icon.",
+      "propsSchema": {
+        "type": "object",
+        "required": [
+          "cx",
+          "cy",
+          "startFrame",
+          "drawDuration"
+        ],
+        "properties": {
+          "cx": {
+            "type": "number"
+          },
+          "cy": {
+            "type": "number"
+          },
+          "scale": {
+            "type": "number"
+          },
+          "startFrame": {
+            "type": "number"
+          },
+          "drawDuration": {
+            "type": "number"
+          }
+        }
+      }
+    },
+    {
+      "id": "I26",
+      "kind": "icon",
+      "name": "DocStack",
+      "importPath": "@/shared/icons",
+      "filePath": "src/shared/icons/business.tsx",
+      "concepts": [
+        "doc stack",
+        "business",
+        "metric",
+        "report"
+      ],
+      "tags": [
+        "icon",
+        "business"
+      ],
+      "description": "Hand-drawn doc stack icon.",
+      "propsSchema": {
+        "type": "object",
+        "required": [
+          "cx",
+          "cy",
+          "startFrame",
+          "drawDuration"
+        ],
+        "properties": {
+          "cx": {
+            "type": "number"
+          },
+          "cy": {
+            "type": "number"
+          },
+          "scale": {
+            "type": "number"
+          },
+          "startFrame": {
+            "type": "number"
+          },
+          "drawDuration": {
+            "type": "number"
+          }
+        }
+      }
+    },
+    {
+      "id": "I27",
+      "kind": "icon",
+      "name": "PieChart",
+      "importPath": "@/shared/icons",
+      "filePath": "src/shared/icons/business.tsx",
+      "concepts": [
+        "pie chart",
+        "business",
+        "metric",
+        "report"
+      ],
+      "tags": [
+        "icon",
+        "business"
+      ],
+      "description": "Hand-drawn pie chart icon.",
+      "propsSchema": {
+        "type": "object",
+        "required": [
+          "cx",
+          "cy",
+          "startFrame",
+          "drawDuration"
+        ],
+        "properties": {
+          "cx": {
+            "type": "number"
+          },
+          "cy": {
+            "type": "number"
+          },
+          "scale": {
+            "type": "number"
+          },
+          "startFrame": {
+            "type": "number"
+          },
+          "drawDuration": {
+            "type": "number"
+          },
+          "slices": {
+            "type": "array",
+            "items": {
+              "type": "number"
+            }
+          },
+          "colors": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "I28",
+      "kind": "icon",
+      "name": "LineGraph",
+      "importPath": "@/shared/icons",
+      "filePath": "src/shared/icons/business.tsx",
+      "concepts": [
+        "line graph",
+        "business",
+        "metric",
+        "report"
+      ],
+      "tags": [
+        "icon",
+        "business"
+      ],
+      "description": "Hand-drawn line graph icon.",
+      "propsSchema": {
+        "type": "object",
+        "required": [
+          "cx",
+          "cy",
+          "startFrame",
+          "drawDuration"
+        ],
+        "properties": {
+          "cx": {
+            "type": "number"
+          },
+          "cy": {
+            "type": "number"
+          },
+          "scale": {
+            "type": "number"
+          },
+          "startFrame": {
+            "type": "number"
+          },
+          "drawDuration": {
+            "type": "number"
+          },
+          "color": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    {
+      "id": "I29",
+      "kind": "icon",
+      "name": "ProgressBar",
+      "importPath": "@/shared/icons",
+      "filePath": "src/shared/icons/business.tsx",
+      "concepts": [
+        "progress bar",
+        "business",
+        "metric",
+        "report"
+      ],
+      "tags": [
+        "icon",
+        "business"
+      ],
+      "description": "Hand-drawn progress bar icon.",
+      "propsSchema": {
+        "type": "object",
+        "required": [
+          "cx",
+          "cy",
+          "startFrame",
+          "drawDuration"
+        ],
+        "properties": {
+          "cx": {
+            "type": "number"
+          },
+          "cy": {
+            "type": "number"
+          },
+          "scale": {
+            "type": "number"
+          },
+          "startFrame": {
+            "type": "number"
+          },
+          "drawDuration": {
+            "type": "number"
+          },
+          "percent": {
+            "type": "number"
+          },
+          "color": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    {
+      "id": "I30",
+      "kind": "icon",
+      "name": "ProjectPlannerIcon",
+      "importPath": "@/shared/icons",
+      "filePath": "src/shared/icons/business.tsx",
+      "concepts": [
+        "project planner",
+        "project planner icon",
+        "business",
+        "metric",
+        "report"
+      ],
+      "tags": [
+        "icon",
+        "business"
+      ],
+      "description": "Hand-drawn project planner icon.",
+      "propsSchema": {
+        "type": "object",
+        "required": [
+          "cx",
+          "cy",
+          "startFrame",
+          "drawDuration"
+        ],
+        "properties": {
+          "cx": {
+            "type": "number"
+          },
+          "cy": {
+            "type": "number"
+          },
+          "scale": {
+            "type": "number"
+          },
+          "startFrame": {
+            "type": "number"
+          },
+          "drawDuration": {
+            "type": "number"
+          },
+          "color": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    {
+      "id": "I31",
+      "kind": "icon",
+      "name": "ChatbotIcon",
+      "importPath": "@/shared/icons",
+      "filePath": "src/shared/icons/communication.tsx",
+      "concepts": [
+        "chat",
+        "message",
+        "conversation",
+        "chatbot",
+        "communication",
+        "assistant"
+      ],
+      "tags": [
+        "icon",
+        "communication"
+      ],
+      "description": "Hand-drawn chatbot avatar — use for chat, messaging.",
+      "propsSchema": {
+        "type": "object",
+        "required": [
+          "cx",
+          "cy",
+          "startFrame",
+          "drawDuration"
+        ],
+        "properties": {
+          "cx": {
+            "type": "number"
+          },
+          "cy": {
+            "type": "number"
+          },
+          "scale": {
+            "type": "number"
+          },
+          "startFrame": {
+            "type": "number"
+          },
+          "drawDuration": {
+            "type": "number"
+          },
+          "color": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    {
+      "id": "I32",
+      "kind": "icon",
+      "name": "VideoCallIcon",
+      "importPath": "@/shared/icons",
+      "filePath": "src/shared/icons/communication.tsx",
+      "concepts": [
+        "video call",
+        "video call icon",
+        "communication",
+        "messaging",
+        "signal"
+      ],
+      "tags": [
+        "icon",
+        "communication"
+      ],
+      "description": "Hand-drawn video call icon.",
+      "propsSchema": {
+        "type": "object",
+        "required": [
+          "cx",
+          "cy",
+          "startFrame",
+          "drawDuration"
+        ],
+        "properties": {
+          "cx": {
+            "type": "number"
+          },
+          "cy": {
+            "type": "number"
+          },
+          "scale": {
+            "type": "number"
+          },
+          "startFrame": {
+            "type": "number"
+          },
+          "drawDuration": {
+            "type": "number"
+          },
+          "color": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    {
+      "id": "I33",
+      "kind": "icon",
+      "name": "BroadcastIcon",
+      "importPath": "@/shared/icons",
+      "filePath": "src/shared/icons/communication.tsx",
+      "concepts": [
+        "broadcast",
+        "broadcast icon",
+        "communication",
+        "messaging",
+        "signal"
+      ],
+      "tags": [
+        "icon",
+        "communication"
+      ],
+      "description": "Hand-drawn broadcast icon.",
+      "propsSchema": {
+        "type": "object",
+        "required": [
+          "cx",
+          "cy",
+          "startFrame",
+          "drawDuration"
+        ],
+        "properties": {
+          "cx": {
+            "type": "number"
+          },
+          "cy": {
+            "type": "number"
+          },
+          "scale": {
+            "type": "number"
+          },
+          "startFrame": {
+            "type": "number"
+          },
+          "drawDuration": {
+            "type": "number"
+          },
+          "color": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    {
+      "id": "I34",
+      "kind": "icon",
+      "name": "AntennaIcon",
+      "importPath": "@/shared/icons",
+      "filePath": "src/shared/icons/communication.tsx",
+      "concepts": [
+        "antenna",
+        "antenna icon",
+        "communication",
+        "messaging",
+        "signal"
+      ],
+      "tags": [
+        "icon",
+        "communication"
+      ],
+      "description": "Hand-drawn antenna icon.",
+      "propsSchema": {
+        "type": "object",
+        "required": [
+          "cx",
+          "cy",
+          "startFrame",
+          "drawDuration"
+        ],
+        "properties": {
+          "cx": {
+            "type": "number"
+          },
+          "cy": {
+            "type": "number"
+          },
+          "scale": {
+            "type": "number"
+          },
+          "startFrame": {
+            "type": "number"
+          },
+          "drawDuration": {
+            "type": "number"
+          },
+          "color": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    {
+      "id": "I35",
+      "kind": "icon",
+      "name": "CoinIcon",
+      "importPath": "@/shared/icons",
+      "filePath": "src/shared/icons/finance.tsx",
+      "concepts": [
+        "coin",
+        "coin icon",
+        "finance",
+        "money",
+        "currency"
+      ],
+      "tags": [
+        "icon",
+        "finance"
+      ],
+      "description": "Hand-drawn coin icon.",
+      "propsSchema": {
+        "type": "object",
+        "required": [
+          "cx",
+          "cy",
+          "startFrame",
+          "drawDuration"
+        ],
+        "properties": {
+          "cx": {
+            "type": "number"
+          },
+          "cy": {
+            "type": "number"
+          },
+          "scale": {
+            "type": "number"
+          },
+          "startFrame": {
+            "type": "number"
+          },
+          "drawDuration": {
+            "type": "number"
+          },
+          "color": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    {
+      "id": "I36",
+      "kind": "icon",
+      "name": "WalletIcon",
+      "importPath": "@/shared/icons",
+      "filePath": "src/shared/icons/finance.tsx",
+      "concepts": [
+        "wallet",
+        "wallet icon",
+        "finance",
+        "money",
+        "currency"
+      ],
+      "tags": [
+        "icon",
+        "finance"
+      ],
+      "description": "Hand-drawn wallet icon.",
+      "propsSchema": {
+        "type": "object",
+        "required": [
+          "cx",
+          "cy",
+          "startFrame",
+          "drawDuration"
+        ],
+        "properties": {
+          "cx": {
+            "type": "number"
+          },
+          "cy": {
+            "type": "number"
+          },
+          "scale": {
+            "type": "number"
+          },
+          "startFrame": {
+            "type": "number"
+          },
+          "drawDuration": {
+            "type": "number"
+          },
+          "color": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    {
+      "id": "I37",
+      "kind": "icon",
+      "name": "BankIcon",
+      "importPath": "@/shared/icons",
+      "filePath": "src/shared/icons/finance.tsx",
+      "concepts": [
+        "bank",
+        "bank icon",
+        "finance",
+        "money",
+        "currency"
+      ],
+      "tags": [
+        "icon",
+        "finance"
+      ],
+      "description": "Hand-drawn bank icon.",
+      "propsSchema": {
+        "type": "object",
+        "required": [
+          "cx",
+          "cy",
+          "startFrame",
+          "drawDuration"
+        ],
+        "properties": {
+          "cx": {
+            "type": "number"
+          },
+          "cy": {
+            "type": "number"
+          },
+          "scale": {
+            "type": "number"
+          },
+          "startFrame": {
+            "type": "number"
+          },
+          "drawDuration": {
+            "type": "number"
+          },
+          "color": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    {
+      "id": "I38",
+      "kind": "icon",
+      "name": "CreditCardIcon",
+      "importPath": "@/shared/icons",
+      "filePath": "src/shared/icons/finance.tsx",
+      "concepts": [
+        "credit card",
+        "credit card icon",
+        "finance",
+        "money",
+        "currency"
+      ],
+      "tags": [
+        "icon",
+        "finance"
+      ],
+      "description": "Hand-drawn credit card icon.",
+      "propsSchema": {
+        "type": "object",
+        "required": [
+          "cx",
+          "cy",
+          "startFrame",
+          "drawDuration"
+        ],
+        "properties": {
+          "cx": {
+            "type": "number"
+          },
+          "cy": {
+            "type": "number"
+          },
+          "scale": {
+            "type": "number"
+          },
+          "startFrame": {
+            "type": "number"
+          },
+          "drawDuration": {
+            "type": "number"
+          },
+          "color": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    {
+      "id": "I39",
+      "kind": "icon",
+      "name": "DollarSignIcon",
+      "importPath": "@/shared/icons",
+      "filePath": "src/shared/icons/finance.tsx",
+      "concepts": [
+        "dollar sign",
+        "dollar sign icon",
+        "finance",
+        "money",
+        "currency"
+      ],
+      "tags": [
+        "icon",
+        "finance"
+      ],
+      "description": "Hand-drawn dollar sign icon.",
+      "propsSchema": {
+        "type": "object",
+        "required": [
+          "cx",
+          "cy",
+          "startFrame",
+          "drawDuration"
+        ],
+        "properties": {
+          "cx": {
+            "type": "number"
+          },
+          "cy": {
+            "type": "number"
+          },
+          "scale": {
+            "type": "number"
+          },
+          "startFrame": {
+            "type": "number"
+          },
+          "drawDuration": {
+            "type": "number"
+          },
+          "color": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    {
+      "id": "I40",
+      "kind": "icon",
+      "name": "CycleArrow",
+      "importPath": "@/shared/icons",
+      "filePath": "src/shared/icons/flow.tsx",
+      "concepts": [
+        "cycle",
+        "loop",
+        "arrow",
+        "recurring",
+        "iteration",
+        "circular flow"
+      ],
+      "tags": [
+        "icon",
+        "flow"
+      ],
+      "description": "Hand-drawn circular arrow — use for cycles, loops, iteration.",
+      "propsSchema": {
+        "type": "object",
+        "required": [
+          "cx",
+          "cy",
+          "startFrame",
+          "drawDuration"
+        ],
+        "properties": {
+          "cx": {
+            "type": "number"
+          },
+          "cy": {
+            "type": "number"
+          },
+          "scale": {
+            "type": "number"
+          },
+          "startFrame": {
+            "type": "number"
+          },
+          "drawDuration": {
+            "type": "number"
+          },
+          "segments": {
+            "type": "number"
+          },
+          "broken": {
+            "type": "boolean"
+          },
+          "color": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    {
+      "id": "I41",
+      "kind": "icon",
+      "name": "FlowChain",
+      "importPath": "@/shared/icons",
+      "filePath": "src/shared/icons/flow.tsx",
+      "concepts": [
+        "flow",
+        "arrow chain",
+        "direction",
+        "sequence",
+        "pipeline",
+        "connected steps"
+      ],
+      "tags": [
+        "icon",
+        "flow"
+      ],
+      "description": "Hand-drawn chain of flow arrows — use for sequences, pipelines.",
+      "propsSchema": {
+        "type": "object",
+        "required": [
+          "cx",
+          "cy",
+          "startFrame",
+          "drawDuration",
+          "steps"
+        ],
+        "properties": {
+          "cx": {
+            "type": "number"
+          },
+          "cy": {
+            "type": "number"
+          },
+          "scale": {
+            "type": "number"
+          },
+          "startFrame": {
+            "type": "number"
+          },
+          "drawDuration": {
+            "type": "number"
+          },
+          "steps": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "direction": {
+            "type": "string",
+            "enum": [
+              "horizontal",
+              "vertical"
+            ]
+          },
+          "color": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    {
+      "id": "I42",
+      "kind": "icon",
+      "name": "FunnelIcon",
+      "importPath": "@/shared/icons",
+      "filePath": "src/shared/icons/flow.tsx",
+      "concepts": [
+        "funnel",
+        "funnel icon",
+        "flow",
+        "process",
+        "pipeline"
+      ],
+      "tags": [
+        "icon",
+        "flow"
+      ],
+      "description": "Hand-drawn funnel icon.",
+      "propsSchema": {
+        "type": "object",
+        "required": [
+          "cx",
+          "cy",
+          "startFrame",
+          "drawDuration"
+        ],
+        "properties": {
+          "cx": {
+            "type": "number"
+          },
+          "cy": {
+            "type": "number"
+          },
+          "scale": {
+            "type": "number"
+          },
+          "startFrame": {
+            "type": "number"
+          },
+          "drawDuration": {
+            "type": "number"
+          },
+          "color": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    {
+      "id": "I43",
+      "kind": "icon",
+      "name": "DecisionDiamond",
+      "importPath": "@/shared/icons",
+      "filePath": "src/shared/icons/flow.tsx",
+      "concepts": [
+        "decision diamond",
+        "flow",
+        "process",
+        "pipeline"
+      ],
+      "tags": [
+        "icon",
+        "flow"
+      ],
+      "description": "Hand-drawn decision diamond icon.",
+      "propsSchema": {
+        "type": "object",
+        "required": [
+          "cx",
+          "cy",
+          "startFrame",
+          "drawDuration"
+        ],
+        "properties": {
+          "cx": {
+            "type": "number"
+          },
+          "cy": {
+            "type": "number"
+          },
+          "scale": {
+            "type": "number"
+          },
+          "startFrame": {
+            "type": "number"
+          },
+          "drawDuration": {
+            "type": "number"
+          },
+          "color": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    {
+      "id": "I44",
+      "kind": "icon",
+      "name": "DottedConnector",
+      "importPath": "@/shared/icons",
+      "filePath": "src/shared/icons/flow.tsx",
+      "concepts": [
+        "dotted connector",
+        "flow",
+        "process",
+        "pipeline"
+      ],
+      "tags": [
+        "icon",
+        "flow"
+      ],
+      "description": "Hand-drawn dotted connector icon.",
+      "propsSchema": {
+        "type": "object",
+        "required": [
+          "x1",
+          "y1",
+          "x2",
+          "y2",
+          "startFrame",
+          "drawDuration"
+        ],
+        "properties": {
+          "x1": {
+            "type": "number"
+          },
+          "y1": {
+            "type": "number"
+          },
+          "x2": {
+            "type": "number"
+          },
+          "y2": {
+            "type": "number"
+          },
+          "startFrame": {
+            "type": "number"
+          },
+          "drawDuration": {
+            "type": "number"
+          },
+          "color": {
+            "type": "string"
+          },
+          "dashed": {
+            "type": "boolean"
+          }
+        }
+      }
+    },
+    {
+      "id": "I45",
+      "kind": "icon",
+      "name": "GrowthTransformIcon",
+      "importPath": "@/shared/icons",
+      "filePath": "src/shared/icons/nature.tsx",
+      "concepts": [
+        "growth transform",
+        "growth transform icon",
+        "nature",
+        "natural",
+        "environment"
+      ],
+      "tags": [
+        "icon",
+        "nature"
+      ],
+      "description": "Hand-drawn growth transform icon.",
+      "propsSchema": {
+        "type": "object",
+        "required": [
+          "cx",
+          "cy",
+          "startFrame",
+          "drawDuration"
+        ],
+        "properties": {
+          "cx": {
+            "type": "number"
+          },
+          "cy": {
+            "type": "number"
+          },
+          "scale": {
+            "type": "number"
+          },
+          "startFrame": {
+            "type": "number"
+          },
+          "drawDuration": {
+            "type": "number"
+          },
+          "color": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    {
+      "id": "I46",
+      "kind": "icon",
+      "name": "MountainPeakIcon",
+      "importPath": "@/shared/icons",
+      "filePath": "src/shared/icons/nature.tsx",
+      "concepts": [
+        "mountain peak",
+        "mountain peak icon",
+        "nature",
+        "natural",
+        "environment"
+      ],
+      "tags": [
+        "icon",
+        "nature"
+      ],
+      "description": "Hand-drawn mountain peak icon.",
+      "propsSchema": {
+        "type": "object",
+        "required": [
+          "cx",
+          "cy",
+          "startFrame",
+          "drawDuration"
+        ],
+        "properties": {
+          "cx": {
+            "type": "number"
+          },
+          "cy": {
+            "type": "number"
+          },
+          "scale": {
+            "type": "number"
+          },
+          "startFrame": {
+            "type": "number"
+          },
+          "drawDuration": {
+            "type": "number"
+          },
+          "color": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    {
+      "id": "I47",
+      "kind": "icon",
+      "name": "WaveIcon",
+      "importPath": "@/shared/icons",
+      "filePath": "src/shared/icons/nature.tsx",
+      "concepts": [
+        "wave",
+        "wave icon",
+        "nature",
+        "natural",
+        "environment"
+      ],
+      "tags": [
+        "icon",
+        "nature"
+      ],
+      "description": "Hand-drawn wave icon.",
+      "propsSchema": {
+        "type": "object",
+        "required": [
+          "cx",
+          "cy",
+          "startFrame",
+          "drawDuration"
+        ],
+        "properties": {
+          "cx": {
+            "type": "number"
+          },
+          "cy": {
+            "type": "number"
+          },
+          "scale": {
+            "type": "number"
+          },
+          "startFrame": {
+            "type": "number"
+          },
+          "drawDuration": {
+            "type": "number"
+          },
+          "color": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    {
+      "id": "I48",
+      "kind": "icon",
+      "name": "FlameIcon",
+      "importPath": "@/shared/icons",
+      "filePath": "src/shared/icons/nature.tsx",
+      "concepts": [
+        "flame",
+        "flame icon",
+        "nature",
+        "natural",
+        "environment"
+      ],
+      "tags": [
+        "icon",
+        "nature"
+      ],
+      "description": "Hand-drawn flame icon.",
+      "propsSchema": {
+        "type": "object",
+        "required": [
+          "cx",
+          "cy",
+          "startFrame",
+          "drawDuration"
+        ],
+        "properties": {
+          "cx": {
+            "type": "number"
+          },
+          "cy": {
+            "type": "number"
+          },
+          "scale": {
+            "type": "number"
+          },
+          "startFrame": {
+            "type": "number"
+          },
+          "drawDuration": {
+            "type": "number"
+          },
+          "color": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    {
+      "id": "I49",
+      "kind": "icon",
+      "name": "SunIcon",
+      "importPath": "@/shared/icons",
+      "filePath": "src/shared/icons/nature.tsx",
+      "concepts": [
+        "sun",
+        "sun icon",
+        "nature",
+        "natural",
+        "environment"
+      ],
+      "tags": [
+        "icon",
+        "nature"
+      ],
+      "description": "Hand-drawn sun icon.",
+      "propsSchema": {
+        "type": "object",
+        "required": [
+          "cx",
+          "cy",
+          "startFrame",
+          "drawDuration"
+        ],
+        "properties": {
+          "cx": {
+            "type": "number"
+          },
+          "cy": {
+            "type": "number"
+          },
+          "scale": {
+            "type": "number"
+          },
+          "startFrame": {
+            "type": "number"
+          },
+          "drawDuration": {
+            "type": "number"
+          },
+          "color": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    {
+      "id": "I50",
+      "kind": "icon",
+      "name": "MoonIcon",
+      "importPath": "@/shared/icons",
+      "filePath": "src/shared/icons/nature.tsx",
+      "concepts": [
+        "moon",
+        "moon icon",
+        "nature",
+        "natural",
+        "environment"
+      ],
+      "tags": [
+        "icon",
+        "nature"
+      ],
+      "description": "Hand-drawn moon icon.",
+      "propsSchema": {
+        "type": "object",
+        "required": [
+          "cx",
+          "cy",
+          "startFrame",
+          "drawDuration"
+        ],
+        "properties": {
+          "cx": {
+            "type": "number"
+          },
+          "cy": {
+            "type": "number"
+          },
+          "scale": {
+            "type": "number"
+          },
+          "startFrame": {
+            "type": "number"
+          },
+          "drawDuration": {
+            "type": "number"
+          },
+          "color": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    {
+      "id": "I51",
+      "kind": "icon",
+      "name": "FlowerIcon",
+      "importPath": "@/shared/icons",
+      "filePath": "src/shared/icons/objects.tsx",
+      "concepts": [
+        "flower",
+        "flower icon",
+        "object",
+        "item",
+        "thing"
+      ],
+      "tags": [
+        "icon",
+        "objects"
+      ],
+      "description": "Hand-drawn flower icon.",
+      "propsSchema": {
+        "type": "object",
+        "required": [
+          "cx",
+          "cy",
+          "startFrame",
+          "drawDuration"
+        ],
+        "properties": {
+          "cx": {
+            "type": "number"
+          },
+          "cy": {
+            "type": "number"
+          },
+          "scale": {
+            "type": "number"
+          },
+          "startFrame": {
+            "type": "number"
+          },
+          "drawDuration": {
+            "type": "number"
+          },
+          "color": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    {
+      "id": "I52",
+      "kind": "icon",
+      "name": "CompassIcon",
+      "importPath": "@/shared/icons",
+      "filePath": "src/shared/icons/objects.tsx",
+      "concepts": [
+        "compass",
+        "compass icon",
+        "object",
+        "item",
+        "thing"
+      ],
+      "tags": [
+        "icon",
+        "objects"
+      ],
+      "description": "Hand-drawn compass icon.",
+      "propsSchema": {
+        "type": "object",
+        "required": [
+          "cx",
+          "cy",
+          "startFrame",
+          "drawDuration"
+        ],
+        "properties": {
+          "cx": {
+            "type": "number"
+          },
+          "cy": {
+            "type": "number"
+          },
+          "scale": {
+            "type": "number"
+          },
+          "startFrame": {
+            "type": "number"
+          },
+          "drawDuration": {
+            "type": "number"
+          },
+          "color": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    {
+      "id": "I53",
+      "kind": "icon",
+      "name": "RocketIcon",
+      "importPath": "@/shared/icons",
+      "filePath": "src/shared/icons/objects.tsx",
+      "concepts": [
+        "rocket",
+        "rocket icon",
+        "object",
+        "item",
+        "thing"
+      ],
+      "tags": [
+        "icon",
+        "objects"
+      ],
+      "description": "Hand-drawn rocket icon.",
+      "propsSchema": {
+        "type": "object",
+        "required": [
+          "cx",
+          "cy",
+          "startFrame",
+          "drawDuration"
+        ],
+        "properties": {
+          "cx": {
+            "type": "number"
+          },
+          "cy": {
+            "type": "number"
+          },
+          "scale": {
+            "type": "number"
+          },
+          "startFrame": {
+            "type": "number"
+          },
+          "drawDuration": {
+            "type": "number"
+          },
+          "color": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    {
+      "id": "I54",
+      "kind": "icon",
+      "name": "TrophyIcon",
+      "importPath": "@/shared/icons",
+      "filePath": "src/shared/icons/objects.tsx",
+      "concepts": [
+        "trophy",
+        "trophy icon",
+        "object",
+        "item",
+        "thing"
+      ],
+      "tags": [
+        "icon",
+        "objects"
+      ],
+      "description": "Hand-drawn trophy icon.",
+      "propsSchema": {
+        "type": "object",
+        "required": [
+          "cx",
+          "cy",
+          "startFrame",
+          "drawDuration"
+        ],
+        "properties": {
+          "cx": {
+            "type": "number"
+          },
+          "cy": {
+            "type": "number"
+          },
+          "scale": {
+            "type": "number"
+          },
+          "startFrame": {
+            "type": "number"
+          },
+          "drawDuration": {
+            "type": "number"
+          },
+          "color": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    {
+      "id": "I55",
+      "kind": "icon",
+      "name": "CalendarIcon",
+      "importPath": "@/shared/icons",
+      "filePath": "src/shared/icons/objects.tsx",
+      "concepts": [
+        "calendar",
+        "calendar icon",
+        "object",
+        "item",
+        "thing"
+      ],
+      "tags": [
+        "icon",
+        "objects"
+      ],
+      "description": "Hand-drawn calendar icon.",
+      "propsSchema": {
+        "type": "object",
+        "required": [
+          "cx",
+          "cy",
+          "startFrame",
+          "drawDuration"
+        ],
+        "properties": {
+          "cx": {
+            "type": "number"
+          },
+          "cy": {
+            "type": "number"
+          },
+          "scale": {
+            "type": "number"
+          },
+          "startFrame": {
+            "type": "number"
+          },
+          "drawDuration": {
+            "type": "number"
+          },
+          "color": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    {
+      "id": "I56",
+      "kind": "icon",
+      "name": "CameraIcon",
+      "importPath": "@/shared/icons",
+      "filePath": "src/shared/icons/objects.tsx",
+      "concepts": [
+        "camera",
+        "camera icon",
+        "object",
+        "item",
+        "thing"
+      ],
+      "tags": [
+        "icon",
+        "objects"
+      ],
+      "description": "Hand-drawn camera icon.",
+      "propsSchema": {
+        "type": "object",
+        "required": [
+          "cx",
+          "cy",
+          "startFrame",
+          "drawDuration"
+        ],
+        "properties": {
+          "cx": {
+            "type": "number"
+          },
+          "cy": {
+            "type": "number"
+          },
+          "scale": {
+            "type": "number"
+          },
+          "startFrame": {
+            "type": "number"
+          },
+          "drawDuration": {
+            "type": "number"
+          },
+          "color": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    {
+      "id": "I57",
+      "kind": "icon",
+      "name": "MegaphoneIcon",
+      "importPath": "@/shared/icons",
+      "filePath": "src/shared/icons/objects.tsx",
+      "concepts": [
+        "megaphone",
+        "megaphone icon",
+        "object",
+        "item",
+        "thing"
+      ],
+      "tags": [
+        "icon",
+        "objects"
+      ],
+      "description": "Hand-drawn megaphone icon.",
+      "propsSchema": {
+        "type": "object",
+        "required": [
+          "cx",
+          "cy",
+          "startFrame",
+          "drawDuration"
+        ],
+        "properties": {
+          "cx": {
+            "type": "number"
+          },
+          "cy": {
+            "type": "number"
+          },
+          "scale": {
+            "type": "number"
+          },
+          "startFrame": {
+            "type": "number"
+          },
+          "drawDuration": {
+            "type": "number"
+          },
+          "color": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    {
+      "id": "I58",
+      "kind": "icon",
+      "name": "HourglassIcon",
+      "importPath": "@/shared/icons",
+      "filePath": "src/shared/icons/objects.tsx",
+      "concepts": [
+        "hourglass",
+        "hourglass icon",
+        "object",
+        "item",
+        "thing"
+      ],
+      "tags": [
+        "icon",
+        "objects"
+      ],
+      "description": "Hand-drawn hourglass icon.",
+      "propsSchema": {
+        "type": "object",
+        "required": [
+          "cx",
+          "cy",
+          "startFrame",
+          "drawDuration"
+        ],
+        "properties": {
+          "cx": {
+            "type": "number"
+          },
+          "cy": {
+            "type": "number"
+          },
+          "scale": {
+            "type": "number"
+          },
+          "startFrame": {
+            "type": "number"
+          },
+          "drawDuration": {
+            "type": "number"
+          },
+          "color": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    {
+      "id": "I59",
+      "kind": "icon",
+      "name": "AnchorIcon",
+      "importPath": "@/shared/icons",
+      "filePath": "src/shared/icons/objects.tsx",
+      "concepts": [
+        "anchor",
+        "anchor icon",
+        "object",
+        "item",
+        "thing"
+      ],
+      "tags": [
+        "icon",
+        "objects"
+      ],
+      "description": "Hand-drawn anchor icon.",
+      "propsSchema": {
+        "type": "object",
+        "required": [
+          "cx",
+          "cy",
+          "startFrame",
+          "drawDuration"
+        ],
+        "properties": {
+          "cx": {
+            "type": "number"
+          },
+          "cy": {
+            "type": "number"
+          },
+          "scale": {
+            "type": "number"
+          },
+          "startFrame": {
+            "type": "number"
+          },
+          "drawDuration": {
+            "type": "number"
+          },
+          "color": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    {
+      "id": "I60",
+      "kind": "icon",
+      "name": "CrownIcon",
+      "importPath": "@/shared/icons",
+      "filePath": "src/shared/icons/objects.tsx",
+      "concepts": [
+        "crown",
+        "crown icon",
+        "object",
+        "item",
+        "thing"
+      ],
+      "tags": [
+        "icon",
+        "objects"
+      ],
+      "description": "Hand-drawn crown icon.",
+      "propsSchema": {
+        "type": "object",
+        "required": [
+          "cx",
+          "cy",
+          "startFrame",
+          "drawDuration"
+        ],
+        "properties": {
+          "cx": {
+            "type": "number"
+          },
+          "cy": {
+            "type": "number"
+          },
+          "scale": {
+            "type": "number"
+          },
+          "startFrame": {
+            "type": "number"
+          },
+          "drawDuration": {
+            "type": "number"
+          },
+          "color": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    {
+      "id": "I61",
+      "kind": "icon",
+      "name": "ScissorsIcon",
+      "importPath": "@/shared/icons",
+      "filePath": "src/shared/icons/objects.tsx",
+      "concepts": [
+        "scissors",
+        "scissors icon",
+        "object",
+        "item",
+        "thing"
+      ],
+      "tags": [
+        "icon",
+        "objects"
+      ],
+      "description": "Hand-drawn scissors icon.",
+      "propsSchema": {
+        "type": "object",
+        "required": [
+          "cx",
+          "cy",
+          "startFrame",
+          "drawDuration"
+        ],
+        "properties": {
+          "cx": {
+            "type": "number"
+          },
+          "cy": {
+            "type": "number"
+          },
+          "scale": {
+            "type": "number"
+          },
+          "startFrame": {
+            "type": "number"
+          },
+          "drawDuration": {
+            "type": "number"
+          },
+          "color": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    {
+      "id": "I62",
+      "kind": "icon",
+      "name": "GiftIcon",
+      "importPath": "@/shared/icons",
+      "filePath": "src/shared/icons/objects.tsx",
+      "concepts": [
+        "gift",
+        "gift icon",
+        "object",
+        "item",
+        "thing"
+      ],
+      "tags": [
+        "icon",
+        "objects"
+      ],
+      "description": "Hand-drawn gift icon.",
+      "propsSchema": {
+        "type": "object",
+        "required": [
+          "cx",
+          "cy",
+          "startFrame",
+          "drawDuration"
+        ],
+        "properties": {
+          "cx": {
+            "type": "number"
+          },
+          "cy": {
+            "type": "number"
+          },
+          "scale": {
+            "type": "number"
+          },
+          "startFrame": {
+            "type": "number"
+          },
+          "drawDuration": {
+            "type": "number"
+          },
+          "color": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    {
+      "id": "I63",
+      "kind": "icon",
+      "name": "MusicNoteIcon",
+      "importPath": "@/shared/icons",
+      "filePath": "src/shared/icons/objects.tsx",
+      "concepts": [
+        "music note",
+        "music note icon",
+        "object",
+        "item",
+        "thing"
+      ],
+      "tags": [
+        "icon",
+        "objects"
+      ],
+      "description": "Hand-drawn music note icon.",
+      "propsSchema": {
+        "type": "object",
+        "required": [
+          "cx",
+          "cy",
+          "startFrame",
+          "drawDuration"
+        ],
+        "properties": {
+          "cx": {
+            "type": "number"
+          },
+          "cy": {
+            "type": "number"
+          },
+          "scale": {
+            "type": "number"
+          },
+          "startFrame": {
+            "type": "number"
+          },
+          "drawDuration": {
+            "type": "number"
+          },
+          "color": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    {
+      "id": "I64",
+      "kind": "icon",
+      "name": "PaintBrushIcon",
+      "importPath": "@/shared/icons",
+      "filePath": "src/shared/icons/objects.tsx",
+      "concepts": [
+        "paint brush",
+        "paint brush icon",
+        "object",
+        "item",
+        "thing"
+      ],
+      "tags": [
+        "icon",
+        "objects"
+      ],
+      "description": "Hand-drawn paint brush icon.",
+      "propsSchema": {
+        "type": "object",
+        "required": [
+          "cx",
+          "cy",
+          "startFrame",
+          "drawDuration"
+        ],
+        "properties": {
+          "cx": {
+            "type": "number"
+          },
+          "cy": {
+            "type": "number"
+          },
+          "scale": {
+            "type": "number"
+          },
+          "startFrame": {
+            "type": "number"
+          },
+          "drawDuration": {
+            "type": "number"
+          },
+          "color": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    {
+      "id": "I65",
+      "kind": "icon",
+      "name": "PencilIcon",
+      "importPath": "@/shared/icons",
+      "filePath": "src/shared/icons/objects.tsx",
+      "concepts": [
+        "pencil",
+        "pencil icon",
+        "object",
+        "item",
+        "thing"
+      ],
+      "tags": [
+        "icon",
+        "objects"
+      ],
+      "description": "Hand-drawn pencil icon.",
+      "propsSchema": {
+        "type": "object",
+        "required": [
+          "cx",
+          "cy",
+          "startFrame",
+          "drawDuration"
+        ],
+        "properties": {
+          "cx": {
+            "type": "number"
+          },
+          "cy": {
+            "type": "number"
+          },
+          "scale": {
+            "type": "number"
+          },
+          "startFrame": {
+            "type": "number"
+          },
+          "drawDuration": {
+            "type": "number"
+          },
+          "color": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    {
+      "id": "I66",
+      "kind": "icon",
+      "name": "FolderIcon",
+      "importPath": "@/shared/icons",
+      "filePath": "src/shared/icons/objects.tsx",
+      "concepts": [
+        "folder",
+        "folder icon",
+        "object",
+        "item",
+        "thing"
+      ],
+      "tags": [
+        "icon",
+        "objects"
+      ],
+      "description": "Hand-drawn folder icon.",
+      "propsSchema": {
+        "type": "object",
+        "required": [
+          "cx",
+          "cy",
+          "startFrame",
+          "drawDuration"
+        ],
+        "properties": {
+          "cx": {
+            "type": "number"
+          },
+          "cy": {
+            "type": "number"
+          },
+          "scale": {
+            "type": "number"
+          },
+          "startFrame": {
+            "type": "number"
+          },
+          "drawDuration": {
+            "type": "number"
+          },
+          "color": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    {
+      "id": "I67",
+      "kind": "icon",
+      "name": "TrashIcon",
+      "importPath": "@/shared/icons",
+      "filePath": "src/shared/icons/objects.tsx",
+      "concepts": [
+        "trash",
+        "trash icon",
+        "object",
+        "item",
+        "thing"
+      ],
+      "tags": [
+        "icon",
+        "objects"
+      ],
+      "description": "Hand-drawn trash icon.",
+      "propsSchema": {
+        "type": "object",
+        "required": [
+          "cx",
+          "cy",
+          "startFrame",
+          "drawDuration"
+        ],
+        "properties": {
+          "cx": {
+            "type": "number"
+          },
+          "cy": {
+            "type": "number"
+          },
+          "scale": {
+            "type": "number"
+          },
+          "startFrame": {
+            "type": "number"
+          },
+          "drawDuration": {
+            "type": "number"
+          },
+          "color": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    {
+      "id": "I68",
+      "kind": "icon",
+      "name": "TagIcon",
+      "importPath": "@/shared/icons",
+      "filePath": "src/shared/icons/objects.tsx",
+      "concepts": [
+        "tag",
+        "tag icon",
+        "object",
+        "item",
+        "thing"
+      ],
+      "tags": [
+        "icon",
+        "objects"
+      ],
+      "description": "Hand-drawn tag icon.",
+      "propsSchema": {
+        "type": "object",
+        "required": [
+          "cx",
+          "cy",
+          "startFrame",
+          "drawDuration"
+        ],
+        "properties": {
+          "cx": {
+            "type": "number"
+          },
+          "cy": {
+            "type": "number"
+          },
+          "scale": {
+            "type": "number"
+          },
+          "startFrame": {
+            "type": "number"
+          },
+          "drawDuration": {
+            "type": "number"
+          },
+          "color": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    {
+      "id": "I69",
+      "kind": "icon",
+      "name": "MicrophoneIcon",
+      "importPath": "@/shared/icons",
+      "filePath": "src/shared/icons/objects.tsx",
+      "concepts": [
+        "microphone",
+        "microphone icon",
+        "object",
+        "item",
+        "thing"
+      ],
+      "tags": [
+        "icon",
+        "objects"
+      ],
+      "description": "Hand-drawn microphone icon.",
+      "propsSchema": {
+        "type": "object",
+        "required": [
+          "cx",
+          "cy",
+          "startFrame",
+          "drawDuration"
+        ],
+        "properties": {
+          "cx": {
+            "type": "number"
+          },
+          "cy": {
+            "type": "number"
+          },
+          "scale": {
+            "type": "number"
+          },
+          "startFrame": {
+            "type": "number"
+          },
+          "drawDuration": {
+            "type": "number"
+          },
+          "color": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    {
+      "id": "I70",
+      "kind": "icon",
+      "name": "SpeakerIcon",
+      "importPath": "@/shared/icons",
+      "filePath": "src/shared/icons/objects.tsx",
+      "concepts": [
+        "speaker",
+        "speaker icon",
+        "object",
+        "item",
+        "thing"
+      ],
+      "tags": [
+        "icon",
+        "objects"
+      ],
+      "description": "Hand-drawn speaker icon.",
+      "propsSchema": {
+        "type": "object",
+        "required": [
+          "cx",
+          "cy",
+          "startFrame",
+          "drawDuration"
+        ],
+        "properties": {
+          "cx": {
+            "type": "number"
+          },
+          "cy": {
+            "type": "number"
+          },
+          "scale": {
+            "type": "number"
+          },
+          "startFrame": {
+            "type": "number"
+          },
+          "drawDuration": {
+            "type": "number"
+          },
+          "color": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    {
+      "id": "I71",
+      "kind": "icon",
+      "name": "HeadphonesIcon",
+      "importPath": "@/shared/icons",
+      "filePath": "src/shared/icons/objects.tsx",
+      "concepts": [
+        "headphones",
+        "headphones icon",
+        "object",
+        "item",
+        "thing"
+      ],
+      "tags": [
+        "icon",
+        "objects"
+      ],
+      "description": "Hand-drawn headphones icon.",
+      "propsSchema": {
+        "type": "object",
+        "required": [
+          "cx",
+          "cy",
+          "startFrame",
+          "drawDuration"
+        ],
+        "properties": {
+          "cx": {
+            "type": "number"
+          },
+          "cy": {
+            "type": "number"
+          },
+          "scale": {
+            "type": "number"
+          },
+          "startFrame": {
+            "type": "number"
+          },
+          "drawDuration": {
+            "type": "number"
+          },
+          "color": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    {
+      "id": "I72",
+      "kind": "icon",
+      "name": "USBPlugIcon",
+      "importPath": "@/shared/icons",
+      "filePath": "src/shared/icons/objects.tsx",
+      "concepts": [
+        "usb plug",
+        "usb plug icon",
+        "object",
+        "item",
+        "thing"
+      ],
+      "tags": [
+        "icon",
+        "objects"
+      ],
+      "description": "Hand-drawn usb plug icon.",
+      "propsSchema": {
+        "type": "object",
+        "required": [
+          "cx",
+          "cy",
+          "startFrame",
+          "drawDuration"
+        ],
+        "properties": {
+          "cx": {
+            "type": "number"
+          },
+          "cy": {
+            "type": "number"
+          },
+          "scale": {
+            "type": "number"
+          },
+          "startFrame": {
+            "type": "number"
+          },
+          "drawDuration": {
+            "type": "number"
+          },
+          "color": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    {
+      "id": "I73",
+      "kind": "icon",
+      "name": "PersonIcon",
+      "importPath": "@/shared/icons",
+      "filePath": "src/shared/icons/people.tsx",
+      "concepts": [
+        "person",
+        "user",
+        "individual",
+        "human figure",
+        "standing person"
+      ],
+      "tags": [
+        "icon",
+        "people"
+      ],
+      "description": "Hand-drawn standing person — use for user, individual.",
+      "propsSchema": {
+        "type": "object",
+        "required": [
+          "cx",
+          "cy",
+          "startFrame",
+          "drawDuration"
+        ],
+        "properties": {
+          "cx": {
+            "type": "number"
+          },
+          "cy": {
+            "type": "number"
+          },
+          "scale": {
+            "type": "number"
+          },
+          "startFrame": {
+            "type": "number"
+          },
+          "drawDuration": {
+            "type": "number"
+          },
+          "shirtColor": {
+            "type": "string"
+          },
+          "hairColor": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    {
+      "id": "I74",
+      "kind": "icon",
+      "name": "PersonSitting",
+      "importPath": "@/shared/icons",
+      "filePath": "src/shared/icons/people.tsx",
+      "concepts": [
+        "person sitting",
+        "person",
+        "human",
+        "figure"
+      ],
+      "tags": [
+        "icon",
+        "people"
+      ],
+      "description": "Hand-drawn person sitting icon.",
+      "propsSchema": {
+        "type": "object",
+        "required": [
+          "cx",
+          "cy",
+          "startFrame",
+          "drawDuration"
+        ],
+        "properties": {
+          "cx": {
+            "type": "number"
+          },
+          "cy": {
+            "type": "number"
+          },
+          "scale": {
+            "type": "number"
+          },
+          "startFrame": {
+            "type": "number"
+          },
+          "drawDuration": {
+            "type": "number"
+          },
+          "shirtColor": {
+            "type": "string"
+          },
+          "color": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    {
+      "id": "I75",
+      "kind": "icon",
+      "name": "PersonPresenting",
+      "importPath": "@/shared/icons",
+      "filePath": "src/shared/icons/people.tsx",
+      "concepts": [
+        "person presenting",
+        "person",
+        "human",
+        "figure"
+      ],
+      "tags": [
+        "icon",
+        "people"
+      ],
+      "description": "Hand-drawn person presenting icon.",
+      "propsSchema": {
+        "type": "object",
+        "required": [
+          "cx",
+          "cy",
+          "startFrame",
+          "drawDuration"
+        ],
+        "properties": {
+          "cx": {
+            "type": "number"
+          },
+          "cy": {
+            "type": "number"
+          },
+          "scale": {
+            "type": "number"
+          },
+          "startFrame": {
+            "type": "number"
+          },
+          "drawDuration": {
+            "type": "number"
+          },
+          "shirtColor": {
+            "type": "string"
+          },
+          "color": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    {
+      "id": "I76",
+      "kind": "icon",
+      "name": "TwoPersons",
+      "importPath": "@/shared/icons",
+      "filePath": "src/shared/icons/people.tsx",
+      "concepts": [
+        "two persons",
+        "person",
+        "human",
+        "figure"
+      ],
+      "tags": [
+        "icon",
+        "people"
+      ],
+      "description": "Hand-drawn two persons icon.",
+      "propsSchema": {
+        "type": "object",
+        "required": [
+          "cx",
+          "cy",
+          "startFrame",
+          "drawDuration"
+        ],
+        "properties": {
+          "cx": {
+            "type": "number"
+          },
+          "cy": {
+            "type": "number"
+          },
+          "scale": {
+            "type": "number"
+          },
+          "startFrame": {
+            "type": "number"
+          },
+          "drawDuration": {
+            "type": "number"
+          },
+          "color": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    {
+      "id": "I77",
+      "kind": "icon",
+      "name": "TeamGroup",
+      "importPath": "@/shared/icons",
+      "filePath": "src/shared/icons/people.tsx",
+      "concepts": [
+        "team",
+        "group",
+        "collaboration",
+        "people working together",
+        "crew"
+      ],
+      "tags": [
+        "icon",
+        "people"
+      ],
+      "description": "Hand-drawn team of people — use for collaboration, group work.",
+      "propsSchema": {
+        "type": "object",
+        "required": [
+          "cx",
+          "cy",
+          "startFrame",
+          "drawDuration"
+        ],
+        "properties": {
+          "cx": {
+            "type": "number"
+          },
+          "cy": {
+            "type": "number"
+          },
+          "scale": {
+            "type": "number"
+          },
+          "startFrame": {
+            "type": "number"
+          },
+          "drawDuration": {
+            "type": "number"
+          },
+          "color": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    {
+      "id": "I78",
+      "kind": "icon",
+      "name": "FactoryIcon",
+      "importPath": "@/shared/icons",
+      "filePath": "src/shared/icons/places.tsx",
+      "concepts": [
+        "factory",
+        "factory icon",
+        "place",
+        "location",
+        "building"
+      ],
+      "tags": [
+        "icon",
+        "places"
+      ],
+      "description": "Hand-drawn factory icon.",
+      "propsSchema": {
+        "type": "object",
+        "required": [
+          "cx",
+          "cy",
+          "startFrame",
+          "drawDuration"
+        ],
+        "properties": {
+          "cx": {
+            "type": "number"
+          },
+          "cy": {
+            "type": "number"
+          },
+          "scale": {
+            "type": "number"
+          },
+          "startFrame": {
+            "type": "number"
+          },
+          "drawDuration": {
+            "type": "number"
+          },
+          "color": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    {
+      "id": "I79",
+      "kind": "icon",
+      "name": "ShoppingCartIcon",
+      "importPath": "@/shared/icons",
+      "filePath": "src/shared/icons/places.tsx",
+      "concepts": [
+        "shopping cart",
+        "shopping cart icon",
+        "place",
+        "location",
+        "building"
+      ],
+      "tags": [
+        "icon",
+        "places"
+      ],
+      "description": "Hand-drawn shopping cart icon.",
+      "propsSchema": {
+        "type": "object",
+        "required": [
+          "cx",
+          "cy",
+          "startFrame",
+          "drawDuration"
+        ],
+        "properties": {
+          "cx": {
+            "type": "number"
+          },
+          "cy": {
+            "type": "number"
+          },
+          "scale": {
+            "type": "number"
+          },
+          "startFrame": {
+            "type": "number"
+          },
+          "drawDuration": {
+            "type": "number"
+          },
+          "color": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    {
+      "id": "I80",
+      "kind": "icon",
+      "name": "HandshakeIcon",
+      "importPath": "@/shared/icons",
+      "filePath": "src/shared/icons/places.tsx",
+      "concepts": [
+        "handshake",
+        "handshake icon",
+        "place",
+        "location",
+        "building"
+      ],
+      "tags": [
+        "icon",
+        "places"
+      ],
+      "description": "Hand-drawn handshake icon.",
+      "propsSchema": {
+        "type": "object",
+        "required": [
+          "cx",
+          "cy",
+          "startFrame",
+          "drawDuration"
+        ],
+        "properties": {
+          "cx": {
+            "type": "number"
+          },
+          "cy": {
+            "type": "number"
+          },
+          "scale": {
+            "type": "number"
+          },
+          "startFrame": {
+            "type": "number"
+          },
+          "drawDuration": {
+            "type": "number"
+          },
+          "color": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    {
+      "id": "I81",
+      "kind": "icon",
+      "name": "SatelliteIcon",
+      "importPath": "@/shared/icons",
+      "filePath": "src/shared/icons/places.tsx",
+      "concepts": [
+        "satellite",
+        "satellite icon",
+        "place",
+        "location",
+        "building"
+      ],
+      "tags": [
+        "icon",
+        "places"
+      ],
+      "description": "Hand-drawn satellite icon.",
+      "propsSchema": {
+        "type": "object",
+        "required": [
+          "cx",
+          "cy",
+          "startFrame",
+          "drawDuration"
+        ],
+        "properties": {
+          "cx": {
+            "type": "number"
+          },
+          "cy": {
+            "type": "number"
+          },
+          "scale": {
+            "type": "number"
+          },
+          "startFrame": {
+            "type": "number"
+          },
+          "drawDuration": {
+            "type": "number"
+          },
+          "color": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    {
+      "id": "I82",
+      "kind": "icon",
+      "name": "WindmillIcon",
+      "importPath": "@/shared/icons",
+      "filePath": "src/shared/icons/places.tsx",
+      "concepts": [
+        "windmill",
+        "windmill icon",
+        "place",
+        "location",
+        "building"
+      ],
+      "tags": [
+        "icon",
+        "places"
+      ],
+      "description": "Hand-drawn windmill icon.",
+      "propsSchema": {
+        "type": "object",
+        "required": [
+          "cx",
+          "cy",
+          "startFrame",
+          "drawDuration"
+        ],
+        "properties": {
+          "cx": {
+            "type": "number"
+          },
+          "cy": {
+            "type": "number"
+          },
+          "scale": {
+            "type": "number"
+          },
+          "startFrame": {
+            "type": "number"
+          },
+          "drawDuration": {
+            "type": "number"
+          },
+          "color": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    {
+      "id": "I83",
+      "kind": "icon",
+      "name": "RecycleIcon",
+      "importPath": "@/shared/icons",
+      "filePath": "src/shared/icons/places.tsx",
+      "concepts": [
+        "recycle",
+        "recycle icon",
+        "place",
+        "location",
+        "building"
+      ],
+      "tags": [
+        "icon",
+        "places"
+      ],
+      "description": "Hand-drawn recycle icon.",
+      "propsSchema": {
+        "type": "object",
+        "required": [
+          "cx",
+          "cy",
+          "startFrame",
+          "drawDuration"
+        ],
+        "properties": {
+          "cx": {
+            "type": "number"
+          },
+          "cy": {
+            "type": "number"
+          },
+          "scale": {
+            "type": "number"
+          },
+          "startFrame": {
+            "type": "number"
+          },
+          "drawDuration": {
+            "type": "number"
+          },
+          "color": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    {
+      "id": "I84",
+      "kind": "icon",
+      "name": "BridgeIcon",
+      "importPath": "@/shared/icons",
+      "filePath": "src/shared/icons/places.tsx",
+      "concepts": [
+        "bridge",
+        "bridge icon",
+        "place",
+        "location",
+        "building"
+      ],
+      "tags": [
+        "icon",
+        "places"
+      ],
+      "description": "Hand-drawn bridge icon.",
+      "propsSchema": {
+        "type": "object",
+        "required": [
+          "cx",
+          "cy",
+          "startFrame",
+          "drawDuration"
+        ],
+        "properties": {
+          "cx": {
+            "type": "number"
+          },
+          "cy": {
+            "type": "number"
+          },
+          "scale": {
+            "type": "number"
+          },
+          "startFrame": {
+            "type": "number"
+          },
+          "drawDuration": {
+            "type": "number"
+          },
+          "color": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    {
+      "id": "I85",
+      "kind": "icon",
+      "name": "CircuitBoardIcon",
+      "importPath": "@/shared/icons",
+      "filePath": "src/shared/icons/places.tsx",
+      "concepts": [
+        "circuit board",
+        "circuit board icon",
+        "place",
+        "location",
+        "building"
+      ],
+      "tags": [
+        "icon",
+        "places"
+      ],
+      "description": "Hand-drawn circuit board icon.",
+      "propsSchema": {
+        "type": "object",
+        "required": [
+          "cx",
+          "cy",
+          "startFrame",
+          "drawDuration"
+        ],
+        "properties": {
+          "cx": {
+            "type": "number"
+          },
+          "cy": {
+            "type": "number"
+          },
+          "scale": {
+            "type": "number"
+          },
+          "startFrame": {
+            "type": "number"
+          },
+          "drawDuration": {
+            "type": "number"
+          },
+          "color": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    {
+      "id": "I86",
+      "kind": "icon",
+      "name": "DNAEvolutionIcon",
+      "importPath": "@/shared/icons",
+      "filePath": "src/shared/icons/science.tsx",
+      "concepts": [
+        "dna evolution",
+        "dna evolution icon",
+        "science",
+        "scientific",
+        "research"
+      ],
+      "tags": [
+        "icon",
+        "science"
+      ],
+      "description": "Hand-drawn dna evolution icon.",
+      "propsSchema": {
+        "type": "object",
+        "required": [
+          "cx",
+          "cy",
+          "startFrame",
+          "drawDuration"
+        ],
+        "properties": {
+          "cx": {
+            "type": "number"
+          },
+          "cy": {
+            "type": "number"
+          },
+          "scale": {
+            "type": "number"
+          },
+          "startFrame": {
+            "type": "number"
+          },
+          "drawDuration": {
+            "type": "number"
+          },
+          "color": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    {
+      "id": "I87",
+      "kind": "icon",
+      "name": "AtomIcon",
+      "importPath": "@/shared/icons",
+      "filePath": "src/shared/icons/science.tsx",
+      "concepts": [
+        "atom",
+        "atom icon",
+        "science",
+        "scientific",
+        "research"
+      ],
+      "tags": [
+        "icon",
+        "science"
+      ],
+      "description": "Hand-drawn atom icon.",
+      "propsSchema": {
+        "type": "object",
+        "required": [
+          "cx",
+          "cy",
+          "startFrame",
+          "drawDuration"
+        ],
+        "properties": {
+          "cx": {
+            "type": "number"
+          },
+          "cy": {
+            "type": "number"
+          },
+          "scale": {
+            "type": "number"
+          },
+          "startFrame": {
+            "type": "number"
+          },
+          "drawDuration": {
+            "type": "number"
+          },
+          "color": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    {
+      "id": "I88",
+      "kind": "icon",
+      "name": "MicroscopeIcon",
+      "importPath": "@/shared/icons",
+      "filePath": "src/shared/icons/science.tsx",
+      "concepts": [
+        "microscope",
+        "microscope icon",
+        "science",
+        "scientific",
+        "research"
+      ],
+      "tags": [
+        "icon",
+        "science"
+      ],
+      "description": "Hand-drawn microscope icon.",
+      "propsSchema": {
+        "type": "object",
+        "required": [
+          "cx",
+          "cy",
+          "startFrame",
+          "drawDuration"
+        ],
+        "properties": {
+          "cx": {
+            "type": "number"
+          },
+          "cy": {
+            "type": "number"
+          },
+          "scale": {
+            "type": "number"
+          },
+          "startFrame": {
+            "type": "number"
+          },
+          "drawDuration": {
+            "type": "number"
+          },
+          "color": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    {
+      "id": "I89",
+      "kind": "icon",
+      "name": "BeakerIcon",
+      "importPath": "@/shared/icons",
+      "filePath": "src/shared/icons/science.tsx",
+      "concepts": [
+        "beaker",
+        "beaker icon",
+        "science",
+        "scientific",
+        "research"
+      ],
+      "tags": [
+        "icon",
+        "science"
+      ],
+      "description": "Hand-drawn beaker icon.",
+      "propsSchema": {
+        "type": "object",
+        "required": [
+          "cx",
+          "cy",
+          "startFrame",
+          "drawDuration"
+        ],
+        "properties": {
+          "cx": {
+            "type": "number"
+          },
+          "cy": {
+            "type": "number"
+          },
+          "scale": {
+            "type": "number"
+          },
+          "startFrame": {
+            "type": "number"
+          },
+          "drawDuration": {
+            "type": "number"
+          },
+          "color": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    {
+      "id": "I90",
+      "kind": "icon",
+      "name": "MagnetIcon",
+      "importPath": "@/shared/icons",
+      "filePath": "src/shared/icons/science.tsx",
+      "concepts": [
+        "magnet",
+        "magnet icon",
+        "science",
+        "scientific",
+        "research"
+      ],
+      "tags": [
+        "icon",
+        "science"
+      ],
+      "description": "Hand-drawn magnet icon.",
+      "propsSchema": {
+        "type": "object",
+        "required": [
+          "cx",
+          "cy",
+          "startFrame",
+          "drawDuration"
+        ],
+        "properties": {
+          "cx": {
+            "type": "number"
+          },
+          "cy": {
+            "type": "number"
+          },
+          "scale": {
+            "type": "number"
+          },
+          "startFrame": {
+            "type": "number"
+          },
+          "drawDuration": {
+            "type": "number"
+          },
+          "color": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    {
+      "id": "I91",
+      "kind": "icon",
+      "name": "GlobeIcon",
+      "importPath": "@/shared/icons",
+      "filePath": "src/shared/icons/science.tsx",
+      "concepts": [
+        "globe",
+        "globe icon",
+        "science",
+        "scientific",
+        "research"
+      ],
+      "tags": [
+        "icon",
+        "science"
+      ],
+      "description": "Hand-drawn globe icon.",
+      "propsSchema": {
+        "type": "object",
+        "required": [
+          "cx",
+          "cy",
+          "startFrame",
+          "drawDuration"
+        ],
+        "properties": {
+          "cx": {
+            "type": "number"
+          },
+          "cy": {
+            "type": "number"
+          },
+          "scale": {
+            "type": "number"
+          },
+          "startFrame": {
+            "type": "number"
+          },
+          "drawDuration": {
+            "type": "number"
+          },
+          "color": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    {
+      "id": "I92",
+      "kind": "icon",
+      "name": "SmileyIcon",
+      "importPath": "@/shared/icons",
+      "filePath": "src/shared/icons/status.tsx",
+      "concepts": [
+        "smiley",
+        "smiley icon",
+        "status",
+        "state",
+        "feedback"
+      ],
+      "tags": [
+        "icon",
+        "status"
+      ],
+      "description": "Hand-drawn smiley icon.",
+      "propsSchema": {
+        "type": "object",
+        "required": [
+          "cx",
+          "cy",
+          "startFrame",
+          "drawDuration"
+        ],
+        "properties": {
+          "cx": {
+            "type": "number"
+          },
+          "cy": {
+            "type": "number"
+          },
+          "scale": {
+            "type": "number"
+          },
+          "startFrame": {
+            "type": "number"
+          },
+          "drawDuration": {
+            "type": "number"
+          },
+          "color": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    {
+      "id": "I93",
+      "kind": "icon",
+      "name": "ThumbsUpIcon",
+      "importPath": "@/shared/icons",
+      "filePath": "src/shared/icons/status.tsx",
+      "concepts": [
+        "thumbs up",
+        "thumbs up icon",
+        "status",
+        "state",
+        "feedback"
+      ],
+      "tags": [
+        "icon",
+        "status"
+      ],
+      "description": "Hand-drawn thumbs up icon.",
+      "propsSchema": {
+        "type": "object",
+        "required": [
+          "cx",
+          "cy",
+          "startFrame",
+          "drawDuration"
+        ],
+        "properties": {
+          "cx": {
+            "type": "number"
+          },
+          "cy": {
+            "type": "number"
+          },
+          "scale": {
+            "type": "number"
+          },
+          "startFrame": {
+            "type": "number"
+          },
+          "drawDuration": {
+            "type": "number"
+          },
+          "color": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    {
+      "id": "I94",
+      "kind": "icon",
+      "name": "HeartIcon",
+      "importPath": "@/shared/icons",
+      "filePath": "src/shared/icons/status.tsx",
+      "concepts": [
+        "heart",
+        "heart icon",
+        "status",
+        "state",
+        "feedback"
+      ],
+      "tags": [
+        "icon",
+        "status"
+      ],
+      "description": "Hand-drawn heart icon.",
+      "propsSchema": {
+        "type": "object",
+        "required": [
+          "cx",
+          "cy",
+          "startFrame",
+          "drawDuration"
+        ],
+        "properties": {
+          "cx": {
+            "type": "number"
+          },
+          "cy": {
+            "type": "number"
+          },
+          "scale": {
+            "type": "number"
+          },
+          "startFrame": {
+            "type": "number"
+          },
+          "drawDuration": {
+            "type": "number"
+          },
+          "color": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    {
+      "id": "I95",
+      "kind": "icon",
+      "name": "CheckCircleIcon",
+      "importPath": "@/shared/icons",
+      "filePath": "src/shared/icons/status.tsx",
+      "concepts": [
+        "checkmark",
+        "success",
+        "done",
+        "verified",
+        "approved",
+        "confirmed"
+      ],
+      "tags": [
+        "icon",
+        "status"
+      ],
+      "description": "Hand-drawn check inside a circle — use for success, verification.",
+      "propsSchema": {
+        "type": "object",
+        "required": [
+          "cx",
+          "cy",
+          "startFrame",
+          "drawDuration"
+        ],
+        "properties": {
+          "cx": {
+            "type": "number"
+          },
+          "cy": {
+            "type": "number"
+          },
+          "scale": {
+            "type": "number"
+          },
+          "startFrame": {
+            "type": "number"
+          },
+          "drawDuration": {
+            "type": "number"
+          },
+          "color": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    {
+      "id": "I96",
+      "kind": "icon",
+      "name": "InfoCircleIcon",
+      "importPath": "@/shared/icons",
+      "filePath": "src/shared/icons/status.tsx",
+      "concepts": [
+        "info circle",
+        "info circle icon",
+        "status",
+        "state",
+        "feedback"
+      ],
+      "tags": [
+        "icon",
+        "status"
+      ],
+      "description": "Hand-drawn info circle icon.",
+      "propsSchema": {
+        "type": "object",
+        "required": [
+          "cx",
+          "cy",
+          "startFrame",
+          "drawDuration"
+        ],
+        "properties": {
+          "cx": {
+            "type": "number"
+          },
+          "cy": {
+            "type": "number"
+          },
+          "scale": {
+            "type": "number"
+          },
+          "startFrame": {
+            "type": "number"
+          },
+          "drawDuration": {
+            "type": "number"
+          },
+          "color": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    {
+      "id": "I97",
+      "kind": "icon",
+      "name": "NotificationBellIcon",
+      "importPath": "@/shared/icons",
+      "filePath": "src/shared/icons/status.tsx",
+      "concepts": [
+        "notification bell",
+        "notification bell icon",
+        "status",
+        "state",
+        "feedback"
+      ],
+      "tags": [
+        "icon",
+        "status"
+      ],
+      "description": "Hand-drawn notification bell icon.",
+      "propsSchema": {
+        "type": "object",
+        "required": [
+          "cx",
+          "cy",
+          "startFrame",
+          "drawDuration"
+        ],
+        "properties": {
+          "cx": {
+            "type": "number"
+          },
+          "cy": {
+            "type": "number"
+          },
+          "scale": {
+            "type": "number"
+          },
+          "startFrame": {
+            "type": "number"
+          },
+          "drawDuration": {
+            "type": "number"
+          },
+          "color": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    {
+      "id": "I98",
+      "kind": "icon",
+      "name": "ScaleIcon",
+      "importPath": "@/shared/icons",
+      "filePath": "src/shared/icons/structure.tsx",
+      "concepts": [
+        "scale",
+        "scale icon",
+        "structure",
+        "architecture",
+        "layout"
+      ],
+      "tags": [
+        "icon",
+        "structure"
+      ],
+      "description": "Hand-drawn scale icon.",
+      "propsSchema": {
+        "type": "object",
+        "required": [
+          "cx",
+          "cy",
+          "startFrame",
+          "drawDuration"
+        ],
+        "properties": {
+          "cx": {
+            "type": "number"
+          },
+          "cy": {
+            "type": "number"
+          },
+          "scale": {
+            "type": "number"
+          },
+          "startFrame": {
+            "type": "number"
+          },
+          "drawDuration": {
+            "type": "number"
+          },
+          "color": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    {
+      "id": "I99",
+      "kind": "icon",
+      "name": "TreeDiagram",
+      "importPath": "@/shared/icons",
+      "filePath": "src/shared/icons/structure.tsx",
+      "concepts": [
+        "tree diagram",
+        "structure",
+        "architecture",
+        "layout"
+      ],
+      "tags": [
+        "icon",
+        "structure"
+      ],
+      "description": "Hand-drawn tree diagram icon.",
+      "propsSchema": {
+        "type": "object",
+        "required": [
+          "cx",
+          "cy",
+          "startFrame",
+          "drawDuration"
+        ],
+        "properties": {
+          "cx": {
+            "type": "number"
+          },
+          "cy": {
+            "type": "number"
+          },
+          "scale": {
+            "type": "number"
+          },
+          "startFrame": {
+            "type": "number"
+          },
+          "drawDuration": {
+            "type": "number"
+          },
+          "levels": {
+            "type": "array",
+            "items": {
+              "type": "number"
+            }
+          },
+          "color": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    {
+      "id": "I100",
+      "kind": "icon",
+      "name": "StackedLayers",
+      "importPath": "@/shared/icons",
+      "filePath": "src/shared/icons/structure.tsx",
+      "concepts": [
+        "stacked layers",
+        "structure",
+        "architecture",
+        "layout"
+      ],
+      "tags": [
+        "icon",
+        "structure"
+      ],
+      "description": "Hand-drawn stacked layers icon.",
+      "propsSchema": {
+        "type": "object",
+        "required": [
+          "cx",
+          "cy",
+          "startFrame",
+          "drawDuration"
+        ],
+        "properties": {
+          "cx": {
+            "type": "number"
+          },
+          "cy": {
+            "type": "number"
+          },
+          "scale": {
+            "type": "number"
+          },
+          "startFrame": {
+            "type": "number"
+          },
+          "drawDuration": {
+            "type": "number"
+          },
+          "layerCount": {
+            "type": "number"
+          },
+          "color": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    {
+      "id": "I101",
+      "kind": "icon",
+      "name": "NetworkGraph",
+      "importPath": "@/shared/icons",
+      "filePath": "src/shared/icons/structure.tsx",
+      "concepts": [
+        "network",
+        "nodes connected",
+        "graph",
+        "mesh",
+        "topology",
+        "connected nodes"
+      ],
+      "tags": [
+        "icon",
+        "structure"
+      ],
+      "description": "Hand-drawn network of connected nodes.",
+      "propsSchema": {
+        "type": "object",
+        "required": [
+          "cx",
+          "cy",
+          "startFrame",
+          "drawDuration"
+        ],
+        "properties": {
+          "cx": {
+            "type": "number"
+          },
+          "cy": {
+            "type": "number"
+          },
+          "scale": {
+            "type": "number"
+          },
+          "startFrame": {
+            "type": "number"
+          },
+          "drawDuration": {
+            "type": "number"
+          },
+          "nodeCount": {
+            "type": "number"
+          },
+          "color": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    {
+      "id": "I102",
+      "kind": "icon",
+      "name": "BlueprintIcon",
+      "importPath": "@/shared/icons",
+      "filePath": "src/shared/icons/structure.tsx",
+      "concepts": [
+        "blueprint",
+        "blueprint icon",
+        "structure",
+        "architecture",
+        "layout"
+      ],
+      "tags": [
+        "icon",
+        "structure"
+      ],
+      "description": "Hand-drawn blueprint icon.",
+      "propsSchema": {
+        "type": "object",
+        "required": [
+          "cx",
+          "cy",
+          "startFrame",
+          "drawDuration"
+        ],
+        "properties": {
+          "cx": {
+            "type": "number"
+          },
+          "cy": {
+            "type": "number"
+          },
+          "scale": {
+            "type": "number"
+          },
+          "startFrame": {
+            "type": "number"
+          },
+          "drawDuration": {
+            "type": "number"
+          },
+          "color": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    {
+      "id": "I103",
+      "kind": "icon",
+      "name": "RobotHead",
+      "importPath": "@/shared/icons",
+      "filePath": "src/shared/icons/technology.tsx",
+      "concepts": [
+        "robot",
+        "AI agent",
+        "android",
+        "autonomous bot",
+        "machine intelligence"
+      ],
+      "tags": [
+        "icon",
+        "technology",
+        "agents"
+      ],
+      "description": "Hand-drawn robot head — use for AI/agent concepts.",
+      "propsSchema": {
+        "type": "object",
+        "required": [
+          "cx",
+          "cy",
+          "startFrame",
+          "drawDuration"
+        ],
+        "properties": {
+          "cx": {
+            "type": "number"
+          },
+          "cy": {
+            "type": "number"
+          },
+          "scale": {
+            "type": "number"
+          },
+          "startFrame": {
+            "type": "number"
+          },
+          "drawDuration": {
+            "type": "number"
+          },
+          "color": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    {
+      "id": "I104",
+      "kind": "icon",
+      "name": "ToolIcon",
+      "importPath": "@/shared/icons",
+      "filePath": "src/shared/icons/technology.tsx",
+      "concepts": [
+        "tool",
+        "tool icon",
+        "technology",
+        "tech",
+        "device"
+      ],
+      "tags": [
+        "icon",
+        "technology"
+      ],
+      "description": "Hand-drawn tool icon.",
+      "propsSchema": {
+        "type": "object",
+        "required": [
+          "cx",
+          "cy",
+          "startFrame",
+          "drawDuration"
+        ],
+        "properties": {
+          "cx": {
+            "type": "number"
+          },
+          "cy": {
+            "type": "number"
+          },
+          "scale": {
+            "type": "number"
+          },
+          "startFrame": {
+            "type": "number"
+          },
+          "drawDuration": {
+            "type": "number"
+          }
+        }
+      }
+    },
+    {
+      "id": "I105",
+      "kind": "icon",
+      "name": "DatabaseIcon",
+      "importPath": "@/shared/icons",
+      "filePath": "src/shared/icons/technology.tsx",
+      "concepts": [
+        "database",
+        "database icon",
+        "technology",
+        "tech",
+        "device"
+      ],
+      "tags": [
+        "icon",
+        "technology"
+      ],
+      "description": "Hand-drawn database icon.",
+      "propsSchema": {
+        "type": "object",
+        "required": [
+          "cx",
+          "cy",
+          "startFrame",
+          "drawDuration"
+        ],
+        "properties": {
+          "cx": {
+            "type": "number"
+          },
+          "cy": {
+            "type": "number"
+          },
+          "scale": {
+            "type": "number"
+          },
+          "startFrame": {
+            "type": "number"
+          },
+          "drawDuration": {
+            "type": "number"
+          }
+        }
+      }
+    },
+    {
+      "id": "I106",
+      "kind": "icon",
+      "name": "CodeIcon",
+      "importPath": "@/shared/icons",
+      "filePath": "src/shared/icons/technology.tsx",
+      "concepts": [
+        "code",
+        "code icon",
+        "technology",
+        "tech",
+        "device"
+      ],
+      "tags": [
+        "icon",
+        "technology"
+      ],
+      "description": "Hand-drawn code icon.",
+      "propsSchema": {
+        "type": "object",
+        "required": [
+          "cx",
+          "cy",
+          "startFrame",
+          "drawDuration"
+        ],
+        "properties": {
+          "cx": {
+            "type": "number"
+          },
+          "cy": {
+            "type": "number"
+          },
+          "scale": {
+            "type": "number"
+          },
+          "startFrame": {
+            "type": "number"
+          },
+          "drawDuration": {
+            "type": "number"
+          }
+        }
+      }
+    },
+    {
+      "id": "I107",
+      "kind": "icon",
+      "name": "CloudIcon",
+      "importPath": "@/shared/icons",
+      "filePath": "src/shared/icons/technology.tsx",
+      "concepts": [
+        "cloud",
+        "cloud icon",
+        "technology",
+        "tech",
+        "device"
+      ],
+      "tags": [
+        "icon",
+        "technology"
+      ],
+      "description": "Hand-drawn cloud icon.",
+      "propsSchema": {
+        "type": "object",
+        "required": [
+          "cx",
+          "cy",
+          "startFrame",
+          "drawDuration"
+        ],
+        "properties": {
+          "cx": {
+            "type": "number"
+          },
+          "cy": {
+            "type": "number"
+          },
+          "scale": {
+            "type": "number"
+          },
+          "startFrame": {
+            "type": "number"
+          },
+          "drawDuration": {
+            "type": "number"
+          }
+        }
+      }
+    },
+    {
+      "id": "I108",
+      "kind": "icon",
+      "name": "MonitorIcon",
+      "importPath": "@/shared/icons",
+      "filePath": "src/shared/icons/technology.tsx",
+      "concepts": [
+        "monitor",
+        "monitor icon",
+        "technology",
+        "tech",
+        "device"
+      ],
+      "tags": [
+        "icon",
+        "technology"
+      ],
+      "description": "Hand-drawn monitor icon.",
+      "propsSchema": {
+        "type": "object",
+        "required": [
+          "cx",
+          "cy",
+          "startFrame",
+          "drawDuration"
+        ],
+        "properties": {
+          "cx": {
+            "type": "number"
+          },
+          "cy": {
+            "type": "number"
+          },
+          "scale": {
+            "type": "number"
+          },
+          "startFrame": {
+            "type": "number"
+          },
+          "drawDuration": {
+            "type": "number"
+          }
+        }
+      }
+    },
+    {
+      "id": "I109",
+      "kind": "icon",
+      "name": "GearIcon",
+      "importPath": "@/shared/icons",
+      "filePath": "src/shared/icons/technology.tsx",
+      "concepts": [
+        "gear",
+        "settings",
+        "process",
+        "mechanism",
+        "configuration",
+        "cogwheel"
+      ],
+      "tags": [
+        "icon",
+        "technology"
+      ],
+      "description": "Hand-drawn gear — use for settings, process, mechanism.",
+      "propsSchema": {
+        "type": "object",
+        "required": [
+          "cx",
+          "cy",
+          "startFrame",
+          "drawDuration"
+        ],
+        "properties": {
+          "cx": {
+            "type": "number"
+          },
+          "cy": {
+            "type": "number"
+          },
+          "scale": {
+            "type": "number"
+          },
+          "startFrame": {
+            "type": "number"
+          },
+          "drawDuration": {
+            "type": "number"
+          },
+          "color": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    {
+      "id": "I110",
+      "kind": "icon",
+      "name": "KeyboardIcon",
+      "importPath": "@/shared/icons",
+      "filePath": "src/shared/icons/technology.tsx",
+      "concepts": [
+        "keyboard",
+        "keyboard icon",
+        "technology",
+        "tech",
+        "device"
+      ],
+      "tags": [
+        "icon",
+        "technology"
+      ],
+      "description": "Hand-drawn keyboard icon.",
+      "propsSchema": {
+        "type": "object",
+        "required": [
+          "cx",
+          "cy",
+          "startFrame",
+          "drawDuration"
+        ],
+        "properties": {
+          "cx": {
+            "type": "number"
+          },
+          "cy": {
+            "type": "number"
+          },
+          "scale": {
+            "type": "number"
+          },
+          "startFrame": {
+            "type": "number"
+          },
+          "drawDuration": {
+            "type": "number"
+          },
+          "color": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    {
+      "id": "I111",
+      "kind": "icon",
+      "name": "MobilePhone",
+      "importPath": "@/shared/icons",
+      "filePath": "src/shared/icons/technology.tsx",
+      "concepts": [
+        "mobile phone",
+        "technology",
+        "tech",
+        "device"
+      ],
+      "tags": [
+        "icon",
+        "technology"
+      ],
+      "description": "Hand-drawn mobile phone icon.",
+      "propsSchema": {
+        "type": "object",
+        "required": [
+          "cx",
+          "cy",
+          "startFrame",
+          "drawDuration"
+        ],
+        "properties": {
+          "cx": {
+            "type": "number"
+          },
+          "cy": {
+            "type": "number"
+          },
+          "scale": {
+            "type": "number"
+          },
+          "startFrame": {
+            "type": "number"
+          },
+          "drawDuration": {
+            "type": "number"
+          },
+          "color": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    {
+      "id": "I112",
+      "kind": "icon",
+      "name": "ServerRack",
+      "importPath": "@/shared/icons",
+      "filePath": "src/shared/icons/technology.tsx",
+      "concepts": [
+        "server rack",
+        "technology",
+        "tech",
+        "device"
+      ],
+      "tags": [
+        "icon",
+        "technology"
+      ],
+      "description": "Hand-drawn server rack icon.",
+      "propsSchema": {
+        "type": "object",
+        "required": [
+          "cx",
+          "cy",
+          "startFrame",
+          "drawDuration"
+        ],
+        "properties": {
+          "cx": {
+            "type": "number"
+          },
+          "cy": {
+            "type": "number"
+          },
+          "scale": {
+            "type": "number"
+          },
+          "startFrame": {
+            "type": "number"
+          },
+          "drawDuration": {
+            "type": "number"
+          },
+          "color": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    {
+      "id": "I113",
+      "kind": "icon",
+      "name": "EnvelopeIcon",
+      "importPath": "@/shared/icons",
+      "filePath": "src/shared/icons/technology.tsx",
+      "concepts": [
+        "envelope",
+        "mail",
+        "email",
+        "message",
+        "communication",
+        "inbox"
+      ],
+      "tags": [
+        "icon",
+        "technology"
+      ],
+      "description": "Hand-drawn envelope — use for mail, email, messages.",
+      "propsSchema": {
+        "type": "object",
+        "required": [
+          "cx",
+          "cy",
+          "startFrame",
+          "drawDuration"
+        ],
+        "properties": {
+          "cx": {
+            "type": "number"
+          },
+          "cy": {
+            "type": "number"
+          },
+          "scale": {
+            "type": "number"
+          },
+          "startFrame": {
+            "type": "number"
+          },
+          "drawDuration": {
+            "type": "number"
+          },
+          "color": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    {
+      "id": "I114",
+      "kind": "icon",
+      "name": "WiFiSignal",
+      "importPath": "@/shared/icons",
+      "filePath": "src/shared/icons/technology.tsx",
+      "concepts": [
+        "wi fi signal",
+        "technology",
+        "tech",
+        "device"
+      ],
+      "tags": [
+        "icon",
+        "technology"
+      ],
+      "description": "Hand-drawn wi fi signal icon.",
+      "propsSchema": {
+        "type": "object",
+        "required": [
+          "cx",
+          "cy",
+          "startFrame",
+          "drawDuration"
+        ],
+        "properties": {
+          "cx": {
+            "type": "number"
+          },
+          "cy": {
+            "type": "number"
+          },
+          "scale": {
+            "type": "number"
+          },
+          "startFrame": {
+            "type": "number"
+          },
+          "drawDuration": {
+            "type": "number"
+          },
+          "color": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    {
+      "id": "I115",
+      "kind": "icon",
+      "name": "GridIcon",
+      "importPath": "@/shared/icons",
+      "filePath": "src/shared/icons/technology.tsx",
+      "concepts": [
+        "grid",
+        "grid icon",
+        "technology",
+        "tech",
+        "device"
+      ],
+      "tags": [
+        "icon",
+        "technology"
+      ],
+      "description": "Hand-drawn grid icon.",
+      "propsSchema": {
+        "type": "object",
+        "required": [
+          "cx",
+          "cy",
+          "startFrame",
+          "drawDuration"
+        ],
+        "properties": {
+          "cx": {
+            "type": "number"
+          },
+          "cy": {
+            "type": "number"
+          },
+          "scale": {
+            "type": "number"
+          },
+          "startFrame": {
+            "type": "number"
+          },
+          "drawDuration": {
+            "type": "number"
+          },
+          "rows": {
+            "type": "number"
+          },
+          "cols": {
+            "type": "number"
+          },
+          "color": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    {
+      "id": "I116",
+      "kind": "icon",
+      "name": "RadarSensorIcon",
+      "importPath": "@/shared/icons",
+      "filePath": "src/shared/icons/technology.tsx",
+      "concepts": [
+        "radar sensor",
+        "radar sensor icon",
+        "technology",
+        "tech",
+        "device"
+      ],
+      "tags": [
+        "icon",
+        "technology"
+      ],
+      "description": "Hand-drawn radar sensor icon.",
+      "propsSchema": {
+        "type": "object",
+        "required": [
+          "cx",
+          "cy",
+          "startFrame",
+          "drawDuration"
+        ],
+        "properties": {
+          "cx": {
+            "type": "number"
+          },
+          "cy": {
+            "type": "number"
+          },
+          "scale": {
+            "type": "number"
+          },
+          "startFrame": {
+            "type": "number"
+          },
+          "drawDuration": {
+            "type": "number"
+          },
+          "color": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    {
+      "id": "I117",
+      "kind": "icon",
+      "name": "SensorEyeIcon",
+      "importPath": "@/shared/icons",
+      "filePath": "src/shared/icons/technology.tsx",
+      "concepts": [
+        "sensor eye",
+        "sensor eye icon",
+        "technology",
+        "tech",
+        "device"
+      ],
+      "tags": [
+        "icon",
+        "technology"
+      ],
+      "description": "Hand-drawn sensor eye icon.",
+      "propsSchema": {
+        "type": "object",
+        "required": [
+          "cx",
+          "cy",
+          "startFrame",
+          "drawDuration"
+        ],
+        "properties": {
+          "cx": {
+            "type": "number"
+          },
+          "cy": {
+            "type": "number"
+          },
+          "scale": {
+            "type": "number"
+          },
+          "startFrame": {
+            "type": "number"
+          },
+          "drawDuration": {
+            "type": "number"
+          },
+          "color": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    {
+      "id": "I118",
+      "kind": "icon",
+      "name": "CarIcon",
+      "importPath": "@/shared/icons",
+      "filePath": "src/shared/icons/transport.tsx",
+      "concepts": [
+        "car",
+        "car icon",
+        "transport",
+        "vehicle",
+        "movement"
+      ],
+      "tags": [
+        "icon",
+        "transport"
+      ],
+      "description": "Hand-drawn car icon.",
+      "propsSchema": {
+        "type": "object",
+        "required": [
+          "cx",
+          "cy",
+          "startFrame",
+          "drawDuration"
+        ],
+        "properties": {
+          "cx": {
+            "type": "number"
+          },
+          "cy": {
+            "type": "number"
+          },
+          "scale": {
+            "type": "number"
+          },
+          "startFrame": {
+            "type": "number"
+          },
+          "drawDuration": {
+            "type": "number"
+          },
+          "color": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    {
+      "id": "I119",
+      "kind": "icon",
+      "name": "AutonomousCarIcon",
+      "importPath": "@/shared/icons",
+      "filePath": "src/shared/icons/transport.tsx",
+      "concepts": [
+        "autonomous car",
+        "autonomous car icon",
+        "transport",
+        "vehicle",
+        "movement"
+      ],
+      "tags": [
+        "icon",
+        "transport"
+      ],
+      "description": "Hand-drawn autonomous car icon.",
+      "propsSchema": {
+        "type": "object",
+        "required": [
+          "cx",
+          "cy",
+          "startFrame",
+          "drawDuration"
+        ],
+        "properties": {
+          "cx": {
+            "type": "number"
+          },
+          "cy": {
+            "type": "number"
+          },
+          "scale": {
+            "type": "number"
+          },
+          "startFrame": {
+            "type": "number"
+          },
+          "drawDuration": {
+            "type": "number"
+          },
+          "color": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    {
+      "id": "I120",
+      "kind": "icon",
+      "name": "AirplaneIcon",
+      "importPath": "@/shared/icons",
+      "filePath": "src/shared/icons/transport.tsx",
+      "concepts": [
+        "airplane",
+        "airplane icon",
+        "transport",
+        "vehicle",
+        "movement"
+      ],
+      "tags": [
+        "icon",
+        "transport"
+      ],
+      "description": "Hand-drawn airplane icon.",
+      "propsSchema": {
+        "type": "object",
+        "required": [
+          "cx",
+          "cy",
+          "startFrame",
+          "drawDuration"
+        ],
+        "properties": {
+          "cx": {
+            "type": "number"
+          },
+          "cy": {
+            "type": "number"
+          },
+          "scale": {
+            "type": "number"
+          },
+          "startFrame": {
+            "type": "number"
+          },
+          "drawDuration": {
+            "type": "number"
+          },
+          "color": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    {
+      "id": "I121",
+      "kind": "icon",
+      "name": "ShipIcon",
+      "importPath": "@/shared/icons",
+      "filePath": "src/shared/icons/transport.tsx",
+      "concepts": [
+        "ship",
+        "ship icon",
+        "transport",
+        "vehicle",
+        "movement"
+      ],
+      "tags": [
+        "icon",
+        "transport"
+      ],
+      "description": "Hand-drawn ship icon.",
+      "propsSchema": {
+        "type": "object",
+        "required": [
+          "cx",
+          "cy",
+          "startFrame",
+          "drawDuration"
+        ],
+        "properties": {
+          "cx": {
+            "type": "number"
+          },
+          "cy": {
+            "type": "number"
+          },
+          "scale": {
+            "type": "number"
+          },
+          "startFrame": {
+            "type": "number"
+          },
+          "drawDuration": {
+            "type": "number"
+          },
+          "color": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    {
+      "id": "I122",
+      "kind": "icon",
+      "name": "BicycleIcon",
+      "importPath": "@/shared/icons",
+      "filePath": "src/shared/icons/transport.tsx",
+      "concepts": [
+        "bicycle",
+        "bicycle icon",
+        "transport",
+        "vehicle",
+        "movement"
+      ],
+      "tags": [
+        "icon",
+        "transport"
+      ],
+      "description": "Hand-drawn bicycle icon.",
+      "propsSchema": {
+        "type": "object",
+        "required": [
+          "cx",
+          "cy",
+          "startFrame",
+          "drawDuration"
+        ],
+        "properties": {
+          "cx": {
+            "type": "number"
+          },
+          "cy": {
+            "type": "number"
+          },
+          "scale": {
+            "type": "number"
+          },
+          "startFrame": {
+            "type": "number"
+          },
+          "drawDuration": {
+            "type": "number"
+          },
+          "color": {
+            "type": "string"
+          }
+        }
+      }
     }
   ]
 }

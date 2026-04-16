@@ -662,11 +662,15 @@ function patchGeneratedVideoTsx(
   // 3. Import CueProvider.
   code = ensureCueProviderImport(code);
 
-  // 4. Inject the CUE_MAP constant immediately before GeneratedVideo.
-  if (!/\bCUE_MAP\b/.test(code)) {
+  // 4. Inject (or replace) the CUE_MAP constant immediately before GeneratedVideo.
+  const cueMapBlock = renderCueMapConst(cueMap);
+  const existingCueMapRe = /\nconst CUE_MAP: Record<string, number> = \{[\s\S]*?\};\n\n/;
+  if (existingCueMapRe.test(code)) {
+    code = code.replace(existingCueMapRe, cueMapBlock);
+  } else {
     code = code.replace(
       /(export\s+const\s+GeneratedVideo\s*[:=])/,
-      `${renderCueMapConst(cueMap)}$1`,
+      `${cueMapBlock}$1`,
     );
   }
 

@@ -1,5 +1,5 @@
 import React from 'react';
-import { useCurrentFrame, interpolate, AbsoluteFill } from 'remotion';
+import { useCurrentFrame, interpolate, AbsoluteFill, Img } from 'remotion';
 
 // ─── CueContext (narration-driven frame resolution) ──────────────────────────
 // Maps cueId → absolute startFrame. Populated by the post-generation step
@@ -1493,5 +1493,79 @@ export const SketchTable: React.FC<SketchTableProps> = ({
         ))
       )}
     </g>
+  );
+};
+
+// ─── SketchImage (static image with whiteboard-style framing) ────────────────
+
+interface SketchImageProps {
+  src: string;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  startFrame: number;
+  durationFrames?: number;
+  direction?: Direction;
+  borderColor?: string;
+  borderWidth?: number;
+  shadow?: boolean;
+  rotation?: number;
+  objectFit?: 'contain' | 'cover';
+}
+
+export const SketchImage: React.FC<SketchImageProps> = ({
+  src,
+  x,
+  y,
+  width,
+  height,
+  startFrame,
+  durationFrames = 20,
+  direction = 'scale',
+  borderColor = COLORS.outline,
+  borderWidth = 3,
+  shadow = true,
+  rotation = 0,
+  objectFit = 'contain',
+}) => {
+  const frame = useCurrentFrame();
+  const p = interpolate(frame, [startFrame, startFrame + durationFrames], [0, 1], {
+    extrapolateLeft: 'clamp',
+    extrapolateRight: 'clamp',
+  });
+
+  const distance = 20;
+  let animTransform = '';
+  if (direction === 'up') animTransform = `translateY(${(1 - p) * distance}px)`;
+  else if (direction === 'down') animTransform = `translateY(${-(1 - p) * distance}px)`;
+  else if (direction === 'left') animTransform = `translateX(${(1 - p) * distance}px)`;
+  else if (direction === 'right') animTransform = `translateX(${-(1 - p) * distance}px)`;
+  else if (direction === 'scale') animTransform = `scale(${0.85 + p * 0.15})`;
+
+  const rotateTransform = rotation !== 0 ? `rotate(${rotation}deg)` : '';
+  const transform = [animTransform, rotateTransform].filter(Boolean).join(' ');
+
+  return (
+    <div
+      style={{
+        position: 'absolute',
+        left: x,
+        top: y,
+        width,
+        height,
+        opacity: p,
+        transform,
+        border: `${borderWidth}px solid ${borderColor}`,
+        borderRadius: 4,
+        boxShadow: shadow ? '2px 3px 8px rgba(0,0,0,0.10)' : 'none',
+        overflow: 'hidden',
+      }}
+    >
+      <Img
+        src={src}
+        style={{ width: '100%', height: '100%', objectFit, display: 'block' }}
+      />
+    </div>
   );
 };

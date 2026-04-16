@@ -6,7 +6,9 @@
     "generate": "ts-node src/generate.ts",
     "studio": "remotion studio src/index.tsx",
     "studio:generated": "remotion studio src/generated/index.tsx",
-    "render:generated": "remotion render src/generated/index.tsx GeneratedVideo out/generated.mp4",
+    "render:generated": "remotion render src/generated/index.tsx NarratedVideo out/generated.mp4",
+    "render:silent": "remotion render src/generated/index.tsx GeneratedVideo out/generated-silent.mp4",
+    "regenerate-audio": "ts-node scripts/regenerate-audio.ts",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

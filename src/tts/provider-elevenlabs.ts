@@ -8,7 +8,7 @@ import {
 } from './types';
 
 const API_BASE = 'https://api.elevenlabs.io/v1';
-const DEFAULT_VOICE_ID = '21m00Tcm4TlvDq8ikWAM';  // "Rachel"
+const DEFAULT_VOICE_ID = 'bbGtsRRKUfYO634UxSjz';
 const DEFAULT_MODEL = 'eleven_turbo_v2_5';
 const CUE_JOIN = ' ';
 
