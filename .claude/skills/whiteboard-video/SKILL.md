@@ -30,6 +30,22 @@ All element positions MUST be within:
 
 Leave 120px margin on every edge. If you are tempted to place something at x=0 or x=1920, stop — that is outside the safe zone.
 
+## Sizing & clearance — hard constraint
+
+Every icon entry returned by `findAsset` now exposes `defaultBox: { width, height }` — the bounding box at `scale=1` in canvas pixels. With a `scale` prop, the on-canvas bbox is `width*scale × height*scale`, centered at `(cx, cy)`.
+
+**Rules:**
+1. **40 px clearance:** every icon's bounding box must be ≥ 40 px from the bbox of any other icon, `HandWrittenText`, or `SketchBox`. Compute, don't eyeball.
+2. **Icon bbox formula:** `x ∈ [cx − width*scale/2, cx + width*scale/2]`, `y ∈ [cy − height*scale/2, cy + height*scale/2]`. For `SpeechBubble` (parametric), add +14 px below for the tail.
+3. **Text bbox formula:** width ≈ `text.length × fontSize × 0.55` (capped at `maxWidth`). Height ≈ `fontSize × 1.2` (single line) or `lineCount × fontSize × 1.35` when wrapping. Anchor shifts the x origin.
+4. **Diagram clearance:** diagrams like `AgentCoordination` expose `sizingNotes` in the asset registry with an effective-width formula. When placing two diagrams side-by-side, leave ≥ `effectiveWidth/2 + 60` px between their `cx` values. For `AgentCoordination` hierarchical, pass the `maxWidth` prop to constrain leaf span when space is tight.
+
+**The post-generation validator now enforces these rules.** If your layout violates clearances, the validator rejects the TSX and you must retry with corrected positions. Getting it right on the first pass saves a round-trip.
+
+**Concrete failed example:**
+- ❌ `RobotHead` (defaultBox: 63×93) at `scale=2.2` placed at `cy=420` between a title at `y=380` and a subtitle at `y=480`. The icon's 205 px height at scale 2.2 overlaps both text elements. Fix: reduce `scale` to ≤ 1.2, or move the icon 120+ px away from text baselines.
+- ❌ Three `AgentCoordination` diagrams at `cx=350, 960, 1570` with `radius=160`. The hierarchical pattern (4 agents) has `effectiveWidth ≈ 1260 px`, centered at 960, spanning x=330–1590 — overlapping both neighbors. Fix: use `maxWidth={500}` on each, or place only 2 diagrams per scene.
+
 ## Text fit rules
 
 | fontSize | max chars per line at maxWidth=1400 |
@@ -534,6 +550,10 @@ The generator wires Root.tsx to import these, so all MUST be named exports.
 - ❌ A `cue` id used in the tree that is not declared in `narrationCues` (and vice versa)
 - ❌ Placing `SketchImage` inside `<SVG>` (it is an HTML element — place it outside `<SVG>`, inside `<Scene>`)
 - ❌ Including `public/` prefix in `staticFile` paths (`staticFile('generated/C3.png')` not `staticFile('public/generated/C3.png')`)
+- ❌ Icon bbox overlapping a `HandWrittenText` or `SketchBox` bbox within the same scene (compute icon bbox = `defaultBox.width*scale × defaultBox.height*scale` centered at `cx,cy`; check ≥ 40 px clearance)
+- ❌ Placing an icon inside a `SketchBox`'s bounding rectangle (e.g. `SpeechBubble` at `cx=280, cy=360` inside a box starting at `x=140, y=280, width=740`)
+- ❌ Two diagram instances whose effective bboxes overlap (e.g. three `AgentCoordination` at `cx=350/960/1570` with `radius=160` — the hierarchical pattern's effective width is ~1260 px and spills into its neighbors)
+- ❌ A diagram whose computed bbox extends outside the safe zone [120,1800]×[120,960]
 - ❌ Emitting anything outside the single fenced ```tsx code block (no commentary, no headings, no trailing text)
 
 ## Narration cues — required export

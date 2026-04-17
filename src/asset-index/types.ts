@@ -6,6 +6,11 @@ export type AssetKind =
   | 'photo'
   | 'audio';
 
+export interface AssetBox {
+  width: number;
+  height: number;
+}
+
 export interface AssetEntry {
   id: string;
   kind: AssetKind;
@@ -17,6 +22,8 @@ export interface AssetEntry {
   description: string;
   propsSchema?: Record<string, unknown>;
   previewPath?: string;
+  defaultBox?: AssetBox;
+  sizingNotes?: string;
 }
 
 export interface FindAssetQuery {

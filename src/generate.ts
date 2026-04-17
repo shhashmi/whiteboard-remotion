@@ -32,6 +32,20 @@ import {
   generateCuedAudio,
   buildCueTiming,
 } from './tts';
+import {
+  Box,
+  iconBox,
+  textBox,
+  sketchBoxBox,
+  agentCoordinationBox,
+  genericDiagramBox,
+  intersects,
+  inSafeZone,
+  isDiagram,
+  getIconBox,
+  fmtBox,
+  isIcon,
+} from './asset-index/bounds';
 
 const MODEL = 'claude-opus-4-6';
 const MAX_TOKENS = 16384;
@@ -206,59 +220,314 @@ function validateRequiredExports(code: string): string[] {
   return errors;
 }
 
-function validateLayout(code: string): string[] {
+// ── JSX tag parser (brace-balanced, multi-line tolerant) ────────────────────
+// Walks `code` and yields every opening tag whose name passes `accept`. Returns
+// the raw attribute string between `<Name ` and the closing `>` (or `/>`),
+// honoring nested `{ ... }` so JSX expressions don't break the scan.
+
+interface ParsedTag { name: string; attrs: string }
+
+function parseTags(code: string, accept: (name: string) => boolean): ParsedTag[] {
+  const out: ParsedTag[] = [];
+  let i = 0;
+  while (i < code.length) {
+    const lt = code.indexOf('<', i);
+    if (lt < 0) break;
+    const after = code.slice(lt + 1);
+    const m = after.match(/^([A-Z][A-Za-z0-9_]*)\b/);
+    if (!m) { i = lt + 1; continue; }
+    const name = m[1];
+    if (!accept(name)) { i = lt + 1 + m[0].length; continue; }
+    let j = lt + 1 + m[0].length;
+    let depth = 0;
+    let inString = false;
+    let endedAt = -1;
+    while (j < code.length) {
+      const c = code[j];
+      if (!inString && c === '"') { inString = true; }
+      else if (inString && c === '"') { inString = false; }
+      else if (!inString) {
+        if (c === '{') depth++;
+        else if (c === '}') depth--;
+        else if (c === '>' && depth === 0) { endedAt = j; break; }
+      }
+      j++;
+    }
+    if (endedAt < 0) { i = lt + 1; continue; }
+    let attrs = code.slice(lt + 1 + m[0].length, endedAt);
+    if (attrs.endsWith('/')) attrs = attrs.slice(0, -1);
+    out.push({ name, attrs });
+    i = endedAt + 1;
+  }
+  return out;
+}
+
+function numProp(attrs: string, name: string): number | undefined {
+  // matches `name={42}`, `name={-3.5}`, `name="42"`, `name=42`
+  const re = new RegExp(`\\b${name}\\s*=\\s*(?:\\{\\s*(-?\\d+(?:\\.\\d+)?)\\s*\\}|"(-?\\d+(?:\\.\\d+)?)")`);
+  const m = attrs.match(re);
+  if (!m) return undefined;
+  return Number(m[1] ?? m[2]);
+}
+
+function strProp(attrs: string, name: string): string | undefined {
+  const re = new RegExp(`\\b${name}\\s*=\\s*(?:"([^"]*)"|\\{\\s*'([^']*)'\\s*\\}|\\{\\s*"([^"]*)"\\s*\\})`);
+  const m = attrs.match(re);
+  if (!m) return undefined;
+  return m[1] ?? m[2] ?? m[3];
+}
+
+function arrayLengthProp(attrs: string, name: string): number | undefined {
+  const re = new RegExp(`\\b${name}\\s*=\\s*\\{\\s*\\[`);
+  const m = attrs.match(re);
+  if (!m) return undefined;
+  const start = (m.index ?? 0) + m[0].length;
+  let depth = 1;
+  let braceDepth = 0;
+  let commas = 0;
+  let any = false;
+  let hasContentAfterLastComma = false;
+  for (let k = start; k < attrs.length; k++) {
+    const c = attrs[k];
+    if (c === '[' || c === '{') { if (c === '{') braceDepth++; else depth++; }
+    else if (c === '}') braceDepth--;
+    else if (c === ']') {
+      depth--;
+      if (depth === 0) {
+        if (!any) return 0;
+        return hasContentAfterLastComma ? commas + 1 : commas;
+      }
+    }
+    else if (c === ',' && depth === 1 && braceDepth === 0) { commas++; hasContentAfterLastComma = false; }
+    else if (!/\s/.test(c) && depth === 1 && braceDepth === 0) { any = true; hasContentAfterLastComma = true; }
+  }
+  return undefined;
+}
+
+interface RowInfo { text: string; fontSize: number }
+
+function parseRowsProp(attrs: string): RowInfo[] | undefined {
+  const re = /\brows\s*=\s*\{\s*\[/;
+  const m = attrs.match(re);
+  if (!m) return undefined;
+  const start = (m.index ?? 0) + m[0].length;
+  // Find the matching `]` honoring brace depth.
+  let depth = 1;
+  let braceDepth = 0;
+  let end = -1;
+  for (let k = start; k < attrs.length; k++) {
+    const c = attrs[k];
+    if (c === '[') depth++;
+    else if (c === '{') braceDepth++;
+    else if (c === '}') braceDepth--;
+    else if (c === ']') { depth--; if (depth === 0) { end = k; break; } }
+  }
+  if (end < 0) return undefined;
+  const body = attrs.slice(start, end);
+  // Walk objects: split top-level `{ ... }` items.
+  const rows: RowInfo[] = [];
+  let bd = 0, objStart = -1;
+  for (let k = 0; k < body.length; k++) {
+    const c = body[k];
+    if (c === '{') { if (bd === 0) objStart = k + 1; bd++; }
+    else if (c === '}') {
+      bd--;
+      if (bd === 0 && objStart >= 0) {
+        const obj = body.slice(objStart, k);
+        const tm = obj.match(/\btext\s*:\s*['"]([^'"]*)['"]/);
+        const fm = obj.match(/\bfontSize\s*:\s*(\d+(?:\.\d+)?)/);
+        if (tm) rows.push({ text: tm[1], fontSize: fm ? Number(fm[1]) : 32 });
+        objStart = -1;
+      }
+    }
+  }
+  return rows;
+}
+
+// Split the code into per-Scene substrings. Each entry is the full text
+// between a `<Scene ...>` opening and its matching `</Scene>`. Overlap checks
+// only fire within the same scene (different scenes never render at the same
+// frame, so they can't visually collide). Returns the whole file as a single
+// "scene" if no <Scene> tags are present.
+function sliceScenes(code: string): string[] {
+  const slices: string[] = [];
+  const openRe = /<Scene\b/g;
+  let m: RegExpExecArray | null;
+  while ((m = openRe.exec(code)) !== null) {
+    // Walk forward, tracking nested <Scene>...</Scene> just in case.
+    let depth = 1;
+    let i = m.index + m[0].length;
+    while (i < code.length && depth > 0) {
+      const nextOpen = code.indexOf('<Scene', i);
+      const nextClose = code.indexOf('</Scene>', i);
+      if (nextClose < 0) break;
+      if (nextOpen >= 0 && nextOpen < nextClose) {
+        depth++;
+        i = nextOpen + 6;
+      } else {
+        depth--;
+        i = nextClose + 8;
+      }
+    }
+    slices.push(code.slice(m.index, i));
+  }
+  return slices.length > 0 ? slices : [code];
+}
+
+function validateLayoutInScope(code: string): string[] {
   const errors: string[] = [];
 
-  const boxPattern = /<SketchBox\b([^>]*(?:>(?!<\/)|[^>])*)(?:\/>|>)/g;
-  const boxes: Array<{ x: number; y: number; width: number; height: number; hasRows: boolean }> = [];
-
-  let boxMatch;
-  while ((boxMatch = boxPattern.exec(code)) !== null) {
-    const attrs = boxMatch[1];
-    const xm = attrs.match(/\bx\s*=\s*\{?\s*(\d+)/);
-    const ym = attrs.match(/\by\s*=\s*\{?\s*(\d+)/);
-    const wm = attrs.match(/\bwidth\s*=\s*\{?\s*(\d+)/);
-    const hm = attrs.match(/\bheight\s*=\s*\{?\s*(\d+)/);
-    const hasRows = /\brows\s*=/.test(attrs);
-    if (xm && ym && wm) {
-      boxes.push({
-        x: Number(xm[1]),
-        y: Number(ym[1]),
-        width: Number(wm[1]),
-        height: hm ? Number(hm[1]) : 0,
-        hasRows,
-      });
-    }
+  // ── Parse SketchBoxes ────────────────────────────────────────────────────
+  const sketchTags = parseTags(code, (n) => n === 'SketchBox');
+  interface BoxInfo { x: number; y: number; width: number; explicitHeight?: number; rows?: RowInfo[]; padding?: number; gap?: number; box: Box }
+  const boxes: BoxInfo[] = [];
+  for (const t of sketchTags) {
+    const x = numProp(t.attrs, 'x');
+    const y = numProp(t.attrs, 'y');
+    const width = numProp(t.attrs, 'width');
+    if (x === undefined || y === undefined || width === undefined) continue;
+    const explicitHeight = numProp(t.attrs, 'height');
+    const padding = numProp(t.attrs, 'padding');
+    const gap = numProp(t.attrs, 'gap');
+    const rows = parseRowsProp(t.attrs);
+    const box = sketchBoxBox({ x, y, width, height: explicitHeight, rows, padding, gap });
+    boxes.push({ x, y, width, explicitHeight, rows, padding, gap, box });
   }
 
-  const textPattern = /<HandWrittenText\b([^>]*(?:>(?!<\/)|[^>])*)(?:\/>|>)/g;
-  const texts: Array<{ x: number; y: number }> = [];
-
-  let textMatch;
-  while ((textMatch = textPattern.exec(code)) !== null) {
-    const attrs = textMatch[1];
-    const xm = attrs.match(/\bx\s*=\s*\{?\s*(\d+)/);
-    const ym = attrs.match(/\by\s*=\s*\{?\s*(\d+)/);
-    if (xm && ym) {
-      texts.push({ x: Number(xm[1]), y: Number(ym[1]) });
-    }
+  // ── Parse HandWrittenTexts ───────────────────────────────────────────────
+  const textTags = parseTags(code, (n) => n === 'HandWrittenText');
+  interface TextInfo { x: number; y: number; text: string; fontSize: number; box: Box }
+  const texts: TextInfo[] = [];
+  for (const t of textTags) {
+    const x = numProp(t.attrs, 'x');
+    const y = numProp(t.attrs, 'y');
+    const text = strProp(t.attrs, 'text');
+    if (x === undefined || y === undefined || text === undefined) continue;
+    const fontSize = numProp(t.attrs, 'fontSize') ?? 32;
+    const anchor = (strProp(t.attrs, 'textAnchor') as 'start' | 'middle' | 'end') ?? 'middle';
+    const maxWidth = numProp(t.attrs, 'maxWidth');
+    const box = textBox({ text, x, y, fontSize, textAnchor: anchor, maxWidth });
+    texts.push({ x, y, text, fontSize, box });
   }
 
+  // ── Parse Icons (all kind:'icon' assets) ──────────────────────────────────
+  const iconTags = parseTags(code, isIcon);
+  interface IconInfo { name: string; cx: number; cy: number; scale: number; box: Box }
+  const icons: IconInfo[] = [];
+  for (const t of iconTags) {
+    const cx = numProp(t.attrs, 'cx');
+    const cy = numProp(t.attrs, 'cy');
+    if (cx === undefined || cy === undefined) continue;
+    const scale = numProp(t.attrs, 'scale') ?? 1;
+    let b = iconBox(t.name, cx, cy, scale);
+    // Parametric icons (SpeechBubble, etc.) may have explicit width/height props
+    // instead of a registry defaultBox. Construct a box from those.
+    if (!b) {
+      const w = numProp(t.attrs, 'width');
+      const h = numProp(t.attrs, 'height');
+      if (w !== undefined && h !== undefined) {
+        b = { x1: cx - w / 2, y1: cy - h / 2, x2: cx + w / 2, y2: cy + h / 2 + 14 };
+      }
+    }
+    if (!b) continue;
+    icons.push({ name: t.name, cx, cy, scale, box: b });
+  }
+
+  // ── Parse Diagrams ───────────────────────────────────────────────────────
+  const diagramTags = parseTags(code, isDiagram);
+  interface DiagramInfo { name: string; cx: number; cy: number; box: Box }
+  const diagrams: DiagramInfo[] = [];
+  for (const t of diagramTags) {
+    const cx = numProp(t.attrs, 'cx') ?? 960;
+    const cy = numProp(t.attrs, 'cy') ?? 540;
+    let box: Box;
+    if (t.name === 'AgentCoordination') {
+      const radius = numProp(t.attrs, 'radius');
+      const maxWidth = numProp(t.attrs, 'maxWidth');
+      const agents = arrayLengthProp(t.attrs, 'agents');
+      const pattern = strProp(t.attrs, 'pattern') as 'supervisor' | 'hierarchical' | 'peer' | undefined;
+      box = agentCoordinationBox({ cx, cy, radius, agents, pattern, maxWidth });
+    } else {
+      const radius = numProp(t.attrs, 'radius');
+      const width = numProp(t.attrs, 'width');
+      box = genericDiagramBox({ cx, cy, radius, width });
+    }
+    diagrams.push({ name: t.name, cx, cy, box });
+  }
+
+  // ── Existing check: bare HandWrittenText inside a no-rows SketchBox ──────
   for (const t of texts) {
     for (const b of boxes) {
-      if (b.hasRows) continue;
-      if (b.height === 0) continue;
+      if (b.rows) continue;
+      const explicitHeight = b.explicitHeight ?? 0;
+      if (explicitHeight === 0) continue;
       if (t.x >= b.x && t.x <= b.x + b.width &&
-          t.y >= b.y && t.y <= b.y + b.height) {
+          t.y >= b.y && t.y <= b.y + explicitHeight) {
         errors.push(
           `Layout: HandWrittenText at (${t.x},${t.y}) is inside SketchBox ` +
-          `at (${b.x},${b.y}, ${b.width}×${b.height}) which does not use the rows prop. ` +
+          `at (${b.x},${b.y}, ${b.width}×${explicitHeight}) which does not use the rows prop. ` +
           `Use SketchBox's rows prop for auto-layout instead of positioning text manually.`,
         );
       }
     }
   }
 
+  // ── Icon ↔ HandWrittenText overlap ───────────────────────────────────────
+  for (const icon of icons) {
+    for (const t of texts) {
+      if (intersects(icon.box, t.box)) {
+        errors.push(
+          `Layout: ${icon.name} bbox ${fmtBox(icon.box)} (cx=${icon.cx}, cy=${icon.cy}, scale=${icon.scale}) ` +
+          `overlaps HandWrittenText "${t.text.slice(0, 40)}${t.text.length > 40 ? '…' : ''}" bbox ${fmtBox(t.box)}. ` +
+          `Move the icon further from the text or reduce its scale.`,
+        );
+      }
+    }
+  }
+
+  // ── Icon ↔ SketchBox overlap ─────────────────────────────────────────────
+  for (const icon of icons) {
+    for (const b of boxes) {
+      if (intersects(icon.box, b.box)) {
+        errors.push(
+          `Layout: ${icon.name} bbox ${fmtBox(icon.box)} (cx=${icon.cx}, cy=${icon.cy}) ` +
+          `overlaps SketchBox bbox ${fmtBox(b.box)}. ` +
+          `Place the icon outside the box, or include the icon as part of the box's row content.`,
+        );
+      }
+    }
+  }
+
+  // ── Diagram ↔ Diagram overlap ────────────────────────────────────────────
+  for (let i = 0; i < diagrams.length; i++) {
+    for (let j = i + 1; j < diagrams.length; j++) {
+      if (intersects(diagrams[i].box, diagrams[j].box)) {
+        errors.push(
+          `Layout: ${diagrams[i].name} (cx=${diagrams[i].cx}) bbox ${fmtBox(diagrams[i].box)} overlaps ` +
+          `${diagrams[j].name} (cx=${diagrams[j].cx}) bbox ${fmtBox(diagrams[j].box)}. ` +
+          `Increase the gap between cx values, shrink radius, or pass maxWidth to constrain extent.`,
+        );
+      }
+    }
+  }
+
+  // ── Diagram safe-zone overflow ───────────────────────────────────────────
+  for (const d of diagrams) {
+    if (!inSafeZone(d.box)) {
+      errors.push(
+        `Layout: ${d.name} bbox ${fmtBox(d.box)} extends outside safe zone (120,120)→(1800,960). ` +
+        `Move cx/cy inward or shrink radius.`,
+      );
+    }
+  }
+
+  return errors;
+}
+
+function validateLayout(code: string): string[] {
+  const scenes = sliceScenes(code);
+  const errors: string[] = [];
+  for (const scene of scenes) errors.push(...validateLayoutInScope(scene));
   return errors;
 }
 

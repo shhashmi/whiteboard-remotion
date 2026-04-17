@@ -1,4 +1,5 @@
 import type { AssetEntry } from './types';
+import measuredBoxes from './measured-boxes.json';
 
 export const ASSET_REGISTRY: AssetEntry[] = [
   {
@@ -145,9 +146,17 @@ export const ASSET_REGISTRY: AssetEntry[] = [
         cx: { type: 'number' },
         cy: { type: 'number' },
         radius: { type: 'number' },
+        maxWidth: { type: 'number' },
         title: { type: 'string' },
       },
     },
+    sizingNotes:
+      'Centered at (cx, cy). Effective width depends on pattern:\n' +
+      '  • supervisor:    width ≈ 2*radius + 220, height ≈ 2*radius + 96\n' +
+      '  • hierarchical:  width ≈ max(2*radius, agents.length * 260) + 220, height ≈ 2*radius + 96\n' +
+      '  • peer:          width ≈ 2*radius + 220, height ≈ 2*radius + 96\n' +
+      'Add ~140px above (cy - radius - 140) for title text. ' +
+      'Pass `maxWidth` to clamp hierarchical layout when placing multiple diagrams side-by-side.',
   },
   {
     id: 'A5',
@@ -1210,6 +1219,9 @@ export const ASSET_REGISTRY: AssetEntry[] = [
                 }
           }
     },
+    sizingNotes:
+      'Centered at (cx, cy). Bbox = caller-supplied width × (height + ~14 for tail). ' +
+      'No defaultBox — choose width/height to match the content.',
   },
   {
     id: "I7",
@@ -2605,6 +2617,10 @@ export const ASSET_REGISTRY: AssetEntry[] = [
                 }
           }
     },
+    sizingNotes:
+      'Centered at (cx, cy). Width depends on direction & step count:\n' +
+      '  • horizontal: width ≈ steps.length * 100*scale + (steps.length - 1) * 40*scale, height ≈ 36*scale\n' +
+      '  • vertical:   width ≈ 100*scale, height ≈ steps.length * 36*scale + (steps.length - 1) * 40*scale',
   },
   {
     id: "I42",
@@ -2730,6 +2746,9 @@ export const ASSET_REGISTRY: AssetEntry[] = [
                 }
           }
     },
+    sizingNotes:
+      'Line from (x1, y1) to (x2, y2). Bbox = (min(x1,x2), min(y1,y2)) → (max(x1,x2), max(y1,y2)). ' +
+      'No defaultBox — set endpoints directly.',
   },
   {
     id: "I45",
@@ -5787,3 +5806,17 @@ export const ASSET_REGISTRY: AssetEntry[] = [
   },
 // === END auto-generated icon entries ===
 ];
+
+// ── Augment icon entries with measured bounding boxes ───────────────────────
+// `defaultBox` is populated from scripts/measure-asset-boxes.ts output.
+// Re-run that script after icon source changes.
+const MEASURED = measuredBoxes as Record<
+  string,
+  { id: string; name: string; width: number; height: number; parametric?: boolean }
+>;
+for (const entry of ASSET_REGISTRY) {
+  if (entry.kind !== 'icon') continue;
+  const m = MEASURED[entry.id];
+  if (!m || m.parametric) continue;
+  entry.defaultBox = { width: m.width, height: m.height };
+}
