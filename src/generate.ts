@@ -51,6 +51,8 @@ const MODEL = 'claude-opus-4-6';
 const MAX_TOKENS = 16384;
 const PROJECT_ROOT = process.cwd();
 const SKILL_PATH = path.join(PROJECT_ROOT, '.claude/skills/whiteboard-video/SKILL.md');
+const PROMPT_DIR = path.join(PROJECT_ROOT, 'src/prompts');
+const PROMPT_ORDER = ['system.md', 'components.md', 'timing.md', 'planning.md', 'codegen.md'];
 const GENERATED_DIR = path.join(PROJECT_ROOT, 'src/generated');
 const AUDIO_DIR = path.join(PROJECT_ROOT, 'public/audio');
 const OUT_DIR = path.join(PROJECT_ROOT, 'out');
@@ -182,9 +184,18 @@ function parseArgs(): Args {
 
 // ── Skill loader ─────────────────────────────────────────────────────
 
-function loadSkill(): string {
+function loadSystemPrompt(): string {
+  if (fs.existsSync(PROMPT_DIR)) {
+    const missing = PROMPT_ORDER.filter((f) => !fs.existsSync(path.join(PROMPT_DIR, f)));
+    if (missing.length > 0) {
+      throw new Error(`Missing prompt files in ${PROMPT_DIR}: ${missing.join(', ')}`);
+    }
+    return PROMPT_ORDER
+      .map((f) => fs.readFileSync(path.join(PROMPT_DIR, f), 'utf-8').trim())
+      .join('\n\n');
+  }
   if (!fs.existsSync(SKILL_PATH)) {
-    throw new Error(`Skill file not found at ${SKILL_PATH}`);
+    throw new Error(`Neither ${PROMPT_DIR} nor ${SKILL_PATH} found`);
   }
   const raw = fs.readFileSync(SKILL_PATH, 'utf-8');
   return raw.replace(/^---\n[\s\S]*?\n---\n/, '').trim();
@@ -678,7 +689,7 @@ function readCumulativeCost(): { runs: number; inputTokens: number; outputTokens
 // ── Graph nodes ──────────────────────────────────────────────────────
 
 async function generateNode(state: typeof GraphState.State) {
-  const userContent = `Create a whiteboard video on this topic:\n\n${state.prompt}\n\nUse findAsset to discover diagrams/icons, then emit the complete TSX file inside a single \`\`\`tsx code block. Follow the SKILL.md rules exactly.`;
+  const userContent = `Create a whiteboard video on this topic:\n\n${state.prompt}\n\nUse findAsset to discover diagrams/icons, then call submitPlan to validate your layout before emitting the complete TSX file inside a single \`\`\`tsx code block. Follow the system prompt rules exactly.`;
 
   const priorMessages: BaseMessage[] | undefined =
     state.attempt === 0 ? undefined : state.messages;
@@ -1076,8 +1087,9 @@ async function main(): Promise<void> {
     console.log(`▶ TTS:    ${ttsProvider}${ttsVoice ? ` (voice: ${ttsVoice})` : ''}`);
   }
 
-  const skill = loadSkill();
-  console.log(`▶ Skill:  ${skill.length} chars loaded from ${path.relative(PROJECT_ROOT, SKILL_PATH)}`);
+  const skill = loadSystemPrompt();
+  const promptSource = fs.existsSync(PROMPT_DIR) ? path.relative(PROJECT_ROOT, PROMPT_DIR) : path.relative(PROJECT_ROOT, SKILL_PATH);
+  console.log(`▶ Skill:  ${skill.length} chars loaded from ${promptSource}`);
 
   const app = buildGraph();
 

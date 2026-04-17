@@ -44,6 +44,13 @@ export function intersects(a: Box, b: Box): boolean {
   return a.x1 < b.x2 && b.x1 < a.x2 && a.y1 < b.y2 && b.y1 < a.y2;
 }
 
+export function clearance(a: Box, b: Box): number {
+  if (intersects(a, b)) return 0;
+  const dx = Math.max(0, Math.max(a.x1 - b.x2, b.x1 - a.x2));
+  const dy = Math.max(0, Math.max(a.y1 - b.y2, b.y1 - a.y2));
+  return Math.max(dx, dy);
+}
+
 /**
  * Bbox of an icon centered at (cx, cy) and rendered at the given scale.
  * Returns null if the icon has no defaultBox (parametric icon — caller should
