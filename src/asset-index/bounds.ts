@@ -15,6 +15,29 @@ export interface Box {
   y2: number;
 }
 
+/**
+ * A sub-element inside a composite (diagram, complex component). Composites
+ * expose their full layout so the validator can detect child-vs-child and
+ * child-vs-foreign overlaps that an opaque outer bbox would miss.
+ */
+export interface CompositeChild {
+  kind: 'node' | 'edge' | 'text';
+  bbox: Box;
+  label?: string;
+}
+
+/**
+ * Result of a composite component's pure layout function. `error` is set when
+ * fit-to-space constraints can't be satisfied (children would fall below
+ * their registered minima); validator surfaces the message and rejects the
+ * plan. When `error` is set, `children` should be empty.
+ */
+export interface CompositeLayoutResult {
+  outer: Box;
+  children: CompositeChild[];
+  error?: string;
+}
+
 const ICON_BOX_BY_NAME = new Map<string, { width: number; height: number }>();
 for (const e of ASSET_REGISTRY) {
   if (e.kind === 'icon' && e.defaultBox) ICON_BOX_BY_NAME.set(e.name, e.defaultBox);
@@ -130,59 +153,29 @@ const NODE_W = 220;
 const NODE_H = 96;
 
 /**
- * Bbox of an AgentCoordination diagram. Mirrors the layout math in
- * src/shared/diagrams/AgentCoordination.tsx so the validator's prediction
- * tracks what actually renders on canvas. Includes the 140px title space above.
- */
-export function agentCoordinationBox(props: {
-  cx?: number;
-  cy?: number;
-  radius?: number;
-  agents?: string[] | number; // pass count if array elements aren't parsed
-  pattern?: 'supervisor' | 'hierarchical' | 'peer';
-  maxWidth?: number;
-}): Box {
-  const cx = props.cx ?? 960;
-  const cy = props.cy ?? 560;
-  const radius = props.radius ?? 300;
-  const agentCount = typeof props.agents === 'number'
-    ? props.agents
-    : (props.agents?.length ?? 4);
-  const pattern = props.pattern ?? 'supervisor';
-
-  let w: number;
-  if (pattern === 'hierarchical') {
-    const desiredLeafSpan = Math.max(2 * radius, agentCount * (NODE_W + 40));
-    const desiredFullExtent = desiredLeafSpan + NODE_W;
-    const scale = props.maxWidth && desiredFullExtent > props.maxWidth
-      ? props.maxWidth / desiredFullExtent
-      : 1;
-    const leafSpan = desiredLeafSpan * scale;
-    const nodeW = Math.max(120, NODE_W * scale);
-    w = leafSpan + nodeW;
-  } else {
-    // supervisor / peer — nodes arranged on a circle of `radius` around (cx, cy)
-    w = 2 * radius + NODE_W;
-  }
-  return {
-    x1: cx - w / 2,
-    y1: cy - radius - 140 - 30,
-    x2: cx + w / 2,
-    y2: cy + radius + NODE_H / 2,
-  };
-}
-
-/**
- * Generic fallback bbox for diagrams whose layout isn't modelled explicitly.
- * Approximates the diagram as a square of side `2 * radius + NODE_W` centered
- * at (cx, cy). Coarse but better than no check at all.
+ * Generic fallback bbox for diagrams whose layout isn't modelled explicitly
+ * (i.e. not yet retrofitted to the colocated-layout contract). Approximates
+ * the diagram as a rect derived from `width`/`height` or as a square of side
+ * `2 * radius + NODE_W` centered at (cx, cy). Coarse but better than no
+ * check at all.
+ *
+ * Diagrams that have been retrofitted export their own `layout<Name>` pure
+ * function returning a `CompositeLayoutResult`; validator calls those
+ * directly and does not route through this fallback.
  */
 export function genericDiagramBox(props: {
   cx?: number;
   cy?: number;
   radius?: number;
   width?: number;
+  x?: number;
+  y?: number;
+  w?: number;
+  h?: number;
 }): Box {
+  if (props.x !== undefined && props.y !== undefined && props.w !== undefined && props.h !== undefined) {
+    return { x1: props.x, y1: props.y, x2: props.x + props.w, y2: props.y + props.h };
+  }
   const cx = props.cx ?? 960;
   const cy = props.cy ?? 540;
   if (props.width) {

@@ -37,15 +37,15 @@ import {
   iconBox,
   textBox,
   sketchBoxBox,
-  agentCoordinationBox,
   genericDiagramBox,
   intersects,
   inSafeZone,
   isDiagram,
-  getIconBox,
   fmtBox,
   isIcon,
+  type CompositeChild,
 } from './asset-index/bounds';
+import { layoutAgentCoordination } from './shared/diagrams/AgentCoordination';
 
 const MODEL = 'claude-opus-4-6';
 const MAX_TOKENS = 16384;
@@ -446,24 +446,45 @@ function validateLayoutInScope(code: string): string[] {
 
   // ── Parse Diagrams ───────────────────────────────────────────────────────
   const diagramTags = parseTags(code, isDiagram);
-  interface DiagramInfo { name: string; cx: number; cy: number; box: Box }
+  interface DiagramInfo { name: string; cx: number; cy: number; box: Box; children: CompositeChild[] }
   const diagrams: DiagramInfo[] = [];
   for (const t of diagramTags) {
-    const cx = numProp(t.attrs, 'cx') ?? 960;
-    const cy = numProp(t.attrs, 'cy') ?? 540;
     let box: Box;
+    let children: CompositeChild[] = [];
+    let cx: number;
+    let cy: number;
     if (t.name === 'AgentCoordination') {
-      const radius = numProp(t.attrs, 'radius');
-      const maxWidth = numProp(t.attrs, 'maxWidth');
-      const agents = arrayLengthProp(t.attrs, 'agents');
+      const x = numProp(t.attrs, 'x');
+      const y = numProp(t.attrs, 'y');
+      const w = numProp(t.attrs, 'w');
+      const h = numProp(t.attrs, 'h');
       const pattern = strProp(t.attrs, 'pattern') as 'supervisor' | 'hierarchical' | 'peer' | undefined;
-      box = agentCoordinationBox({ cx, cy, radius, agents, pattern, maxWidth });
+      const supervisor = strProp(t.attrs, 'supervisor');
+      const title = strProp(t.attrs, 'title');
+      if (x === undefined || y === undefined || w === undefined || h === undefined) {
+        errors.push(
+          `Layout: AgentCoordination requires {x, y, w, h} (got x=${x}, y=${y}, w=${w}, h=${h}). ` +
+          `The cx/cy/radius/maxWidth API was removed.`,
+        );
+        continue;
+      }
+      const layout = layoutAgentCoordination({ x, y, w, h, pattern, supervisor, title });
+      if (layout.error) {
+        errors.push(`Layout: ${layout.error}`);
+        continue;
+      }
+      box = layout.outer;
+      children = layout.children;
+      cx = x + w / 2;
+      cy = y + h / 2;
     } else {
+      cx = numProp(t.attrs, 'cx') ?? 960;
+      cy = numProp(t.attrs, 'cy') ?? 540;
       const radius = numProp(t.attrs, 'radius');
       const width = numProp(t.attrs, 'width');
       box = genericDiagramBox({ cx, cy, radius, width });
     }
-    diagrams.push({ name: t.name, cx, cy, box });
+    diagrams.push({ name: t.name, cx, cy, box, children });
   }
 
   // ── Existing check: bare HandWrittenText inside a no-rows SketchBox ──────
@@ -482,6 +503,26 @@ function validateLayoutInScope(code: string): string[] {
       }
     }
   }
+
+  // For diagrams with exposed children (retrofitted composites), use the
+  // child bboxes for cross-element collision checks — matches what the plan
+  // validator (submitPlan) does, so the two layers agree.
+  const diagramShapes = diagrams.map((d) => {
+    const visible = d.children.filter((c) => c.kind !== 'edge');
+    if (visible.length > 0) {
+      return {
+        diagram: d,
+        shapes: visible.map((c) => ({
+          bbox: c.bbox,
+          label: `${d.name}${c.label ? ` "${c.label.slice(0, 24)}"` : ''} [${c.kind}]`,
+        })),
+      };
+    }
+    return {
+      diagram: d,
+      shapes: [{ bbox: d.box, label: `${d.name} (cx=${d.cx}, cy=${d.cy})` }],
+    };
+  });
 
   // ── Icon ↔ HandWrittenText overlap ───────────────────────────────────────
   for (const icon of icons) {
@@ -509,15 +550,48 @@ function validateLayoutInScope(code: string): string[] {
     }
   }
 
-  // ── Diagram ↔ Diagram overlap ────────────────────────────────────────────
-  for (let i = 0; i < diagrams.length; i++) {
-    for (let j = i + 1; j < diagrams.length; j++) {
-      if (intersects(diagrams[i].box, diagrams[j].box)) {
-        errors.push(
-          `Layout: ${diagrams[i].name} (cx=${diagrams[i].cx}) bbox ${fmtBox(diagrams[i].box)} overlaps ` +
-          `${diagrams[j].name} (cx=${diagrams[j].cx}) bbox ${fmtBox(diagrams[j].box)}. ` +
-          `Increase the gap between cx values, shrink radius, or pass maxWidth to constrain extent.`,
-        );
+  // ── Icon/Text/SketchBox ↔ diagram children ───────────────────────────────
+  for (const { shapes } of diagramShapes) {
+    for (const s of shapes) {
+      for (const icon of icons) {
+        if (intersects(icon.box, s.bbox)) {
+          errors.push(
+            `Layout: ${icon.name} bbox ${fmtBox(icon.box)} overlaps ${s.label} bbox ${fmtBox(s.bbox)}.`,
+          );
+        }
+      }
+      for (const t of texts) {
+        if (intersects(t.box, s.bbox)) {
+          errors.push(
+            `Layout: HandWrittenText "${t.text.slice(0, 40)}" bbox ${fmtBox(t.box)} ` +
+            `overlaps ${s.label} bbox ${fmtBox(s.bbox)}.`,
+          );
+        }
+      }
+      for (const b of boxes) {
+        if (intersects(b.box, s.bbox)) {
+          errors.push(
+            `Layout: SketchBox bbox ${fmtBox(b.box)} overlaps ${s.label} bbox ${fmtBox(s.bbox)}.`,
+          );
+        }
+      }
+    }
+  }
+
+  // ── Diagram ↔ Diagram overlap (child-aware) ──────────────────────────────
+  for (let i = 0; i < diagramShapes.length; i++) {
+    for (let j = i + 1; j < diagramShapes.length; j++) {
+      const a = diagramShapes[i];
+      const b = diagramShapes[j];
+      for (const as of a.shapes) {
+        for (const bs of b.shapes) {
+          if (intersects(as.bbox, bs.bbox)) {
+            errors.push(
+              `Layout: ${as.label} bbox ${fmtBox(as.bbox)} overlaps ${bs.label} bbox ${fmtBox(bs.bbox)}. ` +
+              `Move the diagrams apart or shrink the placement rect.`,
+            );
+          }
+        }
       }
     }
   }

@@ -4,15 +4,16 @@ import {
   iconBox,
   textBox,
   sketchBoxBox,
-  agentCoordinationBox,
   genericDiagramBox,
-  isDiagram,
   intersects,
   inSafeZone,
   clearance,
   fmtBox,
   type Box,
+  type CompositeChild,
+  type CompositeLayoutResult,
 } from '../../asset-index/bounds';
+import { layoutAgentCoordination } from '../../shared/diagrams/AgentCoordination';
 
 const iconElement = z.object({
   type: z.literal('icon'),
@@ -49,13 +50,22 @@ const sketchboxElement = z.object({
 const diagramElement = z.object({
   type: z.literal('diagram'),
   name: z.string(),
+  // New composite contract: placement rect (required for retrofitted composites).
+  x: z.number().optional(),
+  y: z.number().optional(),
+  w: z.number().optional(),
+  h: z.number().optional(),
+  // Composite-specific content.
+  agents: z.array(z.string()).optional(),
+  agentCount: z.number().optional(),
+  supervisor: z.string().optional(),
+  pattern: z.enum(['supervisor', 'hierarchical', 'peer']).optional(),
+  title: z.string().optional(),
+  // Legacy fields (deprecated; kept for fallback on not-yet-retrofitted diagrams).
   cx: z.number().optional(),
   cy: z.number().optional(),
   radius: z.number().optional(),
   width: z.number().optional(),
-  agents: z.number().optional(),
-  pattern: z.enum(['supervisor', 'hierarchical', 'peer']).optional(),
-  maxWidth: z.number().optional(),
 });
 
 const elementSchema = z.discriminatedUnion('type', [
@@ -81,6 +91,7 @@ const planSchema = z.object({
 });
 
 type Element = z.infer<typeof elementSchema>;
+type DiagramEl = z.infer<typeof diagramElement>;
 
 const MIN_CLEARANCE_PX = 40;
 const MAX_NARRATION_WORDS = 225;
@@ -91,48 +102,87 @@ interface ComputedElement {
   name?: string;
   text?: string;
   bbox: Box;
+  children?: CompositeChild[];
 }
 
-function computeElementBox(el: Element): Box | null {
+/**
+ * Dispatch table for retrofitted composites. Each entry takes the raw
+ * diagram props from the plan and returns a full layout (outer + children +
+ * optional error). Diagrams missing from this table fall back to
+ * `genericDiagramBox` — opaque envelope only.
+ */
+const COMPOSITE_LAYOUTS: Record<string, (el: DiagramEl) => CompositeLayoutResult> = {
+  AgentCoordination: (el) => {
+    if (el.x === undefined || el.y === undefined || el.w === undefined || el.h === undefined) {
+      return {
+        outer: { x1: 0, y1: 0, x2: 0, y2: 0 },
+        children: [],
+        error: 'AgentCoordination now requires {x, y, w, h}; cx/cy/radius/maxWidth are no longer accepted',
+      };
+    }
+    const agents = el.agents
+      ?? (el.agentCount ? Array.from({ length: el.agentCount }, (_, i) => `Agent ${String.fromCharCode(65 + i)}`) : undefined);
+    return layoutAgentCoordination({
+      x: el.x,
+      y: el.y,
+      w: el.w,
+      h: el.h,
+      pattern: el.pattern,
+      agents,
+      supervisor: el.supervisor,
+      title: el.title,
+    });
+  },
+};
+
+function computeElement(el: Element): { bbox: Box; children?: CompositeChild[]; error?: string } | null {
   switch (el.type) {
-    case 'icon':
-      return iconBox(el.name, el.cx, el.cy, el.scale);
+    case 'icon': {
+      const bbox = iconBox(el.name, el.cx, el.cy, el.scale);
+      return bbox ? { bbox } : null;
+    }
     case 'text':
-      return textBox({
-        text: el.text,
-        x: el.x,
-        y: el.y,
-        fontSize: el.fontSize,
-        textAnchor: el.textAnchor ?? 'middle',
-        maxWidth: el.maxWidth,
-      });
+      return {
+        bbox: textBox({
+          text: el.text,
+          x: el.x,
+          y: el.y,
+          fontSize: el.fontSize,
+          textAnchor: el.textAnchor ?? 'middle',
+          maxWidth: el.maxWidth,
+        }),
+      };
     case 'sketchbox':
-      return sketchBoxBox({
-        x: el.x,
-        y: el.y,
-        width: el.width,
-        height: el.height,
-        rows: el.rows,
-        padding: el.padding,
-        gap: el.gap,
-      });
+      return {
+        bbox: sketchBoxBox({
+          x: el.x,
+          y: el.y,
+          width: el.width,
+          height: el.height,
+          rows: el.rows,
+          padding: el.padding,
+          gap: el.gap,
+        }),
+      };
     case 'diagram': {
-      if (el.name === 'AgentCoordination') {
-        return agentCoordinationBox({
+      const layoutFn = COMPOSITE_LAYOUTS[el.name];
+      if (layoutFn) {
+        const result = layoutFn(el);
+        return { bbox: result.outer, children: result.children, error: result.error };
+      }
+      // Fallback for not-yet-retrofitted diagrams.
+      return {
+        bbox: genericDiagramBox({
           cx: el.cx,
           cy: el.cy,
           radius: el.radius,
-          agents: el.agents,
-          pattern: el.pattern,
-          maxWidth: el.maxWidth,
-        });
-      }
-      return genericDiagramBox({
-        cx: el.cx,
-        cy: el.cy,
-        radius: el.radius,
-        width: el.width,
-      });
+          width: el.width,
+          x: el.x,
+          y: el.y,
+          w: el.w,
+          h: el.h,
+        }),
+      };
     }
   }
 }
@@ -146,8 +196,14 @@ function elementLabel(el: Element): string {
     case 'sketchbox':
       return `SketchBox (x=${el.x}, y=${el.y}, w=${el.width})`;
     case 'diagram':
-      return `${el.name} (cx=${el.cx ?? 960}, cy=${el.cy ?? 540})`;
+      return `${el.name} (x=${el.x ?? el.cx}, y=${el.y ?? el.cy}, w=${el.w}, h=${el.h})`;
   }
+}
+
+function childLabel(el: Element, child: CompositeChild): string {
+  const composite = el.type === 'diagram' ? el.name : el.type;
+  const labelPart = child.label ? ` "${child.label.slice(0, 24)}"` : '';
+  return `${composite}${labelPart} [${child.kind}]`;
 }
 
 export const submitPlanTool = defineTool({
@@ -165,11 +221,17 @@ export const submitPlanTool = defineTool({
     }> = [];
 
     for (const scene of plan.scenes) {
-      const computed: Array<{ el: Element; bbox: Box; out: ComputedElement }> = [];
+      interface Entry {
+        el: Element;
+        bbox: Box;
+        children: CompositeChild[];  // empty if not a composite
+        out: ComputedElement;
+      }
+      const entries: Entry[] = [];
 
       for (const el of scene.elements) {
-        const bbox = computeElementBox(el);
-        if (!bbox) {
+        const result = computeElement(el);
+        if (!result) {
           if (el.type === 'icon') {
             errors.push(
               `Scene ${scene.sceneIndex}: ${el.name} has no known defaultBox. ` +
@@ -179,42 +241,79 @@ export const submitPlanTool = defineTool({
           continue;
         }
 
-        const out: ComputedElement = {
-          type: el.type,
-          bbox,
-        };
+        if (result.error) {
+          errors.push(`Scene ${scene.sceneIndex}: ${result.error}`);
+          continue; // don't bother overlap-checking children of a failed composite
+        }
+
+        const out: ComputedElement = { type: el.type, bbox: result.bbox };
         if (el.type === 'icon' || el.type === 'diagram') out.name = el.name;
         if (el.type === 'text') out.text = el.text.slice(0, 40);
+        if (result.children && result.children.length > 0) out.children = result.children;
 
-        if (!inSafeZone(bbox)) {
+        if (!inSafeZone(result.bbox)) {
           errors.push(
-            `Scene ${scene.sceneIndex}: ${elementLabel(el)} bbox ${fmtBox(bbox)} ` +
+            `Scene ${scene.sceneIndex}: ${elementLabel(el)} bbox ${fmtBox(result.bbox)} ` +
             `extends outside safe zone (120,120)->(1800,960). Move inward or reduce scale.`,
           );
         }
 
-        computed.push({ el, bbox, out });
+        entries.push({ el, bbox: result.bbox, children: result.children ?? [], out });
       }
 
-      for (let i = 0; i < computed.length; i++) {
-        for (let j = i + 1; j < computed.length; j++) {
-          const a = computed[i];
-          const b = computed[j];
+      // Cross-element overlap: compare each element's *visible* geometry (children
+      // for composites, outer bbox otherwise) against every other element's.
+      // Within a single composite, children also check against each other (so
+      // crowded internal layouts surface even when the outer envelope is clean).
+      for (let i = 0; i < entries.length; i++) {
+        const a = entries[i];
+        const aShapes: Array<{ bbox: Box; label: string }> = a.children.length > 0
+          ? a.children
+              .filter((c) => c.kind !== 'edge')
+              .map((c) => ({ bbox: c.bbox, label: childLabel(a.el, c) }))
+          : [{ bbox: a.bbox, label: elementLabel(a.el) }];
 
-          if (intersects(a.bbox, b.bbox)) {
-            errors.push(
-              `Scene ${scene.sceneIndex}: ${elementLabel(a.el)} bbox ${fmtBox(a.bbox)} ` +
-              `overlaps ${elementLabel(b.el)} bbox ${fmtBox(b.bbox)}. ` +
-              `Move them apart or reduce scale.`,
-            );
-          } else {
-            const gap = clearance(a.bbox, b.bbox);
-            if (gap < MIN_CLEARANCE_PX) {
-              errors.push(
-                `Scene ${scene.sceneIndex}: ${elementLabel(a.el)} bbox ${fmtBox(a.bbox)} ` +
-                `is only ${Math.round(gap)}px from ${elementLabel(b.el)} bbox ${fmtBox(b.bbox)}. ` +
-                `Need >= ${MIN_CLEARANCE_PX}px clearance.`,
-              );
+        // a's children vs. each other (only meaningful for composites).
+        if (a.children.length > 0) {
+          for (let s = 0; s < aShapes.length; s++) {
+            for (let t = s + 1; t < aShapes.length; t++) {
+              if (intersects(aShapes[s].bbox, aShapes[t].bbox)) {
+                errors.push(
+                  `Scene ${scene.sceneIndex}: inside ${elementLabel(a.el)}, ` +
+                  `${aShapes[s].label} bbox ${fmtBox(aShapes[s].bbox)} ` +
+                  `overlaps ${aShapes[t].label} bbox ${fmtBox(aShapes[t].bbox)}.`,
+                );
+              }
+            }
+          }
+        }
+
+        for (let j = i + 1; j < entries.length; j++) {
+          const b = entries[j];
+          const bShapes: Array<{ bbox: Box; label: string }> = b.children.length > 0
+            ? b.children
+                .filter((c) => c.kind !== 'edge')
+                .map((c) => ({ bbox: c.bbox, label: childLabel(b.el, c) }))
+            : [{ bbox: b.bbox, label: elementLabel(b.el) }];
+
+          for (const as of aShapes) {
+            for (const bs of bShapes) {
+              if (intersects(as.bbox, bs.bbox)) {
+                errors.push(
+                  `Scene ${scene.sceneIndex}: ${as.label} bbox ${fmtBox(as.bbox)} ` +
+                  `overlaps ${bs.label} bbox ${fmtBox(bs.bbox)}. ` +
+                  `Move them apart or reduce scale.`,
+                );
+              } else {
+                const gap = clearance(as.bbox, bs.bbox);
+                if (gap < MIN_CLEARANCE_PX) {
+                  errors.push(
+                    `Scene ${scene.sceneIndex}: ${as.label} bbox ${fmtBox(as.bbox)} ` +
+                    `is only ${Math.round(gap)}px from ${bs.label} bbox ${fmtBox(bs.bbox)}. ` +
+                    `Need >= ${MIN_CLEARANCE_PX}px clearance.`,
+                  );
+                }
+              }
             }
           }
         }
@@ -222,7 +321,7 @@ export const submitPlanTool = defineTool({
 
       computedScenes.push({
         sceneIndex: scene.sceneIndex,
-        elements: computed.map((c) => c.out),
+        elements: entries.map((e) => e.out),
       });
     }
 

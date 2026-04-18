@@ -51,9 +51,10 @@ export const GovernanceEvolution: React.FC<GovernanceEvolutionProps> = ({
         <AgentCoordination
           startFrame={startFrame + 80}
           pattern={patternForStage(currentStage)}
-          cx={960}
-          cy={680}
-          radius={220}
+          x={420}
+          y={420}
+          w={1080}
+          h={520}
           agents={['Team A', 'Team B', 'Team C', 'Team D']}
           supervisor="Platform"
         />

@@ -11,6 +11,40 @@ import { COLORS } from '../theme';
 
 export type GraphNodeShape = 'box' | 'circle' | 'diamond';
 
+const CHAR_WIDTH_FACTOR = 0.55;  // mirrors HandWrittenText wrap math in bounds.ts::textBox
+const NODE_PADDING_RATIO = 0.1;  // 10% of nodeW reserved as horizontal padding
+
+export const FIT_FONT_NOT_POSSIBLE = -1 as const;
+
+/**
+ * Return the largest font size in [minFontSize, defaultFontSize] at which
+ * `label` fits inside a (width × height) node box, or FIT_FONT_NOT_POSSIBLE
+ * if the label cannot fit even at minFontSize.
+ *
+ * Used by composite layout functions to decide whether to render at all.
+ * Same measurement math is used at render time by GraphNode so the
+ * validator's fit check matches what actually draws.
+ */
+export function fitFontSizeToNode(
+  label: string,
+  width: number,
+  height: number,
+  opts: { defaultFontSize?: number; minFontSize?: number } = {},
+): number {
+  const defaultFontSize = opts.defaultFontSize ?? 36;
+  const minFontSize = opts.minFontSize ?? 18;
+  const padding = Math.max(4, width * NODE_PADDING_RATIO);
+  const availW = Math.max(0, width - 2 * padding);
+  const availH = Math.max(0, height - 2 * padding);
+  const textW = label.length * CHAR_WIDTH_FACTOR;
+  if (textW <= 0) return defaultFontSize;
+  const byWidth = availW / textW;
+  const byHeight = availH / 1.2;
+  const fit = Math.min(defaultFontSize, byWidth, byHeight);
+  if (fit < minFontSize) return FIT_FONT_NOT_POSSIBLE;
+  return Math.floor(fit);
+}
+
 export interface GraphNodeProps {
   x: number;
   y: number;
@@ -44,14 +78,20 @@ export const GraphNode: React.FC<GraphNodeProps> = ({
   labelColor,
   rx = 12,
 }) => {
+  // Auto-fit the label so a caller-supplied fontSize that exceeds the node's
+  // available width/height gets shrunk to fit instead of visibly overflowing
+  // into the neighbor. Floors at the library-wide minimum legible font size.
+  const fitted = fitFontSizeToNode(label, width, height, { defaultFontSize: fontSize, minFontSize: 18 });
+  const effectiveFontSize = fitted === FIT_FONT_NOT_POSSIBLE ? 18 : fitted;
+
   const labelElement = (
     <HandWrittenText
       text={label}
       x={x}
-      y={y + fontSize * 0.18}
+      y={y + effectiveFontSize * 0.18}
       startFrame={startFrame + 5}
       durationFrames={18}
-      fontSize={fontSize}
+      fontSize={effectiveFontSize}
       fill={labelColor ?? stroke}
       textAnchor="middle"
       baseline="auto"

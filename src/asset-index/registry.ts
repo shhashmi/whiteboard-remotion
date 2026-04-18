@@ -136,27 +136,32 @@ export const ASSET_REGISTRY: AssetEntry[] = [
     previewPath: 'src/asset-index/previews/A4.png',
     propsSchema: {
       type: 'object',
-      required: ['startFrame'],
+      required: ['startFrame', 'x', 'y', 'w', 'h'],
       properties: {
         startFrame: { type: 'number' },
         drawDuration: { type: 'number', default: 20 },
+        x: { type: 'number' },
+        y: { type: 'number' },
+        w: { type: 'number' },
+        h: { type: 'number' },
         pattern: { type: 'string', enum: ['supervisor', 'hierarchical', 'peer'] },
         agents: { type: 'array', items: { type: 'string' } },
         supervisor: { type: 'string' },
-        cx: { type: 'number' },
-        cy: { type: 'number' },
-        radius: { type: 'number' },
-        maxWidth: { type: 'number' },
         title: { type: 'string' },
       },
     },
     sizingNotes:
-      'Centered at (cx, cy). Effective width depends on pattern:\n' +
-      '  • supervisor:    width ≈ 2*radius + 220, height ≈ 2*radius + 96\n' +
-      '  • hierarchical:  width ≈ max(2*radius, agents.length * 260) + 220, height ≈ 2*radius + 96\n' +
-      '  • peer:          width ≈ 2*radius + 220, height ≈ 2*radius + 96\n' +
-      'Add ~140px above (cy - radius - 140) for title text. ' +
-      'Pass `maxWidth` to clamp hierarchical layout when placing multiple diagrams side-by-side.',
+      'Accepts a placement rect {x, y, w, h}; the component owns its own ' +
+      'internal layout and auto-fits nodes + labels to fit the rect. ' +
+      'Ballpark minimum rect side for 4 agents + title (scales with label length):\n' +
+      '  • supervisor:    ~490 (satellites on a circle around center)\n' +
+      '  • hierarchical:  ~550 default labels / ~650 long labels (3 rows: root → 2 leads → n leaves)\n' +
+      '  • peer:          ~320 short / ~520 long (fully-connected circle)\n' +
+      'If `title` is set, +56 px is reserved at the top of the rect. ' +
+      'If the rect is too small for the selected pattern × agent count × label length, ' +
+      'the layout returns a rejection error at validation time — submitPlan will ' +
+      'tell you the exact minimum needed. Nodes + labels scale together; there is ' +
+      'no silent overflow floor.',
   },
   {
     id: 'A5',

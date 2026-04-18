@@ -131,7 +131,7 @@ The generator wires Root.tsx to import these, so all MUST be named exports.
 - ❌ Including `public/` prefix in `staticFile` paths (`staticFile('generated/C3.png')` not `staticFile('public/generated/C3.png')`)
 - ❌ Icon bbox overlapping a `HandWrittenText` or `SketchBox` bbox within the same scene (compute icon bbox = `defaultBox.width*scale × defaultBox.height*scale` centered at `cx,cy`; check ≥ 40 px clearance)
 - ❌ Placing an icon inside a `SketchBox`'s bounding rectangle (e.g. `SpeechBubble` at `cx=280, cy=360` inside a box starting at `x=140, y=280, width=740`)
-- ❌ Two diagram instances whose effective bboxes overlap (e.g. three `AgentCoordination` at `cx=350/960/1570` with `radius=160` — the hierarchical pattern's effective width is ~1260 px and spills into its neighbors)
+- ❌ Two diagram instances whose placement rects overlap (e.g. two `AgentCoordination` each with `{x:200, w:1200}` — their rects both span x=200..1400 and overlap). Retrofitted composites use `{x, y, w, h}`; each rect must be non-overlapping and meet the composite's minimum per `sizingNotes`. Non-retrofitted diagrams still use legacy `{cx, cy, radius}`.
 - ❌ A diagram whose computed bbox extends outside the safe zone [120,1800]×[120,960]
 - ❌ Emitting anything outside the single fenced ```tsx code block (no commentary, no headings, no trailing text)
 

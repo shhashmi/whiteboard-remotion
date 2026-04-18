@@ -44,6 +44,10 @@ export const A4Test: React.FC = () => (
     <SVG>
       <AgentCoordination
         startFrame={0}
+        x={360}
+        y={140}
+        w={1200}
+        h={800}
         pattern="supervisor"
         title="Supervisor Pattern"
         agents={['Researcher', 'Coder', 'Reviewer', 'Tester']}
@@ -57,6 +61,10 @@ export const A4HierTest: React.FC = () => (
     <SVG>
       <AgentCoordination
         startFrame={0}
+        x={240}
+        y={140}
+        w={1440}
+        h={800}
         pattern="hierarchical"
         title="Hierarchical Pattern"
       />
@@ -69,6 +77,10 @@ export const A4PeerTest: React.FC = () => (
     <SVG>
       <AgentCoordination
         startFrame={0}
+        x={360}
+        y={140}
+        w={1200}
+        h={800}
         pattern="peer"
         title="Peer-to-Peer Pattern"
       />

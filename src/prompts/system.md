@@ -33,13 +33,13 @@ Every icon entry returned by `findAsset` now exposes `defaultBox: { width, heigh
 1. **40 px clearance:** every icon's bounding box must be ≥ 40 px from the bbox of any other icon, `HandWrittenText`, or `SketchBox`. Compute, don't eyeball.
 2. **Icon bbox formula:** `x ∈ [cx − width*scale/2, cx + width*scale/2]`, `y ∈ [cy − height*scale/2, cy + height*scale/2]`. For `SpeechBubble` (parametric), add +14 px below for the tail.
 3. **Text bbox formula:** width ≈ `text.length × fontSize × 0.55` (capped at `maxWidth`). Height ≈ `fontSize × 1.2` (single line) or `lineCount × fontSize × 1.35` when wrapping. Anchor shifts the x origin.
-4. **Diagram clearance:** diagrams like `AgentCoordination` expose `sizingNotes` in the asset registry with an effective-width formula. When placing two diagrams side-by-side, leave ≥ `effectiveWidth/2 + 60` px between their `cx` values. For `AgentCoordination` hierarchical, pass the `maxWidth` prop to constrain leaf span when space is tight.
+4. **Diagrams take a placement rect, not (cx, cy, radius).** Retrofitted composites (currently `AgentCoordination`) accept `{x, y, w, h}` describing the area they may fill; they auto-fit their internal nodes and labels to the rect. Check `sizingNotes` in the asset registry for each composite's **minimum rect size** per pattern × agent count. If you provide a rect smaller than the minimum, the validator rejects the plan — resize the rect, choose a simpler pattern, or shorten labels. Non-retrofitted diagrams still use the legacy (cx, cy, radius) props.
 
 **The post-generation validator now enforces these rules.** If your layout violates clearances, the validator rejects the TSX and you must retry with corrected positions. Getting it right on the first pass saves a round-trip.
 
 **Concrete failed example:**
 - ❌ `RobotHead` (defaultBox: 63×93) at `scale=2.2` placed at `cy=420` between a title at `y=380` and a subtitle at `y=480`. The icon's 205 px height at scale 2.2 overlaps both text elements. Fix: reduce `scale` to ≤ 1.2, or move the icon 120+ px away from text baselines.
-- ❌ Three `AgentCoordination` diagrams at `cx=350, 960, 1570` with `radius=160`. The hierarchical pattern (4 agents) has `effectiveWidth ≈ 1260 px`, centered at 960, spanning x=330–1590 — overlapping both neighbors. Fix: use `maxWidth={500}` on each, or place only 2 diagrams per scene.
+- ❌ Two `AgentCoordination` side-by-side with `w=550` each and the hierarchical pattern (4 agents). Each diagram needs `w ≥ 560` for 4 agents at the default label length; the validator rejects with the concrete min value. Fix: widen to `w=640`, or drop one label ('Worker 2' → 'Worker').
 
 ## Text fit rules
 
