@@ -37,7 +37,6 @@ import {
   iconBox,
   textBox,
   sketchBoxBox,
-  genericDiagramBox,
   intersects,
   inSafeZone,
   isDiagram,
@@ -46,6 +45,25 @@ import {
   type CompositeChild,
 } from './asset-index/bounds';
 import { layoutAgentCoordination } from './shared/diagrams/AgentCoordination';
+import { layoutTradeoffMatrix } from './shared/diagrams/TradeoffMatrix';
+import { layoutTradeoffTriangle } from './shared/diagrams/TradeoffTriangle';
+import { layoutLineChart } from './shared/diagrams/LineChart';
+import { layoutAnnotationHighlight } from './shared/diagrams/AnnotationHighlight';
+import { layoutCodeBlock } from './shared/diagrams/CodeBlock';
+import { layoutAutonomySpectrum } from './shared/diagrams/AutonomySpectrum';
+import { layoutMemoryArchitecture } from './shared/diagrams/MemoryArchitecture';
+import { layoutReActLoop } from './shared/diagrams/ReActLoop';
+import { layoutGeneratorCriticLoop } from './shared/diagrams/GeneratorCriticLoop';
+import { layoutChainOfThoughtTrace } from './shared/diagrams/ChainOfThoughtTrace';
+import { layoutComparisonTable } from './shared/diagrams/ComparisonTable';
+import { layoutMaturityProgression } from './shared/diagrams/MaturityProgression';
+import { layoutFlowchartBuilder, type FlowNode } from './shared/diagrams/FlowchartBuilder';
+import { layoutFunctionCallingLifecycle } from './shared/diagrams/FunctionCallingLifecycle';
+import { layoutErrorBackoffFlow } from './shared/diagrams/ErrorBackoffFlow';
+import { layoutMemoryConsolidationFlow } from './shared/diagrams/MemoryConsolidationFlow';
+import { layoutEntityRelationshipGraph } from './shared/diagrams/EntityRelationshipGraph';
+import { layoutGovernanceEvolution } from './shared/diagrams/GovernanceEvolution';
+import type { CompositeLayoutResult } from './asset-index/bounds';
 
 const MODEL = 'claude-opus-4-6';
 const MAX_TOKENS = 16384;
@@ -288,6 +306,16 @@ function strProp(attrs: string, name: string): string | undefined {
   return m[1] ?? m[2] ?? m[3];
 }
 
+function boolProp(attrs: string, name: string): boolean | undefined {
+  // Matches bare `name` (implicit true), `name={true}`, `name={false}`, `name="true"`, etc.
+  const explicit = new RegExp(`\\b${name}\\s*=\\s*(?:\\{\\s*(true|false)\\s*\\}|"(true|false)")`);
+  const m = attrs.match(explicit);
+  if (m) return (m[1] ?? m[2]) === 'true';
+  const bare = new RegExp(`\\b${name}\\b(?!\\s*=)`);
+  if (bare.test(attrs)) return true;
+  return undefined;
+}
+
 function arrayLengthProp(attrs: string, name: string): number | undefined {
   const re = new RegExp(`\\b${name}\\s*=\\s*\\{\\s*\\[`);
   const m = attrs.match(re);
@@ -448,27 +476,227 @@ function validateLayoutInScope(code: string): string[] {
   const diagramTags = parseTags(code, isDiagram);
   interface DiagramInfo { name: string; cx: number; cy: number; box: Box; children: CompositeChild[] }
   const diagrams: DiagramInfo[] = [];
+
+  // Every registered composite takes {x, y, w, h} and dispatches to its
+  // colocated layout function here. An unknown diagram name produces a layout
+  // error — all registry entries are expected to have a matching entry.
+  type RectLayoutFn = (r: { x: number; y: number; w: number; h: number; attrs: string }) => CompositeLayoutResult;
+  const RECT_COMPOSITE_LAYOUTS: Record<string, RectLayoutFn> = {
+    AgentCoordination: ({ x, y, w, h, attrs }) => layoutAgentCoordination({
+      x, y, w, h,
+      pattern: strProp(attrs, 'pattern') as 'supervisor' | 'hierarchical' | 'peer' | undefined,
+      supervisor: strProp(attrs, 'supervisor'),
+      title: strProp(attrs, 'title'),
+    }),
+    TradeoffMatrix: ({ x, y, w, h, attrs }) => layoutTradeoffMatrix({
+      x, y, w, h,
+      xAxis: { label: strProp(attrs, 'xAxisLabel') ?? 'X' },
+      yAxis: { label: strProp(attrs, 'yAxisLabel') ?? 'Y' },
+      quadrants: ['Q1', 'Q2', 'Q3', 'Q4'],
+      title: strProp(attrs, 'title'),
+    }),
+    TradeoffTriangle: ({ x, y, w, h, attrs }) => layoutTradeoffTriangle({
+      x, y, w, h,
+      title: strProp(attrs, 'title'),
+    }),
+    LineChart: ({ x, y, w, h, attrs }) => layoutLineChart({
+      x, y, w, h,
+      data: [{ x: 0, y: 0 }, { x: 1, y: 1 }],
+      xLabel: strProp(attrs, 'xLabel'),
+      yLabel: strProp(attrs, 'yLabel'),
+      title: strProp(attrs, 'title'),
+    }),
+    AnnotationHighlight: ({ x, y, w, h, attrs }) => layoutAnnotationHighlight({
+      x, y, w, h,
+      style: strProp(attrs, 'style') as 'highlight' | 'spotlight' | 'callout' | undefined,
+      label: strProp(attrs, 'label'),
+      labelPosition: strProp(attrs, 'labelPosition') as 'above' | 'below' | 'left' | 'right' | undefined,
+    }),
+    CodeBlock: ({ x, y, w, h, attrs }) => {
+      // strProp can't match multi-line template-literal `code`, so we synthesize
+      // a proxy string from lineCount/maxLineLength (same approach as
+      // submitPlan). Those numeric hints travel in the generated TSX
+      // precisely for this size check.
+      const lineCount = numProp(attrs, 'lineCount') ?? 10;
+      const maxLineLength = numProp(attrs, 'maxLineLength') ?? 60;
+      const code = Array.from({ length: lineCount }, () => 'x'.repeat(maxLineLength)).join('\n');
+      return layoutCodeBlock({
+        x, y, w, h,
+        code,
+        title: strProp(attrs, 'title'),
+        language: strProp(attrs, 'language'),
+      });
+    },
+    AutonomySpectrum: ({ x, y, w, h, attrs }) => {
+      // Validator can't count entries in an array prop from generated TSX;
+      // use numeric hints (levelCount, labelMaxLen) plus any title.
+      const levelCount = numProp(attrs, 'levelCount') ?? 4;
+      const labelMaxLen = numProp(attrs, 'labelMaxLen') ?? 12;
+      const proxy = 'x'.repeat(labelMaxLen);
+      const levels = Array.from({ length: levelCount }, (_, i) => `L${i + 1}`);
+      const labels = Array.from({ length: levelCount }, () => proxy);
+      return layoutAutonomySpectrum({
+        x, y, w, h,
+        levels,
+        labels,
+        title: strProp(attrs, 'title'),
+      });
+    },
+    MemoryArchitecture: ({ x, y, w, h, attrs }) => {
+      const layerCount = numProp(attrs, 'layerCount') ?? 4;
+      const labelLen = numProp(attrs, 'layerLabelMaxLen') ?? 20;
+      const proxyLabel = 'x'.repeat(labelLen);
+      const layers = Array.from({ length: layerCount }, () => ({ label: proxyLabel }));
+      return layoutMemoryArchitecture({
+        x, y, w, h,
+        layers,
+        title: strProp(attrs, 'title'),
+      });
+    },
+    ReActLoop: ({ x, y, w, h, attrs }) => {
+      const steps: [string, string, string] = ['Observe', 'Think', 'Act'];
+      return layoutReActLoop({
+        x, y, w, h,
+        steps,
+        showMemory: boolProp(attrs, 'showMemory'),
+        showTools: boolProp(attrs, 'showTools'),
+        title: strProp(attrs, 'title'),
+      });
+    },
+    GeneratorCriticLoop: ({ x, y, w, h, attrs }) => layoutGeneratorCriticLoop({
+      x, y, w, h,
+      generatorLabel: strProp(attrs, 'generatorLabel'),
+      criticLabel: strProp(attrs, 'criticLabel'),
+      iterations: numProp(attrs, 'iterations'),
+      title: strProp(attrs, 'title'),
+    }),
+    ChainOfThoughtTrace: ({ x, y, w, h, attrs }) => {
+      const stepCount = numProp(attrs, 'stepCount') ?? 4;
+      const stepMaxLen = numProp(attrs, 'stepMaxLen') ?? 40;
+      const steps = Array.from({ length: stepCount }, () => 'x'.repeat(stepMaxLen));
+      const finalAnswer = strProp(attrs, 'finalAnswer') ?? 'x'.repeat(Math.min(stepMaxLen, 40));
+      const hasSchema = boolProp(attrs, 'hasSchema');
+      let schema: string | undefined;
+      if (hasSchema) {
+        const schemaLines = numProp(attrs, 'schemaLineCount') ?? 6;
+        const schemaMaxLen = numProp(attrs, 'schemaMaxLineLength') ?? 32;
+        schema = Array.from({ length: schemaLines }, () => 'x'.repeat(schemaMaxLen)).join('\n');
+      }
+      return layoutChainOfThoughtTrace({
+        x, y, w, h,
+        steps,
+        finalAnswer,
+        schema,
+        title: strProp(attrs, 'title'),
+      });
+    },
+    ComparisonTable: ({ x, y, w, h, attrs }) => {
+      const columnCount = numProp(attrs, 'columnCount') ?? 4;
+      const rowCount = numProp(attrs, 'rowCount') ?? 4;
+      const cellMaxLen = numProp(attrs, 'cellMaxLen') ?? 16;
+      const proxyCell = 'x'.repeat(cellMaxLen);
+      const columns = Array.from({ length: columnCount }, () => proxyCell);
+      const rows = Array.from({ length: rowCount }, () =>
+        Array.from({ length: columnCount }, () => proxyCell),
+      );
+      return layoutComparisonTable({
+        x, y, w, h,
+        columns,
+        rows,
+        title: strProp(attrs, 'title'),
+      });
+    },
+    MaturityProgression: ({ x, y, w, h, attrs }) => {
+      const stageCount = numProp(attrs, 'stageCount') ?? 4;
+      const labelLen = numProp(attrs, 'stageLabelMaxLen') ?? 16;
+      const hasDesc = boolProp(attrs, 'hasDescriptions') ?? false;
+      const proxy = 'x'.repeat(labelLen);
+      const stages = Array.from({ length: stageCount }, () => ({
+        label: proxy,
+        description: hasDesc ? 'x'.repeat(Math.min(labelLen, 24)) : undefined,
+      }));
+      return layoutMaturityProgression({
+        x, y, w, h,
+        stages,
+        currentStage: numProp(attrs, 'currentStage'),
+        title: strProp(attrs, 'title'),
+      });
+    },
+    FlowchartBuilder: ({ x, y, w, h, attrs }) => {
+      const rows = numProp(attrs, 'flowRows') ?? 2;
+      const cols = numProp(attrs, 'flowCols') ?? 3;
+      const labelLen = numProp(attrs, 'flowNodeMaxLen') ?? 16;
+      const hasDiamond = boolProp(attrs, 'hasDiamondNodes') ?? false;
+      const proxyLabel = 'x'.repeat(labelLen);
+      const nodes: FlowNode[] = [];
+      for (let r = 0; r < rows; r++) {
+        for (let c = 0; c < cols; c++) {
+          const kind: 'box' | 'diamond' = hasDiamond && r === 0 && c === 0 ? 'diamond' : 'box';
+          nodes.push({ id: `n_${r}_${c}`, label: proxyLabel, kind, row: r, col: c });
+        }
+      }
+      return layoutFlowchartBuilder({
+        x, y, w, h,
+        nodes,
+        title: strProp(attrs, 'title'),
+      });
+    },
+    FunctionCallingLifecycle: ({ x, y, w, h, attrs }) => layoutFunctionCallingLifecycle({
+      x, y, w, h,
+      highlightPhase: numProp(attrs, 'highlightPhase') as 0 | 1 | 2 | 3 | undefined,
+      title: strProp(attrs, 'title'),
+    }),
+    ErrorBackoffFlow: ({ x, y, w, h, attrs }) => layoutErrorBackoffFlow({
+      x, y, w, h,
+      maxRetries: numProp(attrs, 'maxRetries'),
+      circuitBreaker: boolProp(attrs, 'circuitBreaker'),
+      title: strProp(attrs, 'title'),
+    }),
+    MemoryConsolidationFlow: ({ x, y, w, h, attrs }) => layoutMemoryConsolidationFlow({
+      x, y, w, h,
+      showDecayReturn: boolProp(attrs, 'showDecayReturn'),
+      title: strProp(attrs, 'title'),
+    }),
+    EntityRelationshipGraph: ({ x, y, w, h, attrs }) => {
+      const entityCount = numProp(attrs, 'entityCount') ?? 6;
+      const labelLen = numProp(attrs, 'entityLabelMaxLen') ?? 14;
+      const proxy = 'x'.repeat(labelLen);
+      const entities = Array.from({ length: entityCount }, (_, i) => ({
+        id: `e${i}`,
+        label: proxy,
+      }));
+      return layoutEntityRelationshipGraph({
+        x, y, w, h,
+        entities,
+        relationships: [],
+        title: strProp(attrs, 'title'),
+      });
+    },
+    GovernanceEvolution: ({ x, y, w, h, attrs }) => layoutGovernanceEvolution({
+      x, y, w, h,
+      currentStage: numProp(attrs, 'currentStage') as 0 | 1 | 2 | undefined,
+      title: strProp(attrs, 'title'),
+    }),
+  };
+
   for (const t of diagramTags) {
     let box: Box;
     let children: CompositeChild[] = [];
     let cx: number;
     let cy: number;
-    if (t.name === 'AgentCoordination') {
+    const rectLayoutFn = RECT_COMPOSITE_LAYOUTS[t.name];
+    if (rectLayoutFn) {
       const x = numProp(t.attrs, 'x');
       const y = numProp(t.attrs, 'y');
       const w = numProp(t.attrs, 'w');
       const h = numProp(t.attrs, 'h');
-      const pattern = strProp(t.attrs, 'pattern') as 'supervisor' | 'hierarchical' | 'peer' | undefined;
-      const supervisor = strProp(t.attrs, 'supervisor');
-      const title = strProp(t.attrs, 'title');
       if (x === undefined || y === undefined || w === undefined || h === undefined) {
         errors.push(
-          `Layout: AgentCoordination requires {x, y, w, h} (got x=${x}, y=${y}, w=${w}, h=${h}). ` +
-          `The cx/cy/radius/maxWidth API was removed.`,
+          `Layout: ${t.name} requires {x, y, w, h} (got x=${x}, y=${y}, w=${w}, h=${h}).`,
         );
         continue;
       }
-      const layout = layoutAgentCoordination({ x, y, w, h, pattern, supervisor, title });
+      const layout = rectLayoutFn({ x, y, w, h, attrs: t.attrs });
       if (layout.error) {
         errors.push(`Layout: ${layout.error}`);
         continue;
@@ -478,11 +706,10 @@ function validateLayoutInScope(code: string): string[] {
       cx = x + w / 2;
       cy = y + h / 2;
     } else {
-      cx = numProp(t.attrs, 'cx') ?? 960;
-      cy = numProp(t.attrs, 'cy') ?? 540;
-      const radius = numProp(t.attrs, 'radius');
-      const width = numProp(t.attrs, 'width');
-      box = genericDiagramBox({ cx, cy, radius, width });
+      errors.push(
+        `Layout: Unknown diagram "${t.name}" — no layout function registered.`,
+      );
+      continue;
     }
     diagrams.push({ name: t.name, cx, cy, box, children });
   }
@@ -601,7 +828,7 @@ function validateLayoutInScope(code: string): string[] {
     if (!inSafeZone(d.box)) {
       errors.push(
         `Layout: ${d.name} bbox ${fmtBox(d.box)} extends outside safe zone (120,120)→(1800,960). ` +
-        `Move cx/cy inward or shrink radius.`,
+        `Adjust x, y, w, h so the diagram fits within the safe zone.`,
       );
     }
   }

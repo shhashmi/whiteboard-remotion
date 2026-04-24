@@ -20,9 +20,10 @@ export const ReActLoopTest: React.FC = () => {
         />
         <ReActLoop
           startFrame={10}
-          cx={860}
-          cy={600}
-          radius={320}
+          x={140}
+          y={200}
+          w={1640}
+          h={760}
           showMemory
           showTools
           highlightStep={1}

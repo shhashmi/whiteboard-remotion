@@ -20,7 +20,7 @@ For each scene, submit:
 - **Every icon** with `name`, `cx`, `cy`, `scale`
 - **Every `HandWrittenText`** with `text`, `x`, `y`, `fontSize`, `textAnchor`, optional `maxWidth`
 - **Every `SketchBox`** with `x`, `y`, `width`, optional `height`, optional `rows` (text + fontSize per row)
-- **Every diagram** with `name` and either `{x, y, w, h}` (placement rect for retrofitted composites like `AgentCoordination`) or the legacy `{cx, cy, radius, width}` for older diagrams. Include composite-specific content: `pattern`, `agents`, `supervisor`, `title`, … Always check the asset's `sizingNotes` for the minimum rect size per pattern × agent count.
+- **Every diagram** with `name` and a placement rect `{x, y, w, h}` (required for every composite). Include composite-specific content: `pattern`, `agents`, `supervisor`, `title`, … Always check the asset's `sizingNotes` for the minimum rect size per pattern × content count.
 - **Cues** for the scene: each cue's `id` and `text` (the narration line)
 
 You do NOT need to submit decorative elements (arrows, lines, circles without labels) — only elements that occupy space and could overlap.

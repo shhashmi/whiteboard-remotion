@@ -15,7 +15,14 @@ const BG = '#fafaf5';
 export const B1Test: React.FC = () => (
   <AbsoluteFill style={{ backgroundColor: BG }}>
     <SVG>
-      <FunctionCallingLifecycle startFrame={0} highlightPhase={2} />
+      <FunctionCallingLifecycle
+        startFrame={0}
+        x={120}
+        y={280}
+        w={1680}
+        h={500}
+        highlightPhase={2}
+      />
     </SVG>
   </AbsoluteFill>
 );
@@ -23,7 +30,16 @@ export const B1Test: React.FC = () => (
 export const B2Test: React.FC = () => (
   <AbsoluteFill style={{ backgroundColor: BG }}>
     <SVG>
-      <ErrorBackoffFlow startFrame={0} maxRetries={3} backoffSeconds={[1, 2, 4]} circuitBreaker />
+      <ErrorBackoffFlow
+        startFrame={0}
+        x={200}
+        y={140}
+        w={1520}
+        h={820}
+        maxRetries={3}
+        backoffSeconds={[1, 2, 4]}
+        circuitBreaker
+      />
     </SVG>
   </AbsoluteFill>
 );
@@ -32,6 +48,10 @@ export const B3Test: React.FC = () => (
   <AbsoluteFill style={{ backgroundColor: BG }}>
     <ChainOfThoughtTrace
       startFrame={0}
+      x={100}
+      y={120}
+      w={1720}
+      h={820}
       steps={[
         'Parse the user question',
         'Identify relevant documents',
@@ -51,7 +71,13 @@ export const B3Test: React.FC = () => (
 export const B4Test: React.FC = () => (
   <AbsoluteFill style={{ backgroundColor: BG }}>
     <SVG>
-      <MemoryConsolidationFlow startFrame={0} />
+      <MemoryConsolidationFlow
+        startFrame={0}
+        x={140}
+        y={260}
+        w={1640}
+        h={540}
+      />
     </SVG>
   </AbsoluteFill>
 );
@@ -59,7 +85,14 @@ export const B4Test: React.FC = () => (
 export const B5Test: React.FC = () => (
   <AbsoluteFill style={{ backgroundColor: BG }}>
     <SVG>
-      <GeneratorCriticLoop startFrame={0} iterations={3} />
+      <GeneratorCriticLoop
+        startFrame={0}
+        x={200}
+        y={160}
+        w={1520}
+        h={760}
+        iterations={3}
+      />
     </SVG>
   </AbsoluteFill>
 );
@@ -67,7 +100,14 @@ export const B5Test: React.FC = () => (
 export const B6Test: React.FC = () => (
   <AbsoluteFill style={{ backgroundColor: BG }}>
     <SVG>
-      <GovernanceEvolution startFrame={0} currentStage={1} />
+      <GovernanceEvolution
+        startFrame={0}
+        x={160}
+        y={120}
+        w={1600}
+        h={840}
+        currentStage={1}
+      />
     </SVG>
   </AbsoluteFill>
 );
@@ -77,14 +117,18 @@ export const B7Test: React.FC = () => (
     <SVG>
       <EntityRelationshipGraph
         startFrame={0}
+        x={200}
+        y={120}
+        w={1520}
+        h={840}
         title="Knowledge Graph"
         entities={[
-          { id: 'alice', label: 'Alice', x: 380, y: 300 },
-          { id: 'tl', label: 'Tech Lead', x: 960, y: 300 },
-          { id: 'atlas', label: 'Project Atlas', x: 1540, y: 300 },
-          { id: 'bob', label: 'Bob', x: 380, y: 720 },
-          { id: 'rnd', label: 'R&D Team', x: 960, y: 720 },
-          { id: 'q4', label: 'Q4 Goals', x: 1540, y: 720 },
+          { id: 'alice', label: 'Alice' },
+          { id: 'tl', label: 'Tech Lead' },
+          { id: 'atlas', label: 'Project Atlas' },
+          { id: 'bob', label: 'Bob' },
+          { id: 'rnd', label: 'R&D Team' },
+          { id: 'q4', label: 'Q4 Goals' },
         ]}
         relationships={[
           { from: 'alice', to: 'tl', label: 'role' },
@@ -104,6 +148,10 @@ export const B8Test: React.FC = () => (
     <SVG>
       <ComparisonTable
         startFrame={0}
+        x={160}
+        y={140}
+        w={1600}
+        h={820}
         title="Vector Database Comparison"
         columns={['Database', 'Latency', 'Cost', 'Features']}
         rows={[

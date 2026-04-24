@@ -1,5 +1,10 @@
 import React from 'react';
-import { GraphNode, GraphEdge, fitFontSizeToNode, FIT_FONT_NOT_POSSIBLE } from './GraphNodeEdge';
+import {
+  GraphNode,
+  GraphEdge,
+  fitFontSizeToNode,
+  FIT_FONT_NOT_POSSIBLE,
+} from './GraphNodeEdge';
 import { HandWrittenText } from '../components';
 import { COLORS } from '../theme';
 import type { Box, CompositeChild, CompositeLayoutResult } from '../../asset-index/bounds';
@@ -7,32 +12,53 @@ import type { Box, CompositeChild, CompositeLayoutResult } from '../../asset-ind
 export type CoordinationPattern = 'supervisor' | 'hierarchical' | 'peer';
 
 export interface AgentCoordinationProps {
+  startFrame: number;
+  drawDuration?: number;
   x: number;
   y: number;
   w: number;
   h: number;
-  startFrame: number;
-  drawDuration?: number;
   pattern?: CoordinationPattern;
   agents?: string[];
   supervisor?: string;
   title?: string;
 }
 
-const DEFAULT_AGENTS = ['Agent A', 'Agent B', 'Agent C', 'Agent D'];
-
-const MIN_NODE_W = 96;
-const MIN_NODE_H = 40;
-const MIN_FONT_SIZE = 18;
-const MIN_EDGE_GAP = 16;
-const DEFAULT_NODE_W = 220;
-const DEFAULT_NODE_H = 96;
-const DEFAULT_FONT_SIZE = 36;
 const TITLE_H = 56;
+const PREF_NODE_W = 220;
+const PREF_NODE_H = 96;
+const MIN_NODE_W = 120;
+const NODE_ASPECT = PREF_NODE_W / PREF_NODE_H; // ≈ 2.29
+const MIN_NODE_H = MIN_NODE_W / NODE_ASPECT;   // ≈ 52
+const MIN_EDGE_GAP = 40; // min clearance between adjacent node edges
 
-type NodeSpec = { cx: number; cy: number; w: number; h: number; fontSize: number; label: string };
+interface NodePos {
+  cx: number;
+  cy: number;
+  w: number;
+  h: number;
+  label: string;
+  role: 'supervisor' | 'lead' | 'agent' | 'peer';
+}
 
-function nodeBox(n: NodeSpec): Box {
+interface EdgeSpec {
+  from: NodePos;
+  to: NodePos;
+  directed: boolean;
+  color: string;
+}
+
+interface AgentCoordinationGeometry {
+  outer: Box;
+  title?: string;
+  titleBbox?: Box;
+  nodes: NodePos[];
+  edges: EdgeSpec[];
+  pattern: CoordinationPattern;
+  error?: string;
+}
+
+function nodeBox(n: NodePos): Box {
   return {
     x1: n.cx - n.w / 2,
     y1: n.cy - n.h / 2,
@@ -41,234 +67,262 @@ function nodeBox(n: NodeSpec): Box {
   };
 }
 
-function fitNodeSize(labels: string[], maxW: number, maxH: number): {
-  nodeW: number;
-  nodeH: number;
-  fontSize: number;
-  error?: string;
-} {
-  const w = Math.min(DEFAULT_NODE_W, maxW);
-  const h = Math.min(DEFAULT_NODE_H, maxH);
-  if (w < MIN_NODE_W || h < MIN_NODE_H) {
-    return {
-      nodeW: w,
-      nodeH: h,
-      fontSize: MIN_FONT_SIZE,
-      error: `node min size is ${MIN_NODE_W}×${MIN_NODE_H}; available is ${Math.floor(w)}×${Math.floor(h)}`,
-    };
-  }
-  let fontSize = DEFAULT_FONT_SIZE;
-  for (const label of labels) {
-    const fs = fitFontSizeToNode(label, w, h, { defaultFontSize: DEFAULT_FONT_SIZE, minFontSize: MIN_FONT_SIZE });
-    if (fs === FIT_FONT_NOT_POSSIBLE) {
-      return {
-        nodeW: w,
-        nodeH: h,
-        fontSize: MIN_FONT_SIZE,
-        error: `label "${label}" does not fit in ${Math.floor(w)}×${Math.floor(h)} node at fontSize ≥ ${MIN_FONT_SIZE}`,
-      };
-    }
-    if (fs < fontSize) fontSize = fs;
-  }
-  return { nodeW: w, nodeH: h, fontSize };
-}
-
-function layoutSupervisor(
-  contentRect: Box,
-  agents: string[],
-  supervisorLabel: string,
-): { nodes: NodeSpec[]; edges: Array<{ from: NodeSpec; to: NodeSpec }>; error?: string } {
-  const w = contentRect.x2 - contentRect.x1;
-  const h = contentRect.y2 - contentRect.y1;
-  const cx = (contentRect.x1 + contentRect.x2) / 2;
-  const cy = (contentRect.y1 + contentRect.y2) / 2;
-  const n = agents.length;
-
-  // Horizontal: 3 nodes (center + 2 satellites) with 2 gaps must fit in w.
-  // Vertical: 3 nodes with 2 gaps must fit in h.
-  const maxNodeW = (w - 2 * MIN_EDGE_GAP) / 3;
-  const maxNodeH = (h - 2 * MIN_EDGE_GAP) / 3;
-  const fit = fitNodeSize([supervisorLabel, ...agents], maxNodeW, maxNodeH);
-  if (fit.error) return { nodes: [], edges: [], error: `supervisor: ${fit.error}` };
-
-  const { nodeW, nodeH, fontSize } = fit;
-
-  // radius = center-to-center distance for 4 compass points.
-  // Chord constraint for n agents on the circle: 2*r*sin(pi/n) ≥ nodeW + MIN_EDGE_GAP/2.
-  const chordMin = n > 1 ? (nodeW + MIN_EDGE_GAP / 2) / (2 * Math.sin(Math.PI / n)) : 0;
-  const radiusMin = Math.max(nodeW + MIN_EDGE_GAP, chordMin, nodeH + MIN_EDGE_GAP);
-  // radiusMax so satellite boxes stay in contentRect.
-  const radiusMaxX = (w - nodeW) / 2;
-  const radiusMaxY = (h - nodeH) / 2;
-  const radiusMax = Math.min(radiusMaxX, radiusMaxY);
-  // Epsilon guards against float drift when radiusMin and radiusMax are
-  // analytically equal but differ by a few ulps due to different arithmetic
-  // paths (e.g. w exactly = 3*nodeW + 32). Sub-pixel tolerance is safe
-  // because nothing in the rendered output is sensitive to < 1 px placement.
-  if (radiusMin > radiusMax + 0.5) {
-    const needW = Math.ceil(2 * radiusMin + nodeW);
-    const needH = Math.ceil(2 * radiusMin + nodeH);
-    return {
-      nodes: [],
-      edges: [],
-      error:
-        `supervisor pattern with ${n} agents requires rect ≥ ` +
-        `${needW}×${needH}; got ${Math.floor(w)}×${Math.floor(h)}`,
-    };
-  }
-  const radius = radiusMin;
-
-  const supervisor: NodeSpec = { cx, cy, w: nodeW, h: nodeH, fontSize, label: supervisorLabel };
-  const satellites: NodeSpec[] = agents.map((label, i) => {
-    const angle = (i * 2 * Math.PI) / n - Math.PI / 2;
-    return {
-      cx: cx + radius * Math.cos(angle),
-      cy: cy + radius * Math.sin(angle),
-      w: nodeW,
-      h: nodeH,
-      fontSize,
-      label,
-    };
-  });
-
-  const nodes = [supervisor, ...satellites];
-  const edges = satellites.map((s) => ({ from: supervisor, to: s }));
-  return { nodes, edges };
-}
-
-function layoutHierarchical(
-  contentRect: Box,
-  agents: string[],
-  rootLabel: string,
-): { nodes: NodeSpec[]; edges: Array<{ from: NodeSpec; to: NodeSpec }>; error?: string } {
-  const w = contentRect.x2 - contentRect.x1;
-  const h = contentRect.y2 - contentRect.y1;
-  const cx = (contentRect.x1 + contentRect.x2) / 2;
-  const n = agents.length;
-
-  // 3 rows, 2 row-gaps.
-  const maxNodeH = (h - 2 * MIN_EDGE_GAP) / 3;
-  // Leaf row dominates width: n leaves + (n-1) gaps.
-  const maxLeafNodeW = (w - (n - 1) * MIN_EDGE_GAP) / n;
-  const fit = fitNodeSize([rootLabel, 'Lead 1', 'Lead 2', ...agents], maxLeafNodeW, maxNodeH);
-  if (fit.error) return { nodes: [], edges: [], error: `hierarchical: ${fit.error}` };
-
-  const { nodeW, nodeH, fontSize } = fit;
-
-  // Distribute 3 rows across the full rect height.
-  const rowGap = (h - 3 * nodeH) / 2;
-  const y0 = contentRect.y1 + nodeH / 2;
-  const y1 = y0 + nodeH + rowGap;
-  const y2 = y1 + nodeH + rowGap;
-
-  const leafSpan = (n - 1) * (nodeW + MIN_EDGE_GAP);
-  const leafStartX = cx - leafSpan / 2;
-  const leaves: NodeSpec[] = agents.map((label, i) => ({
-    cx: leafStartX + i * (nodeW + MIN_EDGE_GAP),
-    cy: y2,
-    w: nodeW,
-    h: nodeH,
-    fontSize,
-    label,
-  }));
-
-  const leafPerMid = Math.ceil(n / 2);
-  const mid: NodeSpec[] = [0, 1].map((i) => {
-    const members = leaves.filter((_, idx) => Math.floor(idx / leafPerMid) === i);
-    const midX = members.length
-      ? members.reduce((sum, m) => sum + m.cx, 0) / members.length
-      : cx + (i - 0.5) * (nodeW + MIN_EDGE_GAP);
-    return { cx: midX, cy: y1, w: nodeW, h: nodeH, fontSize, label: `Lead ${i + 1}` };
-  });
-
-  const root: NodeSpec = { cx, cy: y0, w: nodeW, h: nodeH, fontSize, label: rootLabel };
-
-  const nodes = [root, ...mid, ...leaves];
-  const edges: Array<{ from: NodeSpec; to: NodeSpec }> = [];
-  mid.forEach((m) => edges.push({ from: root, to: m }));
-  leaves.forEach((leaf, i) => {
-    const parent = mid[Math.floor(i / leafPerMid)];
-    edges.push({ from: parent, to: leaf });
-  });
-
-  return { nodes, edges };
-}
-
-function layoutPeer(
-  contentRect: Box,
-  agents: string[],
-): { nodes: NodeSpec[]; edges: Array<{ from: NodeSpec; to: NodeSpec }>; error?: string } {
-  const w = contentRect.x2 - contentRect.x1;
-  const h = contentRect.y2 - contentRect.y1;
-  const cx = (contentRect.x1 + contentRect.x2) / 2;
-  const cy = (contentRect.y1 + contentRect.y2) / 2;
-  const n = agents.length;
-
-  // Solve for largest nodeW s.t. chord ≥ nodeW + MIN_EDGE_GAP/2 AND boxes fit in rect.
-  // chord = 2 * r * sin(pi/n); r ≤ (min(w,h) - nodeH) / 2.
-  // Simpler: pick r as large as rect allows (so chord is maximal), then verify nodeW fits.
-  const rMin = Math.min(w, h) / 2;
-  const nodeHGuess = Math.min(DEFAULT_NODE_H, rMin * 0.4);
-  const r = rMin - nodeHGuess / 2;
-  const chord = n > 1 ? 2 * r * Math.sin(Math.PI / n) : Number.POSITIVE_INFINITY;
-  const maxNodeW = Math.min(DEFAULT_NODE_W, chord - MIN_EDGE_GAP / 2, w - 2 * r);
-  const maxNodeH = Math.min(DEFAULT_NODE_H, h - 2 * r + nodeHGuess);
-
-  const fit = fitNodeSize(agents, maxNodeW, Math.max(maxNodeH, nodeHGuess));
-  if (fit.error) return { nodes: [], edges: [], error: `peer: ${fit.error}` };
-
-  const { nodeW, nodeH, fontSize } = fit;
-  // Recompute r for the chosen nodeH (stay inside rect).
-  const rFinal = Math.min((w - nodeW) / 2, (h - nodeH) / 2);
-  // Epsilon: see supervisor path above.
-  if (n > 1 && 2 * rFinal * Math.sin(Math.PI / n) + 0.5 < nodeW + MIN_EDGE_GAP / 2) {
-    return {
-      nodes: [],
-      edges: [],
-      error:
-        `peer pattern with ${n} agents requires rect ≥ ` +
-        `${Math.ceil((nodeW + MIN_EDGE_GAP / 2) / Math.sin(Math.PI / n) + nodeW)}` +
-        ` on its shorter side; got ${Math.floor(Math.min(w, h))}`,
-    };
-  }
-
-  const nodes: NodeSpec[] = agents.map((label, i) => {
-    const angle = (i * 2 * Math.PI) / n - Math.PI / 2;
-    return {
-      cx: cx + rFinal * Math.cos(angle),
-      cy: cy + rFinal * Math.sin(angle),
-      w: nodeW,
-      h: nodeH,
-      fontSize,
-      label,
-    };
-  });
-  const edges: Array<{ from: NodeSpec; to: NodeSpec }> = [];
-  for (let i = 0; i < nodes.length; i++) {
-    for (let j = i + 1; j < nodes.length; j++) {
-      edges.push({ from: nodes[i], to: nodes[j] });
-    }
-  }
-  return { nodes, edges };
-}
-
-interface AgentCoordinationGeometry {
-  outer: Box;
-  contentRect: Box;
-  nodes: NodeSpec[];
-  edges: Array<{ from: NodeSpec; to: NodeSpec }>;
-  pattern: CoordinationPattern;
-  title?: string;
-  supervisorLabel: string;
-  hasTitle: boolean;
-  error?: string;
+function edgeBoxBetween(a: NodePos, b: NodePos): Box {
+  return {
+    x1: Math.min(a.cx, b.cx),
+    y1: Math.min(a.cy, b.cy),
+    x2: Math.max(a.cx, b.cx),
+    y2: Math.max(a.cy, b.cy),
+  };
 }
 
 /**
- * Single source of truth for layout geometry — invoked by both the pure
- * layout function (for the validator) and the React component (for render).
- * Returning the raw nodes/edges lets the component render without recomputing.
+ * Largest node (nw × nh) fitting in the cell (cellW × cellH) that also renders
+ * every label at fontSize ≥ 18. Keeps the preferred 220×96 aspect.
+ * Returns null if labels cannot fit at the largest cell-bounded size.
  */
+function fitNodeSize(
+  cellW: number,
+  cellH: number,
+  labels: string[],
+): { w: number; h: number } | null {
+  let w = Math.min(PREF_NODE_W, cellW);
+  let h = Math.min(PREF_NODE_H, cellH);
+  if (w / h > NODE_ASPECT) w = h * NODE_ASPECT;
+  else h = w / NODE_ASPECT;
+  if (w < MIN_NODE_W || h < MIN_NODE_H) return null;
+  for (const lbl of labels) {
+    if (fitFontSizeToNode(lbl, w, h) === FIT_FONT_NOT_POSSIBLE) return null;
+  }
+  return { w, h };
+}
+
+function computeSupervisorGeometry(
+  outer: Box,
+  contentY1: number,
+  agents: string[],
+  supervisor: string,
+  title: string | undefined,
+): { nodes: NodePos[]; edges: EdgeSpec[]; error?: string } {
+  const contentW = outer.x2 - outer.x1;
+  const contentH = outer.y2 - contentY1;
+  const labels = [supervisor, ...agents];
+  const n = agents.length;
+  // Satellites sit on a circle of radius R around the center. Constraints:
+  //   (a) ring fits in rect:     R ≤ halfSide - nodeW/2
+  //   (b) satellites clear hub:  R ≥ nodeW + gap
+  //   (c) satellites clear each other:  2R sin(π/n) ≥ nodeW + gap   (for n ≥ 2)
+  // Combine (a) + (b): halfSide ≥ 1.5·nodeW + gap  →  nodeW ≤ (halfSide - gap)/1.5
+  const halfSide = Math.min(contentW / 2, contentH / 2);
+  const gap = MIN_EDGE_GAP;
+  let nodeW = Math.min(PREF_NODE_W, (halfSide - gap) / 1.5);
+  if (n >= 2) {
+    // From (c): 2R sin(π/n) ≥ nodeW + gap, using R = halfSide - nodeW/2.
+    // Solve for nodeW:  nodeW ≤ (2·halfSide·s − gap) / (1 + s)  where s=sin(π/n).
+    const s = Math.sin(Math.PI / n);
+    const capByRing = (2 * halfSide * s - gap) / (1 + s);
+    nodeW = Math.min(nodeW, capByRing);
+  }
+  const size = fitNodeSize(nodeW, nodeW / NODE_ASPECT, labels);
+  if (!size) {
+    // Compute the side length required at MIN_NODE_W so the LLM gets an
+    // actionable error.
+    const minHalf = 1.5 * MIN_NODE_W + gap;
+    const neededSide = Math.ceil(2 * minHalf);
+    return {
+      nodes: [],
+      edges: [],
+      error:
+        `supervisor pattern: content area ${Math.floor(contentW)}×${Math.floor(contentH)} too small; ` +
+        `need ≥ ${neededSide}×${neededSide}${title ? ` (+${TITLE_H} title)` : ''}`,
+    };
+  }
+  const cx = (outer.x1 + outer.x2) / 2;
+  const cy = contentY1 + contentH / 2;
+  const R = halfSide - size.w / 2;
+  const supervisorNode: NodePos = {
+    cx,
+    cy,
+    w: size.w,
+    h: size.h,
+    label: supervisor,
+    role: 'supervisor',
+  };
+  const satellites: NodePos[] = agents.map((label, i) => {
+    const angle = (i * 2 * Math.PI) / n - Math.PI / 2;
+    return {
+      cx: cx + R * Math.cos(angle),
+      cy: cy + R * Math.sin(angle),
+      w: size.w,
+      h: size.h,
+      label,
+      role: 'agent',
+    };
+  });
+  const nodes = [supervisorNode, ...satellites];
+  const edges: EdgeSpec[] = satellites.map((sat) => ({
+    from: supervisorNode,
+    to: sat,
+    directed: true,
+    color: COLORS.orange,
+  }));
+  return { nodes, edges };
+}
+
+function computeHierarchicalGeometry(
+  outer: Box,
+  contentY1: number,
+  agents: string[],
+  supervisor: string,
+  title: string | undefined,
+): { nodes: NodePos[]; edges: EdgeSpec[]; error?: string } {
+  const contentW = outer.x2 - outer.x1;
+  const contentH = outer.y2 - contentY1;
+  const nLeaves = agents.length;
+  const leadsCount = nLeaves <= 1 ? 1 : 2;
+  const leafPerLead = Math.ceil(nLeaves / leadsCount);
+  // 3 rows (root / leads / leaves). Each row is one node tall; gaps between
+  // rows carry the connecting edges.
+  const rowGap = 60;
+  const neededH = 3 * MIN_NODE_H + 2 * rowGap;
+  if (contentH < neededH) {
+    return {
+      nodes: [],
+      edges: [],
+      error:
+        `hierarchical pattern: content height ${Math.floor(contentH)} < ${neededH}` +
+        `${title ? ` (+${TITLE_H} title)` : ''}`,
+    };
+  }
+  // Pick row height so 3 rows + 2 gaps fit; derive node h from that.
+  const maxRowH = (contentH - 2 * rowGap) / 3;
+  const cellH = Math.min(PREF_NODE_H, maxRowH);
+  // Fit nLeaves nodes in one row with MIN_EDGE_GAP between them.
+  const cellW = (contentW - (nLeaves - 1) * MIN_EDGE_GAP) / nLeaves;
+  if (cellW < MIN_NODE_W) {
+    const needed = Math.ceil(nLeaves * MIN_NODE_W + (nLeaves - 1) * MIN_EDGE_GAP);
+    return {
+      nodes: [],
+      edges: [],
+      error:
+        `hierarchical pattern with ${nLeaves} leaves: width ${Math.floor(contentW)} < ${needed}`,
+    };
+  }
+  const labels = [supervisor, ...agents, ...Array.from({ length: leadsCount }, (_, i) => `Lead ${i + 1}`)];
+  const size = fitNodeSize(cellW, cellH, labels);
+  if (!size) {
+    return {
+      nodes: [],
+      edges: [],
+      error: `hierarchical pattern: labels don't fit at cell size ${Math.floor(cellW)}×${Math.floor(cellH)}`,
+    };
+  }
+  const cx = (outer.x1 + outer.x2) / 2;
+  const rowY0 = contentY1 + size.h / 2;
+  const rowY2 = outer.y2 - size.h / 2;
+  const rowY1 = (rowY0 + rowY2) / 2;
+  const leafPitch = nLeaves > 1
+    ? Math.min(size.w + MIN_EDGE_GAP + 20, (contentW - size.w) / (nLeaves - 1))
+    : 0;
+  const leafSpan = (nLeaves - 1) * leafPitch;
+  const leafX = (i: number) => cx - leafSpan / 2 + i * leafPitch;
+  const root: NodePos = {
+    cx,
+    cy: rowY0,
+    w: size.w,
+    h: size.h,
+    label: supervisor,
+    role: 'supervisor',
+  };
+  const leads: NodePos[] = Array.from({ length: leadsCount }, (_, i) => {
+    const members: number[] = [];
+    for (let j = 0; j < nLeaves; j++) if (Math.floor(j / leafPerLead) === i) members.push(j);
+    const midX = members.length
+      ? members.reduce((s, j) => s + leafX(j), 0) / members.length
+      : cx + (i - (leadsCount - 1) / 2) * Math.max(size.w + MIN_EDGE_GAP, contentW / 3);
+    return {
+      cx: midX,
+      cy: rowY1,
+      w: size.w,
+      h: size.h,
+      label: `Lead ${i + 1}`,
+      role: 'lead',
+    };
+  });
+  const leaves: NodePos[] = agents.map((label, i) => ({
+    cx: leafX(i),
+    cy: rowY2,
+    w: size.w,
+    h: size.h,
+    label,
+    role: 'agent',
+  }));
+  const edges: EdgeSpec[] = [];
+  for (const lead of leads) {
+    edges.push({ from: root, to: lead, directed: true, color: COLORS.orange });
+  }
+  leaves.forEach((leaf, i) => {
+    const parent = leads[Math.floor(i / leafPerLead)] ?? leads[0];
+    edges.push({ from: parent, to: leaf, directed: true, color: COLORS.orange });
+  });
+  return { nodes: [root, ...leads, ...leaves], edges };
+}
+
+function computePeerGeometry(
+  outer: Box,
+  contentY1: number,
+  agents: string[],
+  title: string | undefined,
+): { nodes: NodePos[]; edges: EdgeSpec[]; error?: string } {
+  const contentW = outer.x2 - outer.x1;
+  const contentH = outer.y2 - contentY1;
+  const n = agents.length;
+  if (n < 2) {
+    return { nodes: [], edges: [], error: 'peer pattern needs ≥ 2 agents' };
+  }
+  const halfSide = Math.min(contentW / 2, contentH / 2);
+  const gap = MIN_EDGE_GAP;
+  // Solve for nodeW s.t. the ring of n nodes fits: R = halfSide - nodeW/2,
+  // adjacent-node chord 2R·sin(π/n) ≥ nodeW + gap.
+  const s = Math.sin(Math.PI / n);
+  const capByRing = (2 * halfSide * s - gap) / (1 + s);
+  const nodeW = Math.min(PREF_NODE_W, capByRing);
+  const size = fitNodeSize(nodeW, nodeW / NODE_ASPECT, agents);
+  if (!size) {
+    // Minimum side at MIN_NODE_W: from nodeW(1+s) + gap = 2·halfSide·s
+    const minHalf = ((MIN_NODE_W * (1 + s)) + gap) / (2 * s);
+    const neededSide = Math.ceil(2 * minHalf);
+    return {
+      nodes: [],
+      edges: [],
+      error:
+        `peer pattern with ${n} agents: rect too small; ` +
+        `need ≥ ${neededSide}×${neededSide}${title ? ` (+${TITLE_H} title)` : ''}`,
+    };
+  }
+  const cx = (outer.x1 + outer.x2) / 2;
+  const cy = contentY1 + contentH / 2;
+  const R = halfSide - size.w / 2;
+  const nodes: NodePos[] = agents.map((label, i) => {
+    const angle = (i * 2 * Math.PI) / n - Math.PI / 2;
+    return {
+      cx: cx + R * Math.cos(angle),
+      cy: cy + R * Math.sin(angle),
+      w: size.w,
+      h: size.h,
+      label,
+      role: 'peer',
+    };
+  });
+  const edges: EdgeSpec[] = [];
+  for (let i = 0; i < n; i++) {
+    for (let j = i + 1; j < n; j++) {
+      edges.push({ from: nodes[i], to: nodes[j], directed: false, color: COLORS.purple });
+    }
+  }
+  return { nodes, edges };
+}
+
 function computeAgentCoordinationGeometry(props: {
   x: number;
   y: number;
@@ -280,35 +334,31 @@ function computeAgentCoordinationGeometry(props: {
   title?: string;
 }): AgentCoordinationGeometry {
   const outer: Box = { x1: props.x, y1: props.y, x2: props.x + props.w, y2: props.y + props.h };
-  const pattern = props.pattern ?? 'supervisor';
-  const agents = props.agents ?? DEFAULT_AGENTS;
-  const supervisorLabel = props.supervisor ?? 'Supervisor';
+  const pattern: CoordinationPattern = props.pattern ?? 'supervisor';
+  const agents = props.agents ?? ['Agent A', 'Agent B', 'Agent C', 'Agent D'];
+  const supervisor = props.supervisor ?? 'Supervisor';
   const hasTitle = !!props.title;
-  const contentRect: Box = {
-    x1: outer.x1,
-    y1: outer.y1 + (hasTitle ? TITLE_H : 0),
-    x2: outer.x2,
-    y2: outer.y2,
-  };
+  const contentY1 = outer.y1 + (hasTitle ? TITLE_H : 0);
+  const titleBbox: Box | undefined = hasTitle
+    ? { x1: outer.x1, y1: outer.y1, x2: outer.x2, y2: outer.y1 + TITLE_H }
+    : undefined;
 
-  let result: { nodes: NodeSpec[]; edges: Array<{ from: NodeSpec; to: NodeSpec }>; error?: string };
-  if (pattern === 'hierarchical') {
-    result = layoutHierarchical(contentRect, agents, supervisorLabel);
-  } else if (pattern === 'peer') {
-    result = layoutPeer(contentRect, agents);
+  let result: { nodes: NodePos[]; edges: EdgeSpec[]; error?: string };
+  if (pattern === 'supervisor') {
+    result = computeSupervisorGeometry(outer, contentY1, agents, supervisor, props.title);
+  } else if (pattern === 'hierarchical') {
+    result = computeHierarchicalGeometry(outer, contentY1, agents, supervisor, props.title);
   } else {
-    result = layoutSupervisor(contentRect, agents, supervisorLabel);
+    result = computePeerGeometry(outer, contentY1, agents, props.title);
   }
 
   return {
     outer,
-    contentRect,
+    title: props.title,
+    titleBbox,
     nodes: result.nodes,
     edges: result.edges,
     pattern,
-    title: props.title,
-    supervisorLabel,
-    hasTitle,
     error: result.error,
   };
 }
@@ -324,66 +374,36 @@ export function layoutAgentCoordination(props: {
   title?: string;
 }): CompositeLayoutResult {
   const g = computeAgentCoordinationGeometry(props);
-
-  if (g.error) {
-    return { outer: g.outer, children: [], error: `AgentCoordination ${g.error}` };
-  }
-
+  if (g.error) return { outer: g.outer, children: [], error: g.error };
   const children: CompositeChild[] = [];
-  if (g.hasTitle && g.title) {
-    children.push({
-      kind: 'text',
-      bbox: {
-        x1: g.outer.x1,
-        y1: g.outer.y1,
-        x2: g.outer.x2,
-        y2: g.outer.y1 + TITLE_H,
-      },
-      label: g.title,
-    });
-  }
-  for (const n of g.nodes) {
-    children.push({ kind: 'node', bbox: nodeBox(n), label: n.label });
-  }
-  // Edges are visual but don't contribute to collision checks (arrows between nodes);
-  // still expose them for completeness.
+  if (g.titleBbox && g.title) children.push({ kind: 'text', bbox: g.titleBbox, label: g.title });
+  for (const n of g.nodes) children.push({ kind: 'node', bbox: nodeBox(n), label: n.label });
   for (const e of g.edges) {
-    children.push({
-      kind: 'edge',
-      bbox: {
-        x1: Math.min(e.from.cx, e.to.cx),
-        y1: Math.min(e.from.cy, e.to.cy),
-        x2: Math.max(e.from.cx, e.to.cx),
-        y2: Math.max(e.from.cy, e.to.cy),
-      },
-    });
+    children.push({ kind: 'edge', bbox: edgeBoxBetween(e.from, e.to) });
   }
-
   return { outer: g.outer, children };
 }
 
 export const AgentCoordination: React.FC<AgentCoordinationProps> = (props) => {
   const {
+    startFrame,
+    drawDuration = 20,
     x,
     y,
     w,
     h,
-    startFrame,
-    drawDuration = 20,
     pattern = 'supervisor',
-    agents = DEFAULT_AGENTS,
+    agents = ['Agent A', 'Agent B', 'Agent C', 'Agent D'],
     supervisor = 'Supervisor',
     title,
   } = props;
-
   const g = computeAgentCoordinationGeometry({ x, y, w, h, pattern, agents, supervisor, title });
+
   if (g.error) {
-    // Renderer surfaces the error in red so it's obvious when the validator
-    // was bypassed. Prod paths reject at plan time before this renders.
     return (
       <g>
         <HandWrittenText
-          text={`AgentCoordination layout error`}
+          text="AgentCoordination layout error"
           x={x + w / 2}
           y={y + h / 2 - 16}
           startFrame={startFrame}
@@ -406,13 +426,11 @@ export const AgentCoordination: React.FC<AgentCoordinationProps> = (props) => {
     );
   }
 
-  const rendered = { nodes: g.nodes, edges: g.edges };
-
-  const titleEl = g.hasTitle && title ? (
+  const titleEl = g.title && g.titleBbox ? (
     <HandWrittenText
-      text={title}
-      x={x + w / 2}
-      y={y + TITLE_H - 16}
+      text={g.title}
+      x={(g.titleBbox.x1 + g.titleBbox.x2) / 2}
+      y={g.titleBbox.y2 - 16}
       startFrame={startFrame}
       durationFrames={18}
       fontSize={40}
@@ -421,62 +439,46 @@ export const AgentCoordination: React.FC<AgentCoordinationProps> = (props) => {
     />
   ) : null;
 
-  // Root node is at index 0 for both supervisor and hierarchical patterns.
-  const rootNode = rendered.nodes[0];
-  const isSupervisorNode = (n: NodeSpec) =>
-    (pattern === 'supervisor' || pattern === 'hierarchical') && n === rootNode;
-  const isLead = (n: NodeSpec) => pattern === 'hierarchical' && (n.label === 'Lead 1' || n.label === 'Lead 2');
+  const nodeFill = (role: NodePos['role']): { fill: string; fillOpacity: number; stroke: string } => {
+    if (role === 'supervisor') return { fill: COLORS.orange, fillOpacity: 0.15, stroke: COLORS.orange };
+    if (role === 'lead') return { fill: COLORS.blue, fillOpacity: 0.12, stroke: COLORS.blue };
+    return { fill: COLORS.white, fillOpacity: 0, stroke: COLORS.outline };
+  };
 
   return (
     <g>
       {titleEl}
-      {rendered.nodes.map((n, i) => {
-        const fill = isSupervisorNode(n)
-          ? COLORS.orange
-          : isLead(n)
-            ? COLORS.blue
-            : COLORS.white;
-        const stroke = isSupervisorNode(n)
-          ? COLORS.orange
-          : isLead(n)
-            ? COLORS.blue
-            : COLORS.outline;
-        const fillOpacity = isSupervisorNode(n) ? 0.15 : isLead(n) ? 0.12 : 0;
+      {g.nodes.map((n, i) => {
+        const style = nodeFill(n.role);
         return (
           <GraphNode
             key={`node-${i}`}
             x={n.cx}
             y={n.cy}
             label={n.label}
-            width={n.w}
-            height={n.h}
-            fontSize={n.fontSize}
             startFrame={startFrame + i * 8}
             drawDuration={drawDuration}
-            fill={fill}
-            stroke={stroke}
-            fillOpacity={fillOpacity}
+            width={n.w}
+            height={n.h}
+            fill={style.fill}
+            fillOpacity={style.fillOpacity}
+            stroke={style.stroke}
           />
         );
       })}
-      {rendered.edges.map((e, i) => {
-        const fromSize = { w: e.from.w, h: e.from.h };
-        const toSize = { w: e.to.w, h: e.to.h };
-        const color = pattern === 'peer' ? COLORS.purple : COLORS.orange;
-        return (
-          <GraphEdge
-            key={`edge-${i}`}
-            from={{ x: e.from.cx, y: e.from.cy }}
-            to={{ x: e.to.cx, y: e.to.cy }}
-            fromSize={fromSize}
-            toSize={toSize}
-            startFrame={startFrame + rendered.nodes.length * 8 + i * 4}
-            drawDuration={14}
-            color={color}
-            directed={pattern !== 'peer'}
-          />
-        );
-      })}
+      {g.edges.map((e, i) => (
+        <GraphEdge
+          key={`edge-${i}`}
+          from={{ x: e.from.cx, y: e.from.cy }}
+          to={{ x: e.to.cx, y: e.to.cy }}
+          fromSize={{ w: e.from.w, h: e.from.h }}
+          toSize={{ w: e.to.w, h: e.to.h }}
+          directed={e.directed}
+          startFrame={startFrame + drawDuration + 10 + i * 5}
+          drawDuration={14}
+          color={e.color}
+        />
+      ))}
     </g>
   );
 };

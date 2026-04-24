@@ -21,20 +21,31 @@ export const ASSET_REGISTRY: AssetEntry[] = [
     previewPath: 'src/asset-index/previews/A1.png',
     propsSchema: {
       type: 'object',
-      required: ['startFrame'],
+      required: ['startFrame', 'x', 'y', 'w', 'h'],
       properties: {
         startFrame: { type: 'number' },
         drawDuration: { type: 'number', default: 20 },
         stepDelay: { type: 'number', default: 15 },
+        x: { type: 'number' },
+        y: { type: 'number' },
+        w: { type: 'number' },
+        h: { type: 'number' },
         steps: { type: 'array', items: { type: 'string' }, minItems: 3, maxItems: 3 },
         showMemory: { type: 'boolean', default: false },
         showTools: { type: 'boolean', default: false },
         highlightStep: { type: 'integer', enum: [0, 1, 2] },
-        cx: { type: 'number', default: 960 },
-        cy: { type: 'number', default: 540 },
-        radius: { type: 'number', default: 320 },
+        title: { type: 'string' },
       },
     },
+    sizingNotes:
+      'Accepts a placement rect {x, y, w, h}; the component inscribes an ' +
+      'equilateral triangle of 3 step nodes + cycling arrows (letterbox). ' +
+      'Minimum rect: ~520×440 (no title/tools) or ~560×500 (with title). ' +
+      'If `showTools` is true, the right ~280 px of the rect is reserved for ' +
+      'a Tools rail — add that to the width requirement. `showMemory` places ' +
+      'a circle inside the triangle centroid (no extra space needed). Nodes ' +
+      'auto-shrink to fit; the layout errors if any step label cannot render ' +
+      'at fontSize ≥ 18 in the computed node box.',
   },
   {
     id: 'A2',
@@ -54,19 +65,28 @@ export const ASSET_REGISTRY: AssetEntry[] = [
     previewPath: 'src/asset-index/previews/A2.png',
     propsSchema: {
       type: 'object',
-      required: ['startFrame'],
+      required: ['startFrame', 'x', 'y', 'w', 'h'],
       properties: {
         startFrame: { type: 'number' },
         drawDuration: { type: 'number', default: 25 },
+        x: { type: 'number' },
+        y: { type: 'number' },
+        w: { type: 'number' },
+        h: { type: 'number' },
         levels: { type: 'array', items: { type: 'string' } },
         labels: { type: 'array', items: { type: 'string' } },
         marker: { type: 'integer', minimum: 0 },
-        x: { type: 'number' },
-        y: { type: 'number' },
-        width: { type: 'number' },
         title: { type: 'string' },
       },
     },
+    sizingNotes:
+      'Accepts a placement rect {x, y, w, h}. Horizontal line with n ticks; ' +
+      'level labels (L1/L2/...) render at fontSize 40 and the descriptive ' +
+      'label at fontSize 28 centered under each tick. Min width scales with ' +
+      'n × (longest label width + ~16 px gap); e.g. ~880 for 4 L1–L4 + default ' +
+      'labels (longest "Autonomous"). Min height: ~200 px (content area) + ' +
+      '~64 px if title is set. Validator consumes `levelCount` and `labelMaxLen` ' +
+      'numeric hints to check feasibility without knowing the actual labels.',
   },
   {
     id: 'A3',
@@ -87,10 +107,14 @@ export const ASSET_REGISTRY: AssetEntry[] = [
     previewPath: 'src/asset-index/previews/A3.png',
     propsSchema: {
       type: 'object',
-      required: ['startFrame'],
+      required: ['startFrame', 'x', 'y', 'w', 'h'],
       properties: {
         startFrame: { type: 'number' },
         drawDuration: { type: 'number', default: 22 },
+        x: { type: 'number' },
+        y: { type: 'number' },
+        w: { type: 'number' },
+        h: { type: 'number' },
         layers: {
           type: 'array',
           items: {
@@ -104,14 +128,16 @@ export const ASSET_REGISTRY: AssetEntry[] = [
           },
         },
         highlightLayer: { type: 'integer', minimum: 0 },
-        x: { type: 'number' },
-        y: { type: 'number' },
-        width: { type: 'number' },
-        layerHeight: { type: 'number' },
-        gap: { type: 'number' },
         title: { type: 'string' },
       },
     },
+    sizingNotes:
+      'Accepts a placement rect {x, y, w, h}; layers stack vertically and ' +
+      'fill the rect (height is auto-distributed with ~8–24 px gaps, min ' +
+      'layer height 88 px). Min width depends on the widest layer label at ' +
+      'fontSize 40 plus 80 px horizontal padding (~400–800 px typical). Min ' +
+      'height: ~4 × 88 + 3 × gap + 72 (title) ≈ 440 for 4 default layers + ' +
+      'title. Validator consumes `layerCount` and `layerLabelMaxLen`.',
   },
   {
     id: 'A4',
@@ -183,10 +209,14 @@ export const ASSET_REGISTRY: AssetEntry[] = [
     previewPath: 'src/asset-index/previews/A5.png',
     propsSchema: {
       type: 'object',
-      required: ['startFrame'],
+      required: ['startFrame', 'x', 'y', 'w', 'h'],
       properties: {
         startFrame: { type: 'number' },
         drawDuration: { type: 'number', default: 30 },
+        x: { type: 'number' },
+        y: { type: 'number' },
+        w: { type: 'number' },
+        h: { type: 'number' },
         axes: { type: 'array', items: { type: 'string' }, minItems: 3, maxItems: 3 },
         point: {
           type: 'object',
@@ -197,12 +227,16 @@ export const ASSET_REGISTRY: AssetEntry[] = [
             c: { type: 'number' },
           },
         },
-        cx: { type: 'number' },
-        cy: { type: 'number' },
-        size: { type: 'number' },
         title: { type: 'string' },
       },
     },
+    sizingNotes:
+      'Accepts a placement rect {x, y, w, h}; the component inscribes an ' +
+      'equilateral triangle inside the rect and leaves margin for axis labels ' +
+      '(letterbox policy). Minimum rect: ~360×380 (no title) or ~360×440 (with title). ' +
+      'The triangle has an intrinsic aspect of ~1.155:1; non-matching rects ' +
+      'letterbox. The layout returns an error if the rect is too small; use ' +
+      'submitPlan to discover the exact minimum for your inputs.',
   },
   {
     id: 'A6',
@@ -224,10 +258,14 @@ export const ASSET_REGISTRY: AssetEntry[] = [
     previewPath: 'src/asset-index/previews/A6.png',
     propsSchema: {
       type: 'object',
-      required: ['startFrame', 'xAxis', 'yAxis', 'quadrants'],
+      required: ['startFrame', 'x', 'y', 'w', 'h', 'xAxis', 'yAxis', 'quadrants'],
       properties: {
         startFrame: { type: 'number' },
         drawDuration: { type: 'number', default: 25 },
+        x: { type: 'number' },
+        y: { type: 'number' },
+        w: { type: 'number' },
+        h: { type: 'number' },
         xAxis: {
           type: 'object',
           required: ['label', 'low', 'high'],
@@ -256,6 +294,12 @@ export const ASSET_REGISTRY: AssetEntry[] = [
         title: { type: 'string' },
       },
     },
+    sizingNotes:
+      'Accepts a placement rect {x, y, w, h}; the component inscribes a square ' +
+      '2×2 grid and reserves ~48 px (left, y-axis label) + ~56 px (bottom, x-axis ' +
+      'label) + ~56 px (top, title if set). Minimum rect: ~290×310 (no title) ' +
+      'or ~290×366 (with title). Square intrinsic aspect; non-matching rects ' +
+      'letterbox. Errors if the inscribed square would be below 240×240.',
   },
   {
     id: 'A7',
@@ -278,10 +322,14 @@ export const ASSET_REGISTRY: AssetEntry[] = [
     previewPath: 'src/asset-index/previews/A7.png',
     propsSchema: {
       type: 'object',
-      required: ['startFrame'],
+      required: ['startFrame', 'x', 'y', 'w', 'h'],
       properties: {
         startFrame: { type: 'number' },
         drawDuration: { type: 'number', default: 22 },
+        x: { type: 'number' },
+        y: { type: 'number' },
+        w: { type: 'number' },
+        h: { type: 'number' },
         stages: {
           type: 'array',
           items: {
@@ -298,6 +346,12 @@ export const ASSET_REGISTRY: AssetEntry[] = [
         title: { type: 'string' },
       },
     },
+    sizingNotes:
+      'Accepts a placement rect {x, y, w, h}. Horizontal row of n stage boxes ' +
+      'filling the rect, optional description band beneath. Min box 140×88; min ' +
+      'gap 20 px. Min width: n × 140 + (n-1) × 20. Min height: 88 + 72 (title ' +
+      'if set) + 84 (if any stage carries a `description`). Validator uses ' +
+      '`stageCount`, `stageLabelMaxLen`, `hasDescriptions` numeric hints.',
   },
   {
     id: 'A8',
@@ -320,24 +374,26 @@ export const ASSET_REGISTRY: AssetEntry[] = [
     previewPath: 'src/asset-index/previews/A8.png',
     propsSchema: {
       type: 'object',
-      required: ['startFrame', 'nodes', 'edges'],
+      required: ['startFrame', 'x', 'y', 'w', 'h', 'nodes', 'edges'],
       properties: {
         startFrame: { type: 'number' },
         drawDuration: { type: 'number', default: 20 },
         nodeDelay: { type: 'number', default: 10 },
+        x: { type: 'number' },
+        y: { type: 'number' },
+        w: { type: 'number' },
+        h: { type: 'number' },
         nodes: {
           type: 'array',
           items: {
             type: 'object',
-            required: ['id', 'label', 'x', 'y'],
+            required: ['id', 'label', 'row', 'col'],
             properties: {
               id: { type: 'string' },
               label: { type: 'string' },
               kind: { type: 'string', enum: ['box', 'diamond', 'terminal'] },
-              x: { type: 'number' },
-              y: { type: 'number' },
-              width: { type: 'number' },
-              height: { type: 'number' },
+              row: { type: 'integer', minimum: 0 },
+              col: { type: 'integer', minimum: 0 },
               color: { type: 'string' },
             },
           },
@@ -358,6 +414,14 @@ export const ASSET_REGISTRY: AssetEntry[] = [
         title: { type: 'string' },
       },
     },
+    sizingNotes:
+      'Accepts a placement rect {x, y, w, h}. Nodes carry explicit `{row, col}` ' +
+      'integers (0-indexed); the component computes pixel positions via pitch = ' +
+      '(grid_extent) / (rows-1 or cols-1). No DAG auto-layout; caller owns ' +
+      'topology. Min node 160×80 (box) or 160×108 (diamond). Min rect: ' +
+      'cols × 160 + (cols-1) × 40 + 80 (margins) on X; rows × 80 + (rows-1) × ' +
+      '40 + 80 + 72 (title) on Y. Validator uses `flowRows`, `flowCols`, ' +
+      '`flowNodeMaxLen` numeric hints.',
   },
   {
     id: 'A9',
@@ -402,9 +466,13 @@ export const ASSET_REGISTRY: AssetEntry[] = [
     previewPath: 'src/asset-index/previews/A10.png',
     propsSchema: {
       type: 'object',
-      required: ['startFrame', 'code'],
+      required: ['startFrame', 'x', 'y', 'w', 'h', 'code'],
       properties: {
         startFrame: { type: 'number' },
+        x: { type: 'number' },
+        y: { type: 'number' },
+        w: { type: 'number' },
+        h: { type: 'number' },
         code: { type: 'string' },
         language: { type: 'string' },
         highlightLines: { type: 'array', items: { type: 'integer' } },
@@ -414,6 +482,13 @@ export const ASSET_REGISTRY: AssetEntry[] = [
         title: { type: 'string' },
       },
     },
+    sizingNotes:
+      'Accepts a placement rect {x, y, w, h}; auto-fits the monospace fontSize ' +
+      'to fit lines×1.5 in height and longestLine×0.6 in width (floor 14 px). ' +
+      'Min rect depends on code volume — ~300×200 for 5 short lines, ~900×500 ' +
+      'for 20 × 80-char lines. Validator takes `lineCount` and `maxLineLength` ' +
+      'to check feasibility without seeing the actual code. Errors if the code ' +
+      "won't fit even at fontSize=14.",
   },
   {
     id: 'A11',
@@ -433,21 +508,15 @@ export const ASSET_REGISTRY: AssetEntry[] = [
     previewPath: 'src/asset-index/previews/A11.png',
     propsSchema: {
       type: 'object',
-      required: ['startFrame', 'target'],
+      required: ['startFrame', 'x', 'y', 'w', 'h'],
       properties: {
         startFrame: { type: 'number' },
         drawDuration: { type: 'number', default: 18 },
+        x: { type: 'number' },
+        y: { type: 'number' },
+        w: { type: 'number' },
+        h: { type: 'number' },
         style: { type: 'string', enum: ['highlight', 'spotlight', 'callout'] },
-        target: {
-          type: 'object',
-          required: ['x', 'y'],
-          properties: {
-            x: { type: 'number' },
-            y: { type: 'number' },
-            width: { type: 'number' },
-            height: { type: 'number' },
-          },
-        },
         label: { type: 'string' },
         labelPosition: {
           type: 'string',
@@ -457,6 +526,14 @@ export const ASSET_REGISTRY: AssetEntry[] = [
         pulse: { type: 'boolean' },
       },
     },
+    sizingNotes:
+      '{x, y, w, h} is the TARGET rect to highlight/annotate (top-left based). ' +
+      'The annotation extends OUTSIDE the target: ~14 px padding for highlight ' +
+      'style, ~60% × max(w,h) radius for spotlight, plus a label bbox at ~20 px ' +
+      "beyond the highlight edge. The layout's `outer` bbox is the union of " +
+      'target + highlight + label (what the validator uses for cross-element ' +
+      'collision checks). Minimum target: 40×40. Leave at least ~80 px clearance ' +
+      'on the side where the label is placed.',
   },
   {
     id: 'A12',
@@ -478,10 +555,14 @@ export const ASSET_REGISTRY: AssetEntry[] = [
     previewPath: 'src/asset-index/previews/A12.png',
     propsSchema: {
       type: 'object',
-      required: ['startFrame', 'data'],
+      required: ['startFrame', 'x', 'y', 'w', 'h', 'data'],
       properties: {
         startFrame: { type: 'number' },
         drawDuration: { type: 'number', default: 40 },
+        x: { type: 'number' },
+        y: { type: 'number' },
+        w: { type: 'number' },
+        h: { type: 'number' },
         data: {
           type: 'array',
           items: {
@@ -514,6 +595,12 @@ export const ASSET_REGISTRY: AssetEntry[] = [
         title: { type: 'string' },
       },
     },
+    sizingNotes:
+      'Accepts a placement rect {x, y, w, h}. Reserves ~50 px left for y-axis ' +
+      'label, ~50 px bottom for x-axis label, ~56 px top for title (each only ' +
+      'if the label is present). Min plot area: 200×150. Typical minimum rect: ' +
+      '~250×200 (no labels) or ~356×306 (with title, x/y labels). No intrinsic ' +
+      'aspect — use whatever rect the content demands.',
   },
   {
     id: 'B1',
@@ -535,15 +622,24 @@ export const ASSET_REGISTRY: AssetEntry[] = [
     previewPath: 'src/asset-index/previews/B1.png',
     propsSchema: {
       type: 'object',
-      required: ['startFrame'],
+      required: ['startFrame', 'x', 'y', 'w', 'h'],
       properties: {
         startFrame: { type: 'number' },
+        x: { type: 'number' },
+        y: { type: 'number' },
+        w: { type: 'number' },
+        h: { type: 'number' },
         phases: { type: 'array', items: { type: 'string' }, minItems: 4, maxItems: 4 },
         descriptions: { type: 'array', items: { type: 'string' }, minItems: 4, maxItems: 4 },
         highlightPhase: { type: 'integer', enum: [0, 1, 2, 3] },
         title: { type: 'string' },
       },
     },
+    sizingNotes:
+      'Accepts a placement rect {x, y, w, h}; delegates to MaturityProgression ' +
+      'with 4 phase boxes and descriptions. Minimum rect: ~640×256 (no title) ' +
+      'or ~640×328 (with title). If `highlightPhase` is set, a "← current ' +
+      'phase" marker renders at the bottom of the rect.',
   },
   {
     id: 'B2',
@@ -565,15 +661,23 @@ export const ASSET_REGISTRY: AssetEntry[] = [
     previewPath: 'src/asset-index/previews/B2.png',
     propsSchema: {
       type: 'object',
-      required: ['startFrame'],
+      required: ['startFrame', 'x', 'y', 'w', 'h'],
       properties: {
         startFrame: { type: 'number' },
+        x: { type: 'number' },
+        y: { type: 'number' },
+        w: { type: 'number' },
+        h: { type: 'number' },
         maxRetries: { type: 'integer', default: 3 },
         backoffSeconds: { type: 'array', items: { type: 'number' } },
         circuitBreaker: { type: 'boolean', default: true },
         title: { type: 'string' },
       },
     },
+    sizingNotes:
+      'Accepts a placement rect {x, y, w, h}; delegates to FlowchartBuilder ' +
+      'with a 3×3 grid (or 2×3 when `circuitBreaker=false`). Minimum rect ' +
+      '~600×440 (2×3) or ~600×560 (3×3), +72 px if title is set.',
   },
   {
     id: 'B3',
@@ -595,15 +699,27 @@ export const ASSET_REGISTRY: AssetEntry[] = [
     previewPath: 'src/asset-index/previews/B3.png',
     propsSchema: {
       type: 'object',
-      required: ['startFrame', 'steps', 'finalAnswer'],
+      required: ['startFrame', 'x', 'y', 'w', 'h', 'steps', 'finalAnswer'],
       properties: {
         startFrame: { type: 'number' },
+        x: { type: 'number' },
+        y: { type: 'number' },
+        w: { type: 'number' },
+        h: { type: 'number' },
         steps: { type: 'array', items: { type: 'string' } },
         finalAnswer: { type: 'string' },
         schema: { type: 'string' },
         title: { type: 'string' },
       },
     },
+    sizingNotes:
+      'Accepts a placement rect {x, y, w, h}. Vertical stack of n step boxes ' +
+      'plus one final-answer box (green) with connecting arrows. When `schema` ' +
+      'is set, the right ~38% of the rect hosts a CodeBlock (min schema column ' +
+      '400 px); without schema, the trace column fills the full width. Min ' +
+      'trace column: 400 px. Min height: 72 (title) + (n+1) × 80 + n × 30. ' +
+      'Validator uses `stepCount`, `stepMaxLen`, `hasSchema`, `schemaLineCount`, ' +
+      '`schemaMaxLineLength` as numeric hints.',
   },
   {
     id: 'B4',
@@ -625,14 +741,22 @@ export const ASSET_REGISTRY: AssetEntry[] = [
     previewPath: 'src/asset-index/previews/B4.png',
     propsSchema: {
       type: 'object',
-      required: ['startFrame'],
+      required: ['startFrame', 'x', 'y', 'w', 'h'],
       properties: {
         startFrame: { type: 'number' },
+        x: { type: 'number' },
+        y: { type: 'number' },
+        w: { type: 'number' },
+        h: { type: 'number' },
         stages: { type: 'array', items: { type: 'string' }, minItems: 4, maxItems: 4 },
         showDecayReturn: { type: 'boolean', default: true },
         title: { type: 'string' },
       },
     },
+    sizingNotes:
+      'Accepts a placement rect {x, y, w, h}; delegates to FlowchartBuilder ' +
+      'with a 1×4 grid. Minimum rect ~800×240 (no title) or ~800×312 (with ' +
+      'title). `showDecayReturn=true` adds a back-edge from s3 to s1.',
   },
   {
     id: 'B5',
@@ -654,15 +778,26 @@ export const ASSET_REGISTRY: AssetEntry[] = [
     previewPath: 'src/asset-index/previews/B5.png',
     propsSchema: {
       type: 'object',
-      required: ['startFrame'],
+      required: ['startFrame', 'x', 'y', 'w', 'h'],
       properties: {
         startFrame: { type: 'number' },
+        x: { type: 'number' },
+        y: { type: 'number' },
+        w: { type: 'number' },
+        h: { type: 'number' },
         generatorLabel: { type: 'string' },
         criticLabel: { type: 'string' },
         iterations: { type: 'integer', default: 3 },
         title: { type: 'string' },
       },
     },
+    sizingNotes:
+      'Accepts a placement rect {x, y, w, h}. Two nodes spaced at 28%/72% of ' +
+      'the rect width with bidirectional arrows ("draft" above, "critique" ' +
+      'below) and iterations label below. Nodes auto-fit: default 300×140, ' +
+      'minimum 160×80. Min width: 2 × MIN_NODE_W + 80 = 400 px. Min height: ' +
+      '72 (title) + 80 (node) + 56 (iterations label) ≈ 208 px. Layout errors ' +
+      'if labels don\'t fit at fontSize ≥ 18.',
   },
   {
     id: 'B6',
@@ -683,15 +818,25 @@ export const ASSET_REGISTRY: AssetEntry[] = [
     previewPath: 'src/asset-index/previews/B6.png',
     propsSchema: {
       type: 'object',
-      required: ['startFrame'],
+      required: ['startFrame', 'x', 'y', 'w', 'h'],
       properties: {
         startFrame: { type: 'number' },
+        x: { type: 'number' },
+        y: { type: 'number' },
+        w: { type: 'number' },
+        h: { type: 'number' },
         stages: { type: 'array', items: { type: 'string' }, minItems: 3, maxItems: 3 },
         currentStage: { type: 'integer', enum: [0, 1, 2] },
         descriptions: { type: 'array', items: { type: 'string' }, minItems: 3, maxItems: 3 },
         title: { type: 'string' },
       },
     },
+    sizingNotes:
+      'Accepts a placement rect {x, y, w, h}; splits vertically into a top band ' +
+      '(~35 % height, MaturityProgression with 3 stages) and — when ' +
+      '`currentStage` is set — a bottom band hosting AgentCoordination in the ' +
+      'matching pattern (supervisor/hierarchical/peer for stage 0/1/2). ' +
+      'Minimum rect ~640×720 when `currentStage` is set; ~640×260 when not.',
   },
   {
     id: 'B7',
@@ -714,19 +859,21 @@ export const ASSET_REGISTRY: AssetEntry[] = [
     previewPath: 'src/asset-index/previews/B7.png',
     propsSchema: {
       type: 'object',
-      required: ['startFrame', 'entities', 'relationships'],
+      required: ['startFrame', 'x', 'y', 'w', 'h', 'entities', 'relationships'],
       properties: {
         startFrame: { type: 'number' },
+        x: { type: 'number' },
+        y: { type: 'number' },
+        w: { type: 'number' },
+        h: { type: 'number' },
         entities: {
           type: 'array',
           items: {
             type: 'object',
-            required: ['id', 'label', 'x', 'y'],
+            required: ['id', 'label'],
             properties: {
               id: { type: 'string' },
               label: { type: 'string' },
-              x: { type: 'number' },
-              y: { type: 'number' },
               shape: { type: 'string', enum: ['box', 'circle', 'diamond'] },
               color: { type: 'string' },
             },
@@ -749,6 +896,13 @@ export const ASSET_REGISTRY: AssetEntry[] = [
         title: { type: 'string' },
       },
     },
+    sizingNotes:
+      'Accepts a placement rect {x, y, w, h}. Entities are placed evenly around ' +
+      'a circle inscribed in the rect (positions computed by the component; ' +
+      'entity objects no longer carry x/y). Chord constraint between adjacent ' +
+      'nodes requires 2r·sin(π/n) ≥ nodeW + 16. Min rect ~640×640 for 6 ' +
+      'entities at default label size; scales up with entity count and label ' +
+      'length. Validator uses `entityCount`, `entityLabelMaxLen`.',
   },
   {
     id: 'B8',
@@ -770,9 +924,13 @@ export const ASSET_REGISTRY: AssetEntry[] = [
     previewPath: 'src/asset-index/previews/B8.png',
     propsSchema: {
       type: 'object',
-      required: ['startFrame', 'columns', 'rows'],
+      required: ['startFrame', 'x', 'y', 'w', 'h', 'columns', 'rows'],
       properties: {
         startFrame: { type: 'number' },
+        x: { type: 'number' },
+        y: { type: 'number' },
+        w: { type: 'number' },
+        h: { type: 'number' },
         columns: { type: 'array', items: { type: 'string' } },
         rows: { type: 'array', items: { type: 'array', items: { type: 'string' } } },
         highlightCells: {
@@ -782,6 +940,12 @@ export const ASSET_REGISTRY: AssetEntry[] = [
         title: { type: 'string' },
       },
     },
+    sizingNotes:
+      'Accepts a placement rect {x, y, w, h}. Grid with header row + n data ' +
+      'rows × m columns, centered in the rect. Min col width: 140 px; min ' +
+      'row height: 48 px; font auto-scales down to 18 px for long cells. Min ' +
+      'width: m × 140. Min height: (n+1) × 48 + 80 (title if set). Validator ' +
+      'uses `columnCount`, `rowCount`, `cellMaxLen` numeric hints.',
   },
   {
     id: 'C1',

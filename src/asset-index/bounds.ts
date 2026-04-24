@@ -149,44 +149,6 @@ export function sketchBoxBox(opts: {
   return { x1: x, y1: y, x2: x + width, y2: y + effectiveHeight };
 }
 
-const NODE_W = 220;
-const NODE_H = 96;
-
-/**
- * Generic fallback bbox for diagrams whose layout isn't modelled explicitly
- * (i.e. not yet retrofitted to the colocated-layout contract). Approximates
- * the diagram as a rect derived from `width`/`height` or as a square of side
- * `2 * radius + NODE_W` centered at (cx, cy). Coarse but better than no
- * check at all.
- *
- * Diagrams that have been retrofitted export their own `layout<Name>` pure
- * function returning a `CompositeLayoutResult`; validator calls those
- * directly and does not route through this fallback.
- */
-export function genericDiagramBox(props: {
-  cx?: number;
-  cy?: number;
-  radius?: number;
-  width?: number;
-  x?: number;
-  y?: number;
-  w?: number;
-  h?: number;
-}): Box {
-  if (props.x !== undefined && props.y !== undefined && props.w !== undefined && props.h !== undefined) {
-    return { x1: props.x, y1: props.y, x2: props.x + props.w, y2: props.y + props.h };
-  }
-  const cx = props.cx ?? 960;
-  const cy = props.cy ?? 540;
-  if (props.width) {
-    return { x1: cx - props.width / 2, y1: cy - 200, x2: cx + props.width / 2, y2: cy + 200 };
-  }
-  const radius = props.radius ?? 300;
-  const w = 2 * radius + NODE_W;
-  const h = 2 * radius + NODE_H;
-  return { x1: cx - w / 2, y1: cy - h / 2, x2: cx + w / 2, y2: cy + h / 2 };
-}
-
 /** Safe canvas zone: x ∈ [120, 1800], y ∈ [120, 960]. */
 export const SAFE_ZONE: Box = { x1: 120, y1: 120, x2: 1800, y2: 960 };
 

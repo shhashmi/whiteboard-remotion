@@ -20,6 +20,10 @@ export const A2Test: React.FC = () => (
     <SVG>
       <AutonomySpectrum
         startFrame={0}
+        x={160}
+        y={320}
+        w={1600}
+        h={440}
         title="Agent Autonomy Spectrum"
         marker={2}
       />
@@ -32,6 +36,10 @@ export const A3Test: React.FC = () => (
     <SVG>
       <MemoryArchitecture
         startFrame={0}
+        x={560}
+        y={140}
+        w={800}
+        h={820}
         title="Agent Memory Architecture"
         highlightLayer={1}
       />
@@ -93,6 +101,10 @@ export const A5Test: React.FC = () => (
     <SVG>
       <TradeoffTriangle
         startFrame={0}
+        x={520}
+        y={120}
+        w={880}
+        h={840}
         title="Cost / Latency / Accuracy"
         point={{ a: 1, b: 2, c: 3 }}
       />
@@ -105,6 +117,10 @@ export const A6Test: React.FC = () => (
     <SVG>
       <TradeoffMatrix
         startFrame={0}
+        x={520}
+        y={120}
+        w={880}
+        h={840}
         title="Effort vs Impact"
         xAxis={{ label: 'Effort', low: 'Low', high: 'High' }}
         yAxis={{ label: 'Impact', low: 'Low', high: 'High' }}
@@ -125,6 +141,10 @@ export const A7Test: React.FC = () => (
     <SVG>
       <MaturityProgression
         startFrame={0}
+        x={100}
+        y={240}
+        w={1720}
+        h={560}
         title="Enterprise AI Adoption Stages"
         currentStage={2}
         stages={[
@@ -143,13 +163,17 @@ export const A8Test: React.FC = () => (
     <SVG>
       <FlowchartBuilder
         startFrame={0}
+        x={140}
+        y={140}
+        w={1640}
+        h={800}
         title="Tool Call Decision"
         nodes={[
-          { id: 'start', label: 'Start', kind: 'terminal', x: 300, y: 200 },
-          { id: 'check', label: 'Need tool?', kind: 'diamond', x: 600, y: 400 },
-          { id: 'call', label: 'Call tool', kind: 'box', x: 960, y: 400 },
-          { id: 'answer', label: 'Answer directly', kind: 'box', x: 600, y: 700 },
-          { id: 'end', label: 'End', kind: 'terminal', x: 1280, y: 600 },
+          { id: 'start', label: 'Start', kind: 'terminal', row: 0, col: 1 },
+          { id: 'check', label: 'Need tool?', kind: 'diamond', row: 1, col: 1 },
+          { id: 'call', label: 'Call tool', kind: 'box', row: 1, col: 2 },
+          { id: 'answer', label: 'Answer directly', kind: 'box', row: 2, col: 1 },
+          { id: 'end', label: 'End', kind: 'terminal', row: 2, col: 2 },
         ]}
         edges={[
           { from: 'start', to: 'check' },
@@ -196,6 +220,10 @@ export const A10Test: React.FC = () => (
   <AbsoluteFill style={{ backgroundColor: BG }}>
     <CodeBlock
       startFrame={0}
+      x={280}
+      y={180}
+      w={1360}
+      h={720}
       title="Function calling schema"
       language="python"
       code={`def search(query: str, top_k: int = 5) -> list[str]:
@@ -219,7 +247,10 @@ export const A11Test: React.FC = () => (
       <AnnotationHighlight
         startFrame={15}
         style="highlight"
-        target={{ x: 500, y: 450, width: 320, height: 110 }}
+        x={340}
+        y={395}
+        w={320}
+        h={110}
         label="Highlight style"
         labelPosition="above"
       />
@@ -227,7 +258,10 @@ export const A11Test: React.FC = () => (
       <AnnotationHighlight
         startFrame={20}
         style="callout"
-        target={{ x: 1400, y: 450, width: 320, height: 110 }}
+        x={1240}
+        y={395}
+        w={320}
+        h={110}
         label="Callout points here"
         labelPosition="above"
       />
@@ -244,7 +278,10 @@ export const A11SpotlightTest: React.FC = () => (
       <AnnotationHighlight
         startFrame={15}
         style="spotlight"
-        target={{ x: 960, y: 540, width: 300, height: 110 }}
+        x={810}
+        y={485}
+        w={300}
+        h={110}
         label="Spotlight style"
         labelPosition="below"
       />
@@ -257,6 +294,10 @@ export const A12Test: React.FC = () => (
     <SVG>
       <LineChart
         startFrame={0}
+        x={220}
+        y={140}
+        w={1480}
+        h={820}
         title="Accuracy vs Sample Count"
         xLabel="Samples"
         yLabel="Accuracy %"
